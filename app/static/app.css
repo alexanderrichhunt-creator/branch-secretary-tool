@@ -1,0 +1,30 @@
+:root {
+  --bs-body-font-size: 1.1rem;
+}
+
+body {
+  font-size: 1.1rem;
+}
+
+.container-max {
+  max-width: 1200px;
+}
+
+.card {
+  border-radius: 14px;
+}
+
+.form-control,
+.form-select,
+.btn {
+  font-size: 1.05rem;
+}
+
+.big-label {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.muted {
+  color: rgba(0, 0, 0, 0.6);
+}

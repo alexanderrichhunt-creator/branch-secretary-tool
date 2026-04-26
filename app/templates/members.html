@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <div>
+    <h1 class="h2 fw-bold mb-1">Members</h1>
+    <div class="muted">Search, add members, and import from CSV.</div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <div class="fw-bold mb-1">Import from your `directory.csv`</div>
+          <div class="small">
+            Upload the file you mentioned (usually in Downloads). This will create new members and fill in missing gender/birthdate/category.
+          </div>
+          <form class="mt-3" method="post" action="{{ url_for('main.import_members_csv') }}" enctype="multipart/form-data">
+            <input class="form-control form-control-lg mb-2" type="file" name="file" accept=".csv,text/csv" required />
+            <button class="btn btn-outline-primary btn-lg" type="submit">Import CSV</button>
+          </form>
+        </div>
+
+        {% if current_user.role == "admin" %}
+        <div class="alert alert-danger">
+          <div class="fw-bold mb-1">Danger zone</div>
+          <div class="small">
+            This deletes <b>all</b> members and related talks/interviews. To confirm, type <b>DELETE</b>.
+          </div>
+          <form class="mt-3" method="post" action="{{ url_for('main.reset_members') }}">
+            <div class="d-flex gap-2">
+              <input class="form-control form-control-lg" name="confirm" placeholder="Type DELETE" />
+              <button class="btn btn-danger btn-lg" type="submit">Delete all members</button>
+            </div>
+          </form>
+        </div>
+        {% endif %}
+
+        <h2 class="h4 fw-bold mb-3">Add member</h2>
+        <form method="post" action="{{ url_for('main.add_member') }}">
+          <div class="mb-3">
+            <label class="form-label big-label" for="full_name">Full name</label>
+            <input class="form-control form-control-lg" id="full_name" name="full_name" required />
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label big-label" for="gender">Gender</label>
+              <select class="form-select form-select-lg" id="gender" name="gender">
+                <option value="">(optional)</option>
+                <option value="F">F</option>
+                <option value="M">M</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label big-label" for="group_label">Group</label>
+              <select class="form-select form-select-lg" id="group_label" name="group_label">
+                <option value="">(optional)</option>
+                <option value="Adult">Adult</option>
+                <option value="Youth">Youth</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="birthdate">Birthdate</label>
+            <input class="form-control form-control-lg" type="date" id="birthdate" name="birthdate" />
+          </div>
+          <button class="btn btn-primary btn-lg" type="submit">Add</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+          <h2 class="h4 fw-bold mb-0">Member list</h2>
+          <form class="d-flex gap-2" method="get" action="{{ url_for('main.members') }}">
+            <input class="form-control form-control-lg" name="q" value="{{ q }}" placeholder="Search name..." />
+            <button class="btn btn-outline-primary btn-lg" type="submit">Search</button>
+          </form>
+        </div>
+        <div class="small muted mb-3">Tip: click into the date fields and type or use the picker.</div>
+
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th class="text-nowrap">Birthdate</th>
+                <th class="text-nowrap">Age</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in members %}
+                <tr>
+                  <td class="fw-bold">{{ m.full_name }}</td>
+                  <td class="text-nowrap">
+                    {% if m.birthdate %}
+                      {{ m.birthdate.strftime("%b %d, %Y") }}
+                    {% else %}
+                      <span class="muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-nowrap">
+                    {% if m.birthdate %}
+                      {% set age = today.year - m.birthdate.year - ((today.month, today.day) < (m.birthdate.month, m.birthdate.day)) %}
+                      {{ age }}
+                    {% else %}
+                      <span class="muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    {% if current_user.role == "admin" %}
+                      <form method="post" action="{{ url_for('main.delete_member', member_id=m.id, q=q) }}" onsubmit="return confirm('Delete {{ m.full_name }}? This also deletes their talks/interviews.');">
+                        <button class="btn btn-outline-danger btn-sm" type="submit">Delete</button>
+                      </form>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

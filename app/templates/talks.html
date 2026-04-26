@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <div>
+    <h1 class="h2 fw-bold mb-1">Talks</h1>
+    <div class="muted">Log who spoke and what they spoke about.</div>
+  </div>
+  <a class="btn btn-outline-primary btn-lg" href="{{ url_for('main.calendar') }}">Calendar view</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h2 class="h4 fw-bold mb-3">Add a talk</h2>
+        <form method="post" action="{{ url_for('main.add_talk') }}">
+          <div class="mb-3">
+            <label class="form-label big-label" for="member_id">Speaker</label>
+            <input class="form-control form-control-lg mb-2" id="member_filter" placeholder="Type a name to filter..." autocomplete="off" />
+            <select class="form-select form-select-lg" id="member_id" name="member_id" required>
+              <option value="">Select a member...</option>
+              {% for m in members %}
+                <option value="{{ m.id }}">{{ m.full_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="talk_date">Date</label>
+            <input class="form-control form-control-lg" type="date" id="talk_date" name="talk_date" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="topic">Topic</label>
+            <input class="form-control form-control-lg" id="topic" name="topic" placeholder="Faith, Atonement, Service..." required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="notes">Notes (optional)</label>
+            <textarea class="form-control form-control-lg" id="notes" name="notes" rows="3"></textarea>
+          </div>
+          <button class="btn btn-primary btn-lg" type="submit">Save talk</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h2 class="h4 fw-bold mb-3">Recent talks</h2>
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Speaker</th>
+                <th>Topic</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in talks %}
+                <tr>
+                  <td class="text-nowrap">{{ t.talk_date.strftime("%b %d, %Y") }}</td>
+                  <td class="fw-bold">{{ member_label(t.member) }}</td>
+                  <td>{{ t.topic }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    const input = document.getElementById('member_filter');
+    const select = document.getElementById('member_id');
+    if (!input || !select) return;
+
+    const options = Array.from(select.options);
+    const keepFirst = options[0];
+
+    function applyFilter() {
+      const q = (input.value || '').trim().toLowerCase();
+
+      // Always keep the placeholder as the first option.
+      select.innerHTML = '';
+      select.appendChild(keepFirst);
+
+      for (const opt of options.slice(1)) {
+        const text = (opt.textContent || '').toLowerCase();
+        if (!q || text.includes(q)) {
+          select.appendChild(opt);
+        }
+      }
+    }
+
+    input.addEventListener('input', applyFilter);
+  })();
+</script>
+{% endblock %}

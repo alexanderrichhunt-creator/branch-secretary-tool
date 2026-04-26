@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <div>
+    <h1 class="h2 fw-bold mb-1">Interviews</h1>
+    <div class="muted">Schedule interviews and keep a simple list.</div>
+  </div>
+  <a class="btn btn-outline-primary btn-lg" href="{{ url_for('main.calendar') }}">Calendar view</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h2 class="h4 fw-bold mb-3">Add an interview</h2>
+        <form method="post" action="{{ url_for('main.add_interview') }}">
+          <div class="mb-3">
+            <label class="form-label big-label" for="starts_at">Start date & time</label>
+            <input class="form-control form-control-lg" type="datetime-local" id="starts_at" name="starts_at" required />
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label big-label" for="duration_minutes">Minutes</label>
+              <input class="form-control form-control-lg" type="number" id="duration_minutes" name="duration_minutes" value="15" min="5" max="180" />
+            </div>
+            <div class="col-6">
+              <label class="form-label big-label" for="member_id">Member (optional)</label>
+              <input class="form-control form-control-lg mb-2" id="member_filter" placeholder="Type a name to filter..." autocomplete="off" />
+              <select class="form-select form-select-lg" id="member_id" name="member_id">
+                <option value="">(none)</option>
+                {% for m in members %}
+                  <option value="{{ m.id }}">{{ m.full_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="purpose">Purpose</label>
+            <input class="form-control form-control-lg" id="purpose" name="purpose" value="Interview" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="notes">Notes (optional)</label>
+            <textarea class="form-control form-control-lg" id="notes" name="notes" rows="3"></textarea>
+          </div>
+          <button class="btn btn-success btn-lg" type="submit">Save interview</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h2 class="h4 fw-bold mb-3">Recent interviews</h2>
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Start</th>
+                <th>Who</th>
+                <th>Purpose</th>
+                <th>Minutes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for i in interviews %}
+                <tr>
+                  <td class="text-nowrap">{{ i.starts_at.strftime("%b %d, %Y %I:%M %p") }}</td>
+                  <td class="fw-bold">{% if i.member %}{{ member_label(i.member) }}{% else %}(none){% endif %}</td>
+                  <td>{{ i.purpose }}</td>
+                  <td>{{ i.duration_minutes }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    const input = document.getElementById('member_filter');
+    const select = document.getElementById('member_id');
+    if (!input || !select) return;
+
+    const options = Array.from(select.options);
+    const keepFirst = options[0];
+
+    function applyFilter() {
+      const q = (input.value || '').trim().toLowerCase();
+      select.innerHTML = '';
+      select.appendChild(keepFirst);
+      for (const opt of options.slice(1)) {
+        const text = (opt.textContent || '').toLowerCase();
+        if (!q || text.includes(q)) {
+          select.appendChild(opt);
+        }
+      }
+    }
+
+    input.addEventListener('input', applyFilter);
+  })();
+</script>
+{% endblock %}

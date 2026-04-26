@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h1 class="h3 fw-bold mb-3">Create a user</h1>
+        <p class="muted mb-4">Admins can create accounts for presidency members.</p>
+
+        <form method="post" action="{{ url_for('auth.create_user_post') }}">
+          <div class="mb-3">
+            <label class="form-label big-label" for="email">Email</label>
+            <input class="form-control form-control-lg" type="email" id="email" name="email" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="password">Temporary password</label>
+            <input class="form-control form-control-lg" type="text" id="password" name="password" required />
+            <div class="form-text">The user can keep this or you can add a “change password” page later.</div>
+          </div>
+          <button class="btn btn-primary btn-lg" type="submit">Create user</button>
+          <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.dashboard') }}">Cancel</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
