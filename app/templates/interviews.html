@@ -60,6 +60,7 @@
                 <th>Who</th>
                 <th>Purpose</th>
                 <th>Minutes</th>
+                <th class="text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -69,6 +70,12 @@
                   <td class="fw-bold">{% if i.member %}{{ member_label(i.member) }}{% else %}(none){% endif %}</td>
                   <td>{{ i.purpose }}</td>
                   <td>{{ i.duration_minutes }}</td>
+                  <td class="text-end text-nowrap">
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.edit_interview', interview_id=i.id) }}">Edit</a>
+                    <form class="d-inline" method="post" action="{{ url_for('main.delete_interview', interview_id=i.id) }}" onsubmit="return confirm('Delete this interview?');">
+                      <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                    </form>
+                  </td>
                 </tr>
               {% endfor %}
             </tbody>

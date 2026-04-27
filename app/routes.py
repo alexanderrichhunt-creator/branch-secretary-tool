@@ -244,6 +244,53 @@ def add_talk():
     return redirect(url_for("main.talks"))
 
 
+@main_bp.get("/talks/<int:talk_id>/edit")
+@login_required
+def edit_talk(talk_id: int):
+    talk = Talk.query.get_or_404(talk_id)
+    members = Member.query.order_by(Member.full_name.asc()).all()
+    return render_template("talk_edit.html", talk=talk, members=members)
+
+
+@main_bp.post("/talks/<int:talk_id>/edit")
+@login_required
+def edit_talk_post(talk_id: int):
+    talk = Talk.query.get_or_404(talk_id)
+
+    member_id = int(request.form.get("member_id") or "0")
+    talk_date_raw = (request.form.get("talk_date") or "").strip()
+    topic = (request.form.get("topic") or "").strip()
+    notes = (request.form.get("notes") or "").strip() or None
+
+    if not (member_id and talk_date_raw and topic):
+        flash("Speaker, date, and topic are required.", "warning")
+        return redirect(url_for("main.edit_talk", talk_id=talk_id))
+
+    try:
+        talk.talk_date = datetime.strptime(talk_date_raw, "%Y-%m-%d").date()
+    except Exception:
+        flash("Invalid date.", "warning")
+        return redirect(url_for("main.edit_talk", talk_id=talk_id))
+
+    talk.member_id = member_id
+    talk.topic = topic
+    talk.notes = notes
+    db.session.commit()
+
+    flash("Talk updated.", "success")
+    return redirect(url_for("main.talks"))
+
+
+@main_bp.post("/talks/<int:talk_id>/delete")
+@login_required
+def delete_talk(talk_id: int):
+    talk = Talk.query.get_or_404(talk_id)
+    db.session.delete(talk)
+    db.session.commit()
+    flash("Talk deleted.", "success")
+    return redirect(url_for("main.talks"))
+
+
 @main_bp.get("/interviews")
 @login_required
 def interviews():
@@ -273,6 +320,56 @@ def add_interview():
         )
         db.session.add(i)
         db.session.commit()
+    return redirect(url_for("main.interviews"))
+
+
+@main_bp.get("/interviews/<int:interview_id>/edit")
+@login_required
+def edit_interview(interview_id: int):
+    interview = Interview.query.get_or_404(interview_id)
+    members = Member.query.order_by(Member.full_name.asc()).all()
+    return render_template("interview_edit.html", interview=interview, members=members)
+
+
+@main_bp.post("/interviews/<int:interview_id>/edit")
+@login_required
+def edit_interview_post(interview_id: int):
+    interview = Interview.query.get_or_404(interview_id)
+
+    member_id_raw = (request.form.get("member_id") or "").strip()
+    starts_at_raw = (request.form.get("starts_at") or "").strip()
+    duration_minutes = int(request.form.get("duration_minutes") or "15")
+    purpose = (request.form.get("purpose") or "Interview").strip() or "Interview"
+    notes = (request.form.get("notes") or "").strip() or None
+
+    if not starts_at_raw:
+        flash("Start date & time is required.", "warning")
+        return redirect(url_for("main.edit_interview", interview_id=interview_id))
+
+    try:
+        starts_at = datetime.strptime(starts_at_raw, "%Y-%m-%dT%H:%M")
+    except Exception:
+        flash("Invalid start date & time.", "warning")
+        return redirect(url_for("main.edit_interview", interview_id=interview_id))
+
+    interview.starts_at = starts_at
+    interview.duration_minutes = max(5, min(duration_minutes, 180))
+    interview.purpose = purpose
+    interview.notes = notes
+    interview.member_id = int(member_id_raw) if member_id_raw else None
+    db.session.commit()
+
+    flash("Interview updated.", "success")
+    return redirect(url_for("main.interviews"))
+
+
+@main_bp.post("/interviews/<int:interview_id>/delete")
+@login_required
+def delete_interview(interview_id: int):
+    interview = Interview.query.get_or_404(interview_id)
+    db.session.delete(interview)
+    db.session.commit()
+    flash("Interview deleted.", "success")
     return redirect(url_for("main.interviews"))
 
 

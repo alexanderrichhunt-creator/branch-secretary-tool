@@ -53,6 +53,7 @@
                 <th>Date</th>
                 <th>Speaker</th>
                 <th>Topic</th>
+                <th class="text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -61,6 +62,12 @@
                   <td class="text-nowrap">{{ t.talk_date.strftime("%b %d, %Y") }}</td>
                   <td class="fw-bold">{{ member_label(t.member) }}</td>
                   <td>{{ t.topic }}</td>
+                  <td class="text-end text-nowrap">
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
+                    <form class="d-inline" method="post" action="{{ url_for('main.delete_talk', talk_id=t.id) }}" onsubmit="return confirm('Delete this talk?');">
+                      <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                    </form>
+                  </td>
                 </tr>
               {% endfor %}
             </tbody>
