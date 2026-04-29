@@ -26,8 +26,10 @@
           <div class="d-flex gap-2 align-items-center">
             <span class="navbar-text small text-white-50 d-none d-lg-inline">{{ current_user.email }}</span>
             {% if current_user.role == "admin" %}
+              <a class="btn btn-outline-light btn-sm" href="{{ url_for('main.admin_users') }}">Users</a>
               <a class="btn btn-outline-light btn-sm" href="{{ url_for('auth.create_user') }}">Create user</a>
             {% endif %}
+            <a class="btn btn-outline-light btn-sm" href="{{ url_for('auth.change_password') }}">Change password</a>
             <form method="post" action="{{ url_for('auth.logout') }}">
               <button class="btn btn-light btn-sm" type="submit">Log out</button>
             </form>

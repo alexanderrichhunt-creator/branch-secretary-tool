@@ -8,7 +8,14 @@ from flask import Blueprint, flash, jsonify, redirect, render_template, request,
 from flask_login import current_user, login_required
 
 from . import db
-from .models import Interview, Member, Talk, parse_us_date
+from .models import Interview, Member, Talk, User, parse_us_date
+
+
+def _short_calendar_title(text: str, max_len: int = 40) -> str:
+    text = (text or "").strip()
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 1].rstrip() + "…"
 
 
 main_bp = Blueprint("main", __name__)
@@ -299,6 +306,16 @@ def interviews():
     return render_template("interviews.html", interviews=interviews, members=members)
 
 
+@main_bp.get("/admin/users")
+@login_required
+def admin_users():
+    if getattr(current_user, "role", None) != "admin":
+        flash("Only admins can view user accounts.", "danger")
+        return redirect(url_for("main.dashboard"))
+    users = User.query.order_by(User.email.asc()).all()
+    return render_template("admin/users.html", users=users)
+
+
 @main_bp.post("/interviews/add")
 @login_required
 def add_interview():
@@ -388,30 +405,49 @@ def api_events():
 
     events = []
     for t in talks:
+        full_title = f"Talk: {t.member.full_name} — {t.topic}"
+        detail = full_title
+        if t.notes:
+            detail += "\n\nNotes:\n" + t.notes.strip()
         events.append(
             {
                 "id": f"talk-{t.id}",
-                "title": f"Talk: {t.member.full_name} — {t.topic}",
+                "title": _short_calendar_title(full_title),
                 "start": t.talk_date.isoformat(),
                 "allDay": True,
                 "backgroundColor": "#2563eb",
                 "borderColor": "#1d4ed8",
+                "extendedProps": {
+                    "kind": "talk",
+                    "editUrl": url_for("main.edit_talk", talk_id=t.id),
+                    "fullTitle": full_title,
+                    "detailText": detail,
+                },
             }
         )
     for i in interviews:
-        title = f"Interview: {i.purpose}"
+        title_line = f"Interview: {i.purpose}"
         if i.member:
-            title = f"Interview: {i.member.full_name} — {i.purpose}"
+            title_line = f"Interview: {i.member.full_name} — {i.purpose}"
+        detail = title_line + f"\n\nDuration: {i.duration_minutes} minutes"
+        if i.notes:
+            detail += "\n\nNotes:\n" + i.notes.strip()
         end = i.starts_at + timedelta(minutes=i.duration_minutes)
         events.append(
             {
                 "id": f"interview-{i.id}",
-                "title": title,
+                "title": _short_calendar_title(title_line),
                 "start": i.starts_at.isoformat(),
                 "end": end.isoformat(),
                 "allDay": False,
                 "backgroundColor": "#16a34a",
                 "borderColor": "#15803d",
+                "extendedProps": {
+                    "kind": "interview",
+                    "editUrl": url_for("main.edit_interview", interview_id=i.id),
+                    "fullTitle": title_line,
+                    "detailText": detail,
+                },
             }
         )
 

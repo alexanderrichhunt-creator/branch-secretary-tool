@@ -1,5 +1,5 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
-from flask_login import login_required, login_user, logout_user
+from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.security import generate_password_hash
 
 from . import db
@@ -71,4 +71,36 @@ def create_user_post():
     db.session.add(user)
     db.session.commit()
     flash("User created.", "success")
+    return redirect(url_for("main.dashboard"))
+
+
+@auth_bp.get("/change-password")
+@login_required
+def change_password():
+    return render_template("auth/change_password.html")
+
+
+@auth_bp.post("/change-password")
+@login_required
+def change_password_post():
+    current_pw = request.form.get("current_password") or ""
+    new_pw = request.form.get("new_password") or ""
+    confirm = request.form.get("new_password_confirm") or ""
+
+    user = User.query.get(current_user.id)
+    if not user or not user.check_password(current_pw):
+        flash("Current password is incorrect.", "danger")
+        return redirect(url_for("auth.change_password"))
+
+    if len(new_pw) < 8:
+        flash("New password must be at least 8 characters.", "warning")
+        return redirect(url_for("auth.change_password"))
+
+    if new_pw != confirm:
+        flash("New passwords do not match.", "warning")
+        return redirect(url_for("auth.change_password"))
+
+    user.password_hash = generate_password_hash(new_pw)
+    db.session.commit()
+    flash("Password updated.", "success")
     return redirect(url_for("main.dashboard"))

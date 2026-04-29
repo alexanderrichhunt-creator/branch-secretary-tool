@@ -10,7 +10,7 @@
 
 <div class="row g-3">
   <div class="col-12 col-lg-5">
-    <div class="card shadow-sm">
+    <div class="card shadow-sm" id="add-interview-panel">
       <div class="card-body">
         <h2 class="h4 fw-bold mb-3">Add an interview</h2>
         <form method="post" action="{{ url_for('main.add_interview') }}">
@@ -110,6 +110,17 @@
     }
 
     input.addEventListener('input', applyFilter);
+  })();
+
+  (function () {
+    var params = new URLSearchParams(window.location.search);
+    var s = params.get('prefill_starts');
+    if (s) {
+      var el = document.getElementById('starts_at');
+      if (el) el.value = s;
+      var panel = document.getElementById('add-interview-panel');
+      if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   })();
 </script>
 {% endblock %}

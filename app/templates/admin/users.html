@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <div>
+    <h1 class="h2 fw-bold mb-1">Users</h1>
+    <div class="muted">Accounts that can sign in to this tool.</div>
+  </div>
+  <a class="btn btn-outline-primary btn-lg" href="{{ url_for('main.dashboard') }}">Dashboard</a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Role</th>
+            <th class="text-nowrap">Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+            <tr>
+              <td class="fw-bold">{{ u.email }}</td>
+              <td>{{ u.role }}</td>
+              <td class="small muted text-nowrap">{{ u.created_at.strftime("%b %d, %Y %I:%M %p") }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if not users %}
+      <div class="muted">No users yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

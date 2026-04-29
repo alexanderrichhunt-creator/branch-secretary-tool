@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
+<div class="calendar-page">
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
   <div>
     <h1 class="h2 fw-bold mb-1">Calendar</h1>
-    <div class="muted">Talks (blue) and interviews (green).</div>
+    <div class="muted">Talks (blue) and interviews (green). Click an event for details and edit.</div>
   </div>
   <div class="d-flex gap-2">
     <a class="btn btn-primary btn-lg" href="{{ url_for('main.talks') }}">Add talk</a>
@@ -12,9 +13,48 @@
 </div>
 
 <div class="card shadow-sm">
-  <div class="card-body">
+  <div class="card-body p-2 p-md-3">
     <div id="calendar"></div>
   </div>
+</div>
+
+<!-- Event detail -->
+<div class="modal fade" id="calEventModal" tabindex="-1" aria-labelledby="calEventModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5 fw-bold" id="calEventModalLabel"></h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <pre class="cal-detail-body mb-0"></pre>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        <a class="btn btn-primary cal-edit-link" href="#">Edit</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add on blank date / slot -->
+<div class="modal fade" id="calAddModal" tabindex="-1" aria-labelledby="calAddModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5 fw-bold" id="calAddModalLabel">Add to calendar</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="cal-add-summary muted mb-3"></p>
+        <div class="d-grid gap-2">
+          <a class="btn btn-primary btn-lg cal-add-talk" href="#">Add sacrament talk</a>
+          <a class="btn btn-success btn-lg cal-add-interview" href="#">Add interview</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 </div>
 {% endblock %}
 
@@ -24,16 +64,74 @@
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     const el = document.getElementById('calendar');
+    const eventModalEl = document.getElementById('calEventModal');
+    const addModalEl = document.getElementById('calAddModal');
+    const eventModal = eventModalEl ? new bootstrap.Modal(eventModalEl) : null;
+    const addModal = addModalEl ? new bootstrap.Modal(addModalEl) : null;
+
+    function pad(n) { return String(n).padStart(2, '0'); }
+    function toDateOnly(d) {
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    }
+    function toDatetimeLocalValue(d) {
+      return toDateOnly(d) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    const talksBase = "{{ url_for('main.talks') }}";
+    const interviewsBase = "{{ url_for('main.interviews') }}";
+
     const cal = new FullCalendar.Calendar(el, {
       initialView: 'dayGridMonth',
       height: 'auto',
+      selectable: true,
+      navLinks: true,
+      dayMaxEvents: true,
       headerToolbar: {
         left: 'prev,next today',
         center: 'title',
         right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
       },
       events: '{{ url_for("main.api_events") }}',
-      eventDisplay: 'block'
+      eventDisplay: 'block',
+      eventClick: function(info) {
+        info.jsEvent.preventDefault();
+        const p = info.event.extendedProps || {};
+        const title = p.fullTitle || info.event.title || '';
+        const detail = p.detailText || title;
+        const editUrl = p.editUrl || '#';
+
+        eventModalEl.querySelector('.modal-title').textContent = title;
+        eventModalEl.querySelector('.cal-detail-body').textContent = detail;
+        const editBtn = eventModalEl.querySelector('.cal-edit-link');
+        editBtn.href = editUrl;
+        eventModal.show();
+      },
+      dateClick: function(info) {
+        let talkDate;
+        let interviewStarts;
+        const d = info.date;
+        if (info.allDay) {
+          talkDate = toDateOnly(d);
+          const slot = new Date(d);
+          slot.setHours(9, 0, 0, 0);
+          interviewStarts = toDatetimeLocalValue(slot);
+        } else {
+          talkDate = toDateOnly(d);
+          interviewStarts = toDatetimeLocalValue(d);
+        }
+
+        const talkUrl = talksBase + '?prefill_date=' + encodeURIComponent(talkDate);
+        const intUrl = interviewsBase + '?prefill_starts=' + encodeURIComponent(interviewStarts);
+
+        addModalEl.querySelector('.cal-add-talk').href = talkUrl;
+        addModalEl.querySelector('.cal-add-interview').href = intUrl;
+
+        const summary = info.allDay
+          ? 'Pick what to add on ' + talkDate + ':'
+          : 'Pick what to add starting ' + interviewStarts.replace('T', ' ') + ':';
+        addModalEl.querySelector('.cal-add-summary').textContent = summary;
+        addModal.show();
+      }
     });
     cal.render();
   });
