@@ -3,7 +3,7 @@
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
   <div>
     <h1 class="h2 fw-bold mb-1">Interviews</h1>
-    <div class="muted">Schedule interviews and keep a simple list.</div>
+    <div class="muted">Schedule interviews. Pick a member and/or type who/what the appointment is for.</div>
   </div>
   <a class="btn btn-outline-primary btn-lg" href="{{ url_for('main.calendar') }}">Calendar view</a>
 </div>
@@ -33,6 +33,11 @@
                 {% endfor %}
               </select>
             </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="who_text">Who / what (free text, optional)</label>
+            <input class="form-control form-control-lg" type="text" id="who_text" name="who_text" placeholder="e.g. Stake presidency, missionary, not on the members list" autocomplete="off" />
+            <div class="form-text">If you select a member, this is ignored. Use this for generic or outside visits.</div>
           </div>
           <div class="mb-3">
             <label class="form-label big-label" for="purpose">Purpose</label>
@@ -67,7 +72,7 @@
               {% for i in interviews %}
                 <tr>
                   <td class="text-nowrap">{{ i.starts_at.strftime("%b %d, %Y %I:%M %p") }}</td>
-                  <td class="fw-bold">{% if i.member %}{{ member_label(i.member) }}{% else %}(none){% endif %}</td>
+                  <td class="fw-bold">{{ interview_who_label(i) }}</td>
                   <td>{{ i.purpose }}</td>
                   <td>{{ i.duration_minutes }}</td>
                   <td class="text-end text-nowrap">

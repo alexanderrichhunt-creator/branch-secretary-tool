@@ -31,6 +31,11 @@
         </div>
       </div>
       <div class="mb-3">
+        <label class="form-label big-label" for="who_text">Who / what (free text)</label>
+        <input class="form-control form-control-lg" type="text" id="who_text" name="who_text" value="{{ interview.who_text or '' }}" placeholder="If not a member on file" autocomplete="off" />
+        <div class="form-text">If you select a member, this is cleared on save.</div>
+      </div>
+      <div class="mb-3">
         <label class="form-label big-label" for="purpose">Purpose</label>
         <input class="form-control form-control-lg" id="purpose" name="purpose" value="{{ interview.purpose }}" />
       </div>

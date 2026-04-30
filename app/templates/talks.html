@@ -3,7 +3,7 @@
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
   <div>
     <h1 class="h2 fw-bold mb-1">Talks</h1>
-    <div class="muted">Log who spoke and what they spoke about.</div>
+    <div class="muted">Log who spoke and what they spoke about. You can pick a member or type a one-off name.</div>
   </div>
   <a class="btn btn-outline-primary btn-lg" href="{{ url_for('main.calendar') }}">Calendar view</a>
 </div>
@@ -15,14 +15,20 @@
         <h2 class="h4 fw-bold mb-3">Add a talk</h2>
         <form method="post" action="{{ url_for('main.add_talk') }}">
           <div class="mb-3">
-            <label class="form-label big-label" for="member_id">Speaker</label>
+            <label class="form-label big-label" for="member_id">Speaker (from members list)</label>
             <input class="form-control form-control-lg mb-2" id="member_filter" placeholder="Type a name to filter..." autocomplete="off" />
-            <select class="form-select form-select-lg" id="member_id" name="member_id" required>
-              <option value="">Select a member...</option>
+            <select class="form-select form-select-lg" id="member_id" name="member_id">
+              <option value="">— None selected — (use free text below)</option>
               {% for m in members %}
                 <option value="{{ m.id }}">{{ m.full_name }}</option>
               {% endfor %}
             </select>
+            <div class="form-text">Leave on “None” if the speaker is not in your members list.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="speaker_text">Speaker (free text)</label>
+            <input class="form-control form-control-lg" type="text" id="speaker_text" name="speaker_text" placeholder="e.g. Visiting high council, youth speaker, Stake rep…" autocomplete="off" />
+            <div class="form-text">If you use free text, leave the dropdown on “None”. If you pick a member, this line is ignored.</div>
           </div>
           <div class="mb-3">
             <label class="form-label big-label" for="talk_date">Date</label>
@@ -60,7 +66,7 @@
               {% for t in talks %}
                 <tr>
                   <td class="text-nowrap">{{ t.talk_date.strftime("%b %d, %Y") }}</td>
-                  <td class="fw-bold">{{ member_label(t.member) }}</td>
+                  <td class="fw-bold">{{ talk_speaker_label(t) }}</td>
                   <td>{{ t.topic }}</td>
                   <td class="text-end text-nowrap">
                     <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
@@ -88,6 +94,7 @@
 
     const options = Array.from(select.options);
     const keepFirst = options[0];
+    const otherOpts = options.slice(1);
 
     function applyFilter() {
       const q = (input.value || '').trim().toLowerCase();
@@ -96,7 +103,7 @@
       select.innerHTML = '';
       select.appendChild(keepFirst);
 
-      for (const opt of options.slice(1)) {
+      for (const opt of otherOpts) {
         const text = (opt.textContent || '').toLowerCase();
         if (!q || text.includes(q)) {
           select.appendChild(opt);

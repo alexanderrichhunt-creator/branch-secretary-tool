@@ -18,6 +18,36 @@ def _short_calendar_title(text: str, max_len: int = 40) -> str:
     return text[: max_len - 1].rstrip() + "…"
 
 
+def _parse_talk_speaker_submission():
+    member_raw = (request.form.get("member_id") or "").strip()
+    member_id = int(member_raw) if member_raw and int(member_raw) > 0 else None
+    speaker_text = (request.form.get("speaker_text") or "").strip() or None
+    if member_id:
+        speaker_text = None
+    return member_id, speaker_text
+
+
+def _parse_interview_who_submission():
+    member_raw = (request.form.get("member_id") or "").strip()
+    member_id = int(member_raw) if member_raw and int(member_raw) > 0 else None
+    who_text = (request.form.get("who_text") or "").strip() or None
+    if member_id:
+        who_text = None
+    return member_id, who_text
+
+
+def _talk_speaker_name(t: Talk) -> str:
+    if t.member_id and t.member is not None:
+        return t.member.full_name
+    return (t.speaker_text or "").strip() or "—"
+
+
+def _interview_subject_name(i: Interview) -> str:
+    if i.member_id and i.member is not None:
+        return i.member.full_name
+    return (i.who_text or "").strip() or "—"
+
+
 main_bp = Blueprint("main", __name__)
 
 
@@ -44,6 +74,8 @@ def dashboard():
     last_talk_by_member = {}
     recent_speakers = []
     for t in recent_talks:
+        if not t.member_id or t.member is None:
+            continue
         if t.member_id in last_talk_by_member:
             continue
         last_talk_by_member[t.member_id] = t.talk_date
@@ -238,16 +270,29 @@ def talks():
 @main_bp.post("/talks/add")
 @login_required
 def add_talk():
-    member_id = int(request.form.get("member_id") or "0")
+    member_id, speaker_text = _parse_talk_speaker_submission()
     talk_date_raw = (request.form.get("talk_date") or "").strip()
     topic = (request.form.get("topic") or "").strip()
     notes = (request.form.get("notes") or "").strip() or None
 
-    if member_id and talk_date_raw and topic:
+    if not talk_date_raw or not topic:
+        return redirect(url_for("main.talks"))
+    if not member_id and not speaker_text:
+        flash("Choose a speaker from the list or type a name under “Speaker (free text)”.", "warning")
+        return redirect(url_for("main.talks"))
+    try:
         talk_date = datetime.strptime(talk_date_raw, "%Y-%m-%d").date()
-        t = Talk(member_id=member_id, talk_date=talk_date, topic=topic, notes=notes)
-        db.session.add(t)
-        db.session.commit()
+    except Exception:
+        return redirect(url_for("main.talks"))
+    t = Talk(
+        member_id=member_id,
+        speaker_text=speaker_text,
+        talk_date=talk_date,
+        topic=topic,
+        notes=notes,
+    )
+    db.session.add(t)
+    db.session.commit()
     return redirect(url_for("main.talks"))
 
 
@@ -264,13 +309,16 @@ def edit_talk(talk_id: int):
 def edit_talk_post(talk_id: int):
     talk = Talk.query.get_or_404(talk_id)
 
-    member_id = int(request.form.get("member_id") or "0")
+    member_id, speaker_text = _parse_talk_speaker_submission()
     talk_date_raw = (request.form.get("talk_date") or "").strip()
     topic = (request.form.get("topic") or "").strip()
     notes = (request.form.get("notes") or "").strip() or None
 
-    if not (member_id and talk_date_raw and topic):
-        flash("Speaker, date, and topic are required.", "warning")
+    if not talk_date_raw or not topic:
+        flash("Date and topic are required.", "warning")
+        return redirect(url_for("main.edit_talk", talk_id=talk_id))
+    if not member_id and not speaker_text:
+        flash("Choose a speaker or enter a name under “Speaker (free text)”.", "warning")
         return redirect(url_for("main.edit_talk", talk_id=talk_id))
 
     try:
@@ -280,6 +328,7 @@ def edit_talk_post(talk_id: int):
         return redirect(url_for("main.edit_talk", talk_id=talk_id))
 
     talk.member_id = member_id
+    talk.speaker_text = speaker_text
     talk.topic = topic
     talk.notes = notes
     db.session.commit()
@@ -319,24 +368,28 @@ def admin_users():
 @main_bp.post("/interviews/add")
 @login_required
 def add_interview():
-    member_id_raw = (request.form.get("member_id") or "").strip()
+    member_id, who_text = _parse_interview_who_submission()
     starts_at_raw = (request.form.get("starts_at") or "").strip()
     duration_minutes = int(request.form.get("duration_minutes") or "15")
     purpose = (request.form.get("purpose") or "Interview").strip() or "Interview"
     notes = (request.form.get("notes") or "").strip() or None
 
-    if starts_at_raw:
+    if not starts_at_raw:
+        return redirect(url_for("main.interviews"))
+    try:
         starts_at = datetime.strptime(starts_at_raw, "%Y-%m-%dT%H:%M")
-        member_id = int(member_id_raw) if member_id_raw else None
-        i = Interview(
-            member_id=member_id,
-            starts_at=starts_at,
-            duration_minutes=max(5, min(duration_minutes, 180)),
-            purpose=purpose,
-            notes=notes,
-        )
-        db.session.add(i)
-        db.session.commit()
+    except Exception:
+        return redirect(url_for("main.interviews"))
+    i = Interview(
+        member_id=member_id,
+        who_text=who_text,
+        starts_at=starts_at,
+        duration_minutes=max(5, min(duration_minutes, 180)),
+        purpose=purpose,
+        notes=notes,
+    )
+    db.session.add(i)
+    db.session.commit()
     return redirect(url_for("main.interviews"))
 
 
@@ -353,7 +406,7 @@ def edit_interview(interview_id: int):
 def edit_interview_post(interview_id: int):
     interview = Interview.query.get_or_404(interview_id)
 
-    member_id_raw = (request.form.get("member_id") or "").strip()
+    member_id, who_text = _parse_interview_who_submission()
     starts_at_raw = (request.form.get("starts_at") or "").strip()
     duration_minutes = int(request.form.get("duration_minutes") or "15")
     purpose = (request.form.get("purpose") or "Interview").strip() or "Interview"
@@ -373,7 +426,8 @@ def edit_interview_post(interview_id: int):
     interview.duration_minutes = max(5, min(duration_minutes, 180))
     interview.purpose = purpose
     interview.notes = notes
-    interview.member_id = int(member_id_raw) if member_id_raw else None
+    interview.member_id = member_id
+    interview.who_text = who_text
     db.session.commit()
 
     flash("Interview updated.", "success")
@@ -405,7 +459,7 @@ def api_events():
 
     events = []
     for t in talks:
-        full_title = f"Talk: {t.member.full_name} — {t.topic}"
+        full_title = f"Talk: {_talk_speaker_name(t)} — {t.topic}"
         detail = full_title
         if t.notes:
             detail += "\n\nNotes:\n" + t.notes.strip()
@@ -426,9 +480,7 @@ def api_events():
             }
         )
     for i in interviews:
-        title_line = f"Interview: {i.purpose}"
-        if i.member:
-            title_line = f"Interview: {i.member.full_name} — {i.purpose}"
+        title_line = f"Interview: {_interview_subject_name(i)} — {i.purpose}"
         detail = title_line + f"\n\nDuration: {i.duration_minutes} minutes"
         if i.notes:
             detail += "\n\nNotes:\n" + i.notes.strip()

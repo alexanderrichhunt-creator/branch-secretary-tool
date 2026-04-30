@@ -43,7 +43,9 @@ class Talk(db.Model):
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-    member_id = db.Column(db.Integer, db.ForeignKey("member.id"), nullable=False, index=True)
+    # Link to a member, OR use speaker_text for generic/one-off entries.
+    member_id = db.Column(db.Integer, db.ForeignKey("member.id"), nullable=True, index=True)
+    speaker_text = db.Column(db.String(256), nullable=True)
     member = db.relationship("Member", back_populates="talks")
 
 
@@ -56,6 +58,8 @@ class Interview(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     member_id = db.Column(db.Integer, db.ForeignKey("member.id"), nullable=True, index=True)
+    # When no member is selected, e.g. "Visiting high councilor" or a generic label.
+    who_text = db.Column(db.String(256), nullable=True)
     member = db.relationship("Member", back_populates="interviews")
 
 

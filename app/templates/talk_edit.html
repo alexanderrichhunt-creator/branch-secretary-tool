@@ -12,12 +12,18 @@
   <div class="card-body">
     <form method="post" action="{{ url_for('main.edit_talk_post', talk_id=talk.id) }}">
       <div class="mb-3">
-        <label class="form-label big-label" for="member_id">Speaker</label>
-        <select class="form-select form-select-lg" id="member_id" name="member_id" required>
+        <label class="form-label big-label" for="member_id">Speaker (from members list)</label>
+        <select class="form-select form-select-lg" id="member_id" name="member_id">
+          <option value="" {% if not talk.member_id %}selected{% endif %}>— None — (use free text below)</option>
           {% for m in members %}
             <option value="{{ m.id }}" {% if m.id == talk.member_id %}selected{% endif %}>{{ m.full_name }}</option>
           {% endfor %}
         </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label big-label" for="speaker_text">Speaker (free text)</label>
+        <input class="form-control form-control-lg" type="text" id="speaker_text" name="speaker_text" value="{{ talk.speaker_text or '' }}" placeholder="When not a member on file" autocomplete="off" />
+        <div class="form-text">If you select a member above, this is cleared on save.</div>
       </div>
       <div class="mb-3">
         <label class="form-label big-label" for="talk_date">Date</label>
@@ -41,4 +47,3 @@
   </div>
 </div>
 {% endblock %}
-
