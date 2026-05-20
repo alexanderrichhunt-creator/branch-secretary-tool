@@ -19,6 +19,7 @@
             <option value="{{ m.id }}" {% if m.id == talk.member_id %}selected{% endif %}>{{ m.full_name }}</option>
           {% endfor %}
         </select>
+        <div id="speaker-recency-alert" class="alert mt-2 d-none" role="alert" aria-live="polite"></div>
       </div>
       <div class="mb-3">
         <label class="form-label big-label" for="speaker_text">Speaker (free text)</label>
@@ -46,4 +47,9 @@
     </form>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
+<script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
 {% endblock %}

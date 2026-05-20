@@ -90,3 +90,7 @@ body {
   padding-top: 0.65rem;
   border-top: 1px dashed rgba(0, 0, 0, 0.1);
 }
+
+#speaker-recency-alert {
+  font-weight: 600;
+}

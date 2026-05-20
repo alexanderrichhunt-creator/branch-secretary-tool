@@ -23,6 +23,7 @@
                 <option value="{{ m.id }}">{{ m.full_name }}</option>
               {% endfor %}
             </select>
+            <div id="speaker-recency-alert" class="alert mt-2 d-none" role="alert" aria-live="polite"></div>
             <div class="form-text">Leave on “None” if the speaker is not in your members list.</div>
           </div>
           <div class="mb-3">
@@ -125,4 +126,6 @@
     }
   })();
 </script>
+<script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
+<script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
 {% endblock %}

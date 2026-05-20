@@ -275,12 +275,37 @@ def add_member():
     return redirect(url_for("main.members"))
 
 
+def _member_talk_recency(exclude_talk_id: int | None = None) -> dict[str, dict]:
+    """Last talk date per member for scheduling hints on the talks form."""
+    from sqlalchemy import func
+
+    today = date.today()
+    q = db.session.query(Talk.member_id, func.max(Talk.talk_date)).filter(Talk.member_id.isnot(None))
+    if exclude_talk_id:
+        q = q.filter(Talk.id != exclude_talk_id)
+    rows = q.group_by(Talk.member_id).all()
+    out: dict[str, dict] = {}
+    for member_id, last_talk in rows:
+        if not member_id or not last_talk:
+            continue
+        out[str(member_id)] = {
+            "last_talk_date": last_talk.isoformat(),
+            "days_since": (today - last_talk).days,
+        }
+    return out
+
+
 @main_bp.get("/talks")
 @login_required
 def talks():
     talks = Talk.query.order_by(Talk.talk_date.desc()).limit(200).all()
     members = Member.query.order_by(Member.full_name.asc()).all()
-    return render_template("talks.html", talks=talks, members=members)
+    return render_template(
+        "talks.html",
+        talks=talks,
+        members=members,
+        member_talk_recency=_member_talk_recency(),
+    )
 
 
 @main_bp.post("/talks/add")
@@ -317,7 +342,12 @@ def add_talk():
 def edit_talk(talk_id: int):
     talk = Talk.query.get_or_404(talk_id)
     members = Member.query.order_by(Member.full_name.asc()).all()
-    return render_template("talk_edit.html", talk=talk, members=members)
+    return render_template(
+        "talk_edit.html",
+        talk=talk,
+        members=members,
+        member_talk_recency=_member_talk_recency(exclude_talk_id=talk.id),
+    )
 
 
 @main_bp.post("/talks/<int:talk_id>/edit")
