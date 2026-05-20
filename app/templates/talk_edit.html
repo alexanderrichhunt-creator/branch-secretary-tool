@@ -10,7 +10,7 @@
 
 <div class="card shadow-sm">
   <div class="card-body">
-    <form method="post" action="{{ url_for('main.edit_talk_post', talk_id=talk.id) }}">
+        <form method="post" action="{{ url_for('main.edit_talk_post', talk_id=talk.id) }}" class="talk-add-form">
       <div class="mb-3">
         <label class="form-label big-label" for="member_id">Speaker (from members list)</label>
         <select class="form-select form-select-lg" id="member_id" name="member_id">
@@ -19,7 +19,7 @@
             <option value="{{ m.id }}" {% if m.id == talk.member_id %}selected{% endif %}>{{ m.full_name }}</option>
           {% endfor %}
         </select>
-        <div id="speaker-recency-alert" class="alert mt-2 d-none" role="alert" aria-live="polite"></div>
+        <div class="speaker-recency-alert alert mt-2 d-none" role="alert" aria-live="polite"></div>
       </div>
       <div class="mb-3">
         <label class="form-label big-label" for="speaker_text">Speaker (free text)</label>

@@ -1,8 +1,6 @@
 (function () {
-  const select = document.getElementById("member_id");
-  const alertEl = document.getElementById("speaker-recency-alert");
   const dataEl = document.getElementById("member-talk-recency-data");
-  if (!select || !alertEl || !dataEl) return;
+  if (!dataEl) return;
 
   let recency = {};
   try {
@@ -11,7 +9,6 @@
     return;
   }
 
-  // Match dashboard: ~6 months = 183 days; ~3 months = 92 days.
   const RED_MAX_DAYS = 92;
   const YELLOW_MAX_DAYS = 183;
 
@@ -31,55 +28,51 @@
     return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   }
 
-  function showAlert(level, message) {
-    alertEl.className = "alert mt-2 alert-" + level;
-    alertEl.textContent = message;
-    alertEl.classList.remove("d-none");
-  }
+  function bindForm(form) {
+    const select = form.querySelector('[name="member_id"]');
+    const alertEl = form.querySelector(".speaker-recency-alert");
+    if (!select || !alertEl) return;
 
-  function hideAlert() {
-    alertEl.classList.add("d-none");
-    alertEl.textContent = "";
-  }
-
-  function updateRecencyAlert() {
-    const id = select.value;
-    if (!id) {
-      hideAlert();
-      return;
+    function showAlert(level, message) {
+      alertEl.className = "speaker-recency-alert alert alert-" + level + " py-1 px-2 small mt-1 mb-0";
+      alertEl.textContent = message;
+      alertEl.classList.remove("d-none");
     }
 
-    const info = recency[id];
-    if (!info || !info.last_talk_date) {
-      showAlert(
-        "success",
-        "No prior talk on record — OK to ask this person to speak."
-      );
-      return;
+    function hideAlert() {
+      alertEl.classList.add("d-none");
+      alertEl.textContent = "";
     }
 
-    const days = info.days_since;
-    const when = formatTimeAgo(days);
-    const onDate = formatDate(info.last_talk_date);
+    function updateRecencyAlert() {
+      const id = select.value;
+      if (!id) {
+        hideAlert();
+        return;
+      }
 
-    if (days <= RED_MAX_DAYS) {
-      showAlert(
-        "danger",
-        "Last spoke " + when + " (" + onDate + ") — may be too soon to ask again."
-      );
-    } else if (days <= YELLOW_MAX_DAYS) {
-      showAlert(
-        "warning",
-        "Last spoke " + when + " (" + onDate + ") — consider waiting a bit longer if you can."
-      );
-    } else {
-      showAlert(
-        "success",
-        "Last spoke " + when + " (" + onDate + ") — good spacing; OK to schedule."
-      );
+      const info = recency[id];
+      if (!info || !info.last_talk_date) {
+        showAlert("success", "No prior talk — OK to schedule.");
+        return;
+      }
+
+      const days = info.days_since;
+      const when = formatTimeAgo(days);
+      const onDate = formatDate(info.last_talk_date);
+
+      if (days <= RED_MAX_DAYS) {
+        showAlert("danger", "Last spoke " + when + " — may be too soon.");
+      } else if (days <= YELLOW_MAX_DAYS) {
+        showAlert("warning", "Last spoke " + when + " — consider waiting.");
+      } else {
+        showAlert("success", "Last spoke " + when + " — OK to schedule.");
+      }
     }
+
+    select.addEventListener("change", updateRecencyAlert);
+    updateRecencyAlert();
   }
 
-  select.addEventListener("change", updateRecencyAlert);
-  updateRecencyAlert();
+  document.querySelectorAll(".talk-add-form").forEach(bindForm);
 })();

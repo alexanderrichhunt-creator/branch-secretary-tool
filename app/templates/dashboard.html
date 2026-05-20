@@ -19,7 +19,7 @@
         {{ cutoff.strftime("%b %d, %Y") }} through {{ today.strftime("%b %d, %Y") }} · grouped by week (Sun–Sat)
       </div>
     </div>
-    <a class="btn btn-outline-primary" href="{{ url_for('main.talks') }}">Log a talk</a>
+    <a class="btn btn-outline-primary" href="{{ url_for('main.talks') }}">Full talks page</a>
   </div>
 
   <div class="row g-2 dashboard-week-grid">
@@ -42,11 +42,29 @@
                     {% if week.talks|length > 1 %}
                       <div class="small muted">{{ t.talk_date.strftime("%a %b %d") }}</div>
                     {% endif %}
+                    <a class="small" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
                   </li>
                 {% endfor %}
               </ul>
             {% else %}
-              <div class="muted small py-1">No talk logged</div>
+              <div class="muted small mb-2">No talk logged yet</div>
+              <form method="post" action="{{ url_for('main.add_talk') }}" class="dashboard-week-form talk-add-form">
+                <input type="hidden" name="return_to" value="dashboard" />
+                <label class="form-label small fw-bold mb-1" for="member_id_w{{ loop.index }}">Speaker</label>
+                <select class="form-select form-select-sm mb-2" id="member_id_w{{ loop.index }}" name="member_id">
+                  <option value="">— Member —</option>
+                  {% for m in members %}
+                    <option value="{{ m.id }}">{{ m.full_name }}</option>
+                  {% endfor %}
+                </select>
+                <div class="speaker-recency-alert alert py-1 px-2 small d-none" role="alert" aria-live="polite"></div>
+                <input class="form-control form-control-sm mb-2" type="text" name="speaker_text" placeholder="Or type name (visitor, etc.)" autocomplete="off" />
+                <label class="form-label small fw-bold mb-1" for="talk_date_w{{ loop.index }}">Talk date</label>
+                <input class="form-control form-control-sm mb-2" type="date" id="talk_date_w{{ loop.index }}" name="talk_date" value="{{ week.week_start.isoformat() }}" required />
+                <label class="form-label small fw-bold mb-1" for="topic_w{{ loop.index }}">Topic</label>
+                <input class="form-control form-control-sm mb-2" type="text" id="topic_w{{ loop.index }}" name="topic" placeholder="Topic" required />
+                <button class="btn btn-sm btn-primary w-100" type="submit">Save talk</button>
+              </form>
             {% endif %}
           </div>
         </div>
@@ -88,4 +106,9 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
+<script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
 {% endblock %}

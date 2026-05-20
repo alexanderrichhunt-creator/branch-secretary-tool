@@ -112,6 +112,8 @@ def dashboard():
         upcoming_interviews=upcoming_interviews,
         today=today,
         cutoff=cutoff,
+        members=Member.query.order_by(Member.full_name.asc()).all(),
+        member_talk_recency=_member_talk_recency(),
     )
 
 
@@ -308,6 +310,12 @@ def talks():
     )
 
 
+def _redirect_after_talk_action():
+    if (request.form.get("return_to") or "").strip() == "dashboard":
+        return redirect(url_for("main.dashboard"))
+    return redirect(url_for("main.talks"))
+
+
 @main_bp.post("/talks/add")
 @login_required
 def add_talk():
@@ -317,14 +325,16 @@ def add_talk():
     notes = (request.form.get("notes") or "").strip() or None
 
     if not talk_date_raw or not topic:
-        return redirect(url_for("main.talks"))
+        flash("Date and topic are required.", "warning")
+        return _redirect_after_talk_action()
     if not member_id and not speaker_text:
-        flash("Choose a speaker from the list or type a name under “Speaker (free text)”.", "warning")
-        return redirect(url_for("main.talks"))
+        flash("Choose a speaker from the list or type a name.", "warning")
+        return _redirect_after_talk_action()
     try:
         talk_date = datetime.strptime(talk_date_raw, "%Y-%m-%d").date()
     except Exception:
-        return redirect(url_for("main.talks"))
+        flash("Invalid date.", "warning")
+        return _redirect_after_talk_action()
     t = Talk(
         member_id=member_id,
         speaker_text=speaker_text,
@@ -334,7 +344,8 @@ def add_talk():
     )
     db.session.add(t)
     db.session.commit()
-    return redirect(url_for("main.talks"))
+    flash("Talk saved.", "success")
+    return _redirect_after_talk_action()
 
 
 @main_bp.get("/talks/<int:talk_id>/edit")

@@ -94,3 +94,12 @@ body {
 #speaker-recency-alert {
   font-weight: 600;
 }
+
+.dashboard-week-form .form-label {
+  margin-bottom: 0.15rem;
+}
+
+.dashboard-week-form .form-control-sm,
+.dashboard-week-form .form-select-sm {
+  font-size: 0.9rem;
+}
