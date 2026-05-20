@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+from collections import defaultdict
 from datetime import date, datetime, timedelta
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
@@ -48,6 +49,33 @@ def _interview_subject_name(i: Interview) -> str:
     return (i.who_text or "").strip() or "—"
 
 
+def _week_start_sunday(d: date) -> date:
+    """Sunday-start week containing date d."""
+    return d - timedelta(days=(d.weekday() + 1) % 7)
+
+
+def _build_talk_week_blocks(talks: list[Talk], cutoff: date, today: date) -> list[dict]:
+    """Group talks into Sunday–Saturday week blocks for the dashboard."""
+    by_week: dict[date, list[Talk]] = defaultdict(list)
+    for t in talks:
+        by_week[_week_start_sunday(t.talk_date)].append(t)
+
+    blocks: list[dict] = []
+    week_start = _week_start_sunday(today)
+    cutoff_week = _week_start_sunday(cutoff)
+    while week_start >= cutoff_week:
+        week_talks = sorted(by_week.get(week_start, []), key=lambda t: t.talk_date)
+        blocks.append(
+            {
+                "week_start": week_start,
+                "week_end": week_start + timedelta(days=6),
+                "talks": week_talks,
+            }
+        )
+        week_start -= timedelta(days=7)
+    return blocks
+
+
 main_bp = Blueprint("main", __name__)
 
 
@@ -62,26 +90,14 @@ def home():
 @login_required
 def dashboard():
     today = date.today()
-
-    # Recent speakers: members with a talk in the last 6 months.
     cutoff = today - timedelta(days=183)
+
     recent_talks = (
         Talk.query.filter(Talk.talk_date >= cutoff)
         .order_by(Talk.talk_date.desc())
-        .limit(400)
         .all()
     )
-    last_talk_by_member = {}
-    recent_speakers = []
-    for t in recent_talks:
-        if not t.member_id or t.member is None:
-            continue
-        if t.member_id in last_talk_by_member:
-            continue
-        last_talk_by_member[t.member_id] = t.talk_date
-        recent_speakers.append(t.member)
-        if len(recent_speakers) >= 12:
-            break
+    talk_weeks = _build_talk_week_blocks(recent_talks, cutoff, today)
 
     upcoming_interviews = (
         Interview.query.filter(Interview.starts_at >= datetime.now() - timedelta(hours=2))
@@ -92,10 +108,10 @@ def dashboard():
 
     return render_template(
         "dashboard.html",
-        suggested=recent_speakers,
-        last_talk_by_member=last_talk_by_member,
+        talk_weeks=talk_weeks,
         upcoming_interviews=upcoming_interviews,
         today=today,
+        cutoff=cutoff,
     )
 
 

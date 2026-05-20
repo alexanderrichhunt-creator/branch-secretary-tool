@@ -54,3 +54,39 @@ body {
   max-height: min(60vh, 28rem);
   overflow: auto;
 }
+
+/* Dashboard: weekly talk blocks */
+.dashboard-week-grid {
+  max-height: min(70vh, 42rem);
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.week-block {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.week-block-header {
+  background: rgba(37, 99, 235, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.week-block-dates {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.week-block-empty {
+  opacity: 0.72;
+}
+
+.week-block-empty .week-block-header {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.week-talk-list .week-talk-item + .week-talk-item {
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+  border-top: 1px dashed rgba(0, 0, 0, 0.1);
+}

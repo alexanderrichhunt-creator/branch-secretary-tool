@@ -11,36 +11,56 @@
   </div>
 </div>
 
-<div class="row g-3">
-  <div class="col-12 col-lg-6">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <h2 class="h4 fw-bold mb-3">Speakers in the last 6 months</h2>
-        <div class="list-group list-group-flush">
-          {% for m in suggested %}
-            {% set last = last_talk_by_member[m.id] %}
-            <div class="list-group-item d-flex justify-content-between align-items-center">
-              <div>
-                <div class="fw-bold">{{ member_label(m) }}</div>
-                <div class="small muted">
-                  {% if last %}
-                    Last talk: {{ last.strftime("%b %d, %Y") }}
-                  {% else %}
-                    No talks in last 6 months
-                  {% endif %}
-                </div>
-              </div>
-              <a class="btn btn-outline-primary" href="{{ url_for('main.talks') }}">Log talk</a>
-            </div>
-          {% endfor %}
-          {% if not suggested %}
-            <div class="muted">No talks logged in the last 6 months yet.</div>
-          {% endif %}
-        </div>
+<section class="mb-4">
+  <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
+    <div>
+      <h2 class="h4 fw-bold mb-1">Sacrament talks — last 6 months</h2>
+      <div class="muted small">
+        {{ cutoff.strftime("%b %d, %Y") }} through {{ today.strftime("%b %d, %Y") }} · grouped by week (Sun–Sat)
       </div>
     </div>
+    <a class="btn btn-outline-primary" href="{{ url_for('main.talks') }}">Log a talk</a>
   </div>
 
+  <div class="row g-2 dashboard-week-grid">
+    {% for week in talk_weeks %}
+      <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+        <div class="week-block card h-100 shadow-sm{% if not week.talks %} week-block-empty{% endif %}">
+          <div class="week-block-header card-header py-2">
+            <div class="fw-bold small text-uppercase">Week of</div>
+            <div class="week-block-dates">
+              {{ week.week_start.strftime("%b %d") }} – {{ week.week_end.strftime("%b %d, %Y") }}
+            </div>
+          </div>
+          <div class="card-body py-2">
+            {% if week.talks %}
+              <ul class="week-talk-list list-unstyled mb-0">
+                {% for t in week.talks %}
+                  <li class="week-talk-item">
+                    <div class="fw-bold">{{ talk_speaker_label(t) }}</div>
+                    <div class="small text-secondary">{{ t.topic }}</div>
+                    {% if week.talks|length > 1 %}
+                      <div class="small muted">{{ t.talk_date.strftime("%a %b %d") }}</div>
+                    {% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="muted small py-1">No talk logged</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+    {% if not talk_weeks %}
+      <div class="col-12">
+        <div class="muted">No weeks to show yet.</div>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<div class="row g-3">
   <div class="col-12 col-lg-6">
     <div class="card shadow-sm h-100">
       <div class="card-body">
