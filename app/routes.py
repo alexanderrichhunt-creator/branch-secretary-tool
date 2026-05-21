@@ -957,30 +957,34 @@ def bulletin_export(fmt: str):
     meeting_date = data.get("meeting_date")
     suffix = meeting_date.isoformat() if meeting_date else "draft"
 
-    if fmt == "docx":
-        payload = export_docx(data)
-        return send_file(
-            io.BytesIO(payload),
-            as_attachment=True,
-            download_name=f"branch-bulletin-{suffix}.docx",
-            mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        )
-    if fmt == "pdf":
-        payload = export_pdf(data)
-        return send_file(
-            io.BytesIO(payload),
-            as_attachment=True,
-            download_name=f"branch-bulletin-{suffix}.pdf",
-            mimetype="application/pdf",
-        )
-    if fmt == "txt":
-        text = build_bulletin_text(data)
-        return send_file(
-            io.BytesIO(text.encode("utf-8")),
-            as_attachment=True,
-            download_name=f"branch-bulletin-{suffix}.txt",
-            mimetype="text/plain; charset=utf-8",
-        )
+    try:
+        if fmt == "docx":
+            payload = export_docx(data)
+            return send_file(
+                io.BytesIO(payload),
+                as_attachment=True,
+                download_name=f"branch-bulletin-{suffix}.docx",
+                mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+        if fmt == "pdf":
+            payload = export_pdf(data)
+            return send_file(
+                io.BytesIO(bytes(payload)),
+                as_attachment=True,
+                download_name=f"branch-bulletin-{suffix}.pdf",
+                mimetype="application/pdf",
+            )
+        if fmt == "txt":
+            text = build_bulletin_text(data)
+            return send_file(
+                io.BytesIO(text.encode("utf-8")),
+                as_attachment=True,
+                download_name=f"branch-bulletin-{suffix}.txt",
+                mimetype="text/plain; charset=utf-8",
+            )
+    except Exception as exc:
+        flash(f"Could not create {fmt.upper()} file: {exc}", "danger")
+        return redirect(url_for("main.bulletin_builder"))
 
     flash("Unknown export format.", "warning")
     return redirect(url_for("main.bulletin_builder"))

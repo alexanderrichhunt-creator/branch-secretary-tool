@@ -197,57 +197,79 @@ def build_bulletin_text(data: dict) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
+def _ascii_safe(text: str) -> str:
+    """Make text safe for PDF fonts that only support Latin-1."""
+    import unicodedata
+
+    text = unicodedata.normalize("NFKD", text or "")
+    replacements = {
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2026": "...",
+    }
+    for src, dst in replacements.items():
+        text = text.replace(src, dst)
+    return text.encode("latin-1", errors="replace").decode("latin-1")
+
+
+def _iter_bulletin_lines(data: dict) -> list[str]:
+    return build_bulletin_text(data).split("\n")
+
+
 def export_docx(data: dict) -> bytes:
     from docx import Document
-    from docx.shared import Pt
+    from docx.shared import Inches, Pt
 
     doc = Document()
+    section = doc.sections[0]
+    section.top_margin = Inches(0.45)
+    section.bottom_margin = Inches(0.45)
+    section.left_margin = Inches(0.65)
+    section.right_margin = Inches(0.65)
+
     normal = doc.styles["Normal"]
     normal.font.name = "Times New Roman"
-    normal.font.size = Pt(12)
+    normal.font.size = Pt(10.5)
+    normal.paragraph_format.space_before = Pt(0)
+    normal.paragraph_format.space_after = Pt(0)
+    normal.paragraph_format.line_spacing = 1.0
 
-    doc.add_heading("Sacrament Meeting", level=1)
-    if data.get("meeting_date_display"):
-        p = doc.add_paragraph(data["meeting_date_display"])
-        p.runs[0].bold = True
+    def add_spacer() -> None:
+        p = doc.add_paragraph()
+        pf = p.paragraph_format
+        pf.space_before = Pt(0)
+        pf.space_after = Pt(0)
+        pf.line_spacing = Pt(4)
 
-    def add_line(label: str, value: str):
-        if not value:
-            return
-        doc.add_paragraph(f"{label}: {value}")
+    def add_line(text: str, *, bold: bool = False, size: float = 10.5) -> None:
+        p = doc.add_paragraph()
+        pf = p.paragraph_format
+        pf.space_before = Pt(0)
+        pf.space_after = Pt(1)
+        pf.line_spacing = 1.0
+        run = p.add_run(text)
+        run.bold = bold
+        run.font.name = "Times New Roman"
+        run.font.size = Pt(size)
 
-    add_line("Presiding", data.get("presiding", ""))
-    add_line("Conducting", data.get("conducting", ""))
-    add_line("On the stand", data.get("on_the_stand", ""))
-    doc.add_paragraph("")
-    if data.get("welcome_text"):
-        doc.add_paragraph(data["welcome_text"])
-        doc.add_paragraph("")
-    if data.get("opening_hymn_line"):
-        doc.add_paragraph(f"Opening Hymn: {data['opening_hymn_line']}")
-    add_line("Invocation", data.get("invocation", ""))
-    doc.add_paragraph("")
-    doc.add_paragraph("Branch Business:")
-    doc.add_paragraph(data.get("branch_business") or "")
-    doc.add_paragraph("")
-    doc.add_paragraph(f"Stake Business: {data.get('stake_business') or ''}")
-    doc.add_paragraph("")
-    if data.get("announcements"):
-        for block in data["announcements"].split("\n"):
-            doc.add_paragraph(block)
-        doc.add_paragraph("")
-    if data.get("sacrament_notes"):
-        doc.add_paragraph(data["sacrament_notes"])
-        doc.add_paragraph("")
-    if data.get("sacrament_hymn_line"):
-        doc.add_paragraph(f"The Sacrament Hymn is {data['sacrament_hymn_line']}")
-    doc.add_paragraph("")
-    if data.get("speakers_text"):
-        doc.add_paragraph(data["speakers_text"])
-        doc.add_paragraph("")
-    if data.get("closing_hymn_line"):
-        doc.add_paragraph(f"Closing Hymn {data['closing_hymn_line']}")
-    add_line("Benediction", data.get("benediction", ""))
+    prev_blank = False
+    for line in _iter_bulletin_lines(data):
+        if not line.strip():
+            if not prev_blank:
+                add_spacer()
+            prev_blank = True
+            continue
+        prev_blank = False
+        if line == "Sacrament Meeting":
+            add_line(line, bold=True, size=12)
+        elif line == data.get("meeting_date_display"):
+            add_line(line, bold=True)
+        else:
+            add_line(line)
 
     buf = io.BytesIO()
     doc.save(buf)
@@ -257,31 +279,33 @@ def export_docx(data: dict) -> bytes:
 def export_pdf(data: dict) -> bytes:
     from fpdf import FPDF
 
-    def safe(s: str) -> str:
-        return (
-            (s or "")
-            .replace("…", "...")
-            .replace("\u201c", '"')
-            .replace("\u201d", '"')
-            .replace("\u2019", "'")
-            .encode("latin-1", errors="replace")
-            .decode("latin-1")
-        )
-
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.set_margins(15, 15, 15)
+    pdf = FPDF(format="Letter")
+    pdf.set_auto_page_break(auto=True, margin=12)
+    pdf.set_margins(12, 12, 12)
     pdf.add_page()
-    pdf.set_font("Helvetica", size=11)
+    pdf.set_font("Helvetica", size=10)
     width = pdf.epw
-    for line in build_bulletin_text(data).split("\n"):
+    line_height = 4.5
+    blank_height = 3.0
+
+    prev_blank = False
+    for line in _iter_bulletin_lines(data):
         pdf.set_x(pdf.l_margin)
         if not line.strip():
-            pdf.ln(4)
+            if not prev_blank:
+                pdf.ln(blank_height)
+            prev_blank = True
             continue
-        pdf.multi_cell(width, 5.5, safe(line))
-    out = pdf.output()
-    return out if isinstance(out, (bytes, bytearray)) else out.encode("latin-1")
+        prev_blank = False
+        safe_line = _ascii_safe(line)
+        if line == "Sacrament Meeting":
+            pdf.set_font("Helvetica", style="B", size=11)
+        else:
+            pdf.set_font("Helvetica", size=10)
+        pdf.multi_cell(width, line_height, safe_line)
+    pdf.set_font("Helvetica", size=10)
+
+    return bytes(pdf.output())
 
 
 def speakers_text_for_talks(talks) -> str:
