@@ -147,6 +147,74 @@ body {
   padding-right: 0.25rem;
 }
 
+.dashboard-current-week {
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  background: rgba(37, 99, 235, 0.03);
+}
+
+.dashboard-current-talks .dashboard-current-talk-item {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr auto;
+  gap: 0.35rem 0.75rem;
+  align-items: baseline;
+  padding: 0.35rem 0;
+  border-top: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+.dashboard-current-talks .dashboard-current-talk-item:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.dashboard-current-talk-item .dashboard-talk-topic {
+  grid-column: 2 / -1;
+  font-size: 0.92rem;
+}
+
+.dashboard-add-talk-details summary {
+  cursor: pointer;
+  color: rgba(37, 99, 235, 0.95);
+}
+
+.dashboard-talks-table-wrap {
+  max-height: min(65vh, 36rem);
+  overflow-y: auto;
+}
+
+.dashboard-talks-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fff;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-bottom-width: 2px;
+}
+
+.dashboard-talks-table .talk-month-row td {
+  background: rgba(37, 99, 235, 0.08);
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding-top: 0.65rem;
+  padding-bottom: 0.35rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.dashboard-talks-table .talk-month-row:first-child td {
+  border-top: none;
+}
+
+.dashboard-talks-table tbody td {
+  vertical-align: middle;
+  font-size: 0.98rem;
+}
+
+.dashboard-talk-date-cell {
+  color: rgba(0, 0, 0, 0.72);
+  white-space: nowrap;
+}
+
 .week-block {
   border: 1px solid rgba(0, 0, 0, 0.08);
 }

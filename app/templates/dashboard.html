@@ -16,76 +16,114 @@
     <section>
       <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
         <div>
-          <h2 class="h4 fw-bold mb-1">Sacrament talks — last 6 months</h2>
+          <h2 class="h4 fw-bold mb-1">Sacrament talks</h2>
           <div class="muted small">
-            {{ cutoff.strftime("%b %d, %Y") }} through {{ today.strftime("%b %d, %Y") }} · grouped by week (Sun–Sat)
+            {{ cutoff.strftime("%b %d, %Y") }} through {{ today.strftime("%b %d, %Y") }} · newest first
           </div>
         </div>
-        <a class="btn btn-outline-primary" href="{{ url_for('main.talks') }}">Full talks page</a>
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.talks') }}">Full talks page</a>
       </div>
 
-      <div class="row g-2 dashboard-week-grid">
-    {% for week in talk_weeks %}
-      <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
-        <div class="week-block card h-100 shadow-sm{% if not week.talks %} week-block-empty{% endif %}">
-          <div class="week-block-header card-header py-2">
-            <div class="fw-bold small text-uppercase">Week of</div>
-            <div class="week-block-dates">
-              {{ week.week_start.strftime("%b %d") }} – {{ week.week_end.strftime("%b %d, %Y") }}
+      {% set week = current_talk_week %}
+      {% set talk_count = week.talks|length %}
+      <div class="card shadow-sm mb-3 dashboard-current-week">
+        <div class="card-body py-3">
+          <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
+            <div>
+              <div class="small text-uppercase fw-bold text-primary">This sacrament Sunday</div>
+              <div class="fw-bold">{{ week.sacrament_date.strftime("%A, %b %d, %Y") }}</div>
+              <div class="small muted">Week of {{ week.week_start.strftime("%b %d") }} – {{ week.week_end.strftime("%b %d, %Y") }}</div>
             </div>
-          </div>
-          <div class="card-body py-2">
-            {% set talk_count = week.talks|length %}
-            {% if week.talks %}
-              <ul class="week-talk-list list-unstyled mb-0">
-                {% for t in week.talks %}
-                  <li class="week-talk-item">
-                    <div class="fw-bold">{{ talk_speaker_label(t) }}</div>
-                    <div class="small text-secondary">{{ t.topic }}</div>
-                    {% if talk_count > 1 %}
-                      <div class="small muted">{{ t.talk_date.strftime("%a %b %d") }}</div>
-                    {% endif %}
-                    <a class="small" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
-                  </li>
-                {% endfor %}
-              </ul>
-            {% else %}
-              <div class="muted small mb-2">No talks logged yet</div>
+            {% if talk_count >= max_talks_per_week %}
+              <span class="badge text-bg-success">{{ talk_count }} talks logged</span>
             {% endif %}
+          </div>
 
-            {% if talk_count < max_talks_per_week %}
-              {% if talk_count > 0 %}
-                <div class="dashboard-add-talk-label small fw-bold mt-2 pt-2">Add talk {{ talk_count + 1 }} of {{ max_talks_per_week }}</div>
-              {% endif %}
-              <form method="post" action="{{ url_for('main.add_talk') }}" class="dashboard-week-form talk-add-form{% if talk_count > 0 %} mt-2{% endif %}">
+          {% if week.talks %}
+            <ul class="list-unstyled mb-0 dashboard-current-talks">
+              {% for t in week.talks %}
+                <li class="dashboard-current-talk-item">
+                  <span class="dashboard-talk-date">{{ t.talk_date.strftime("%a %b %d") }}</span>
+                  <span class="dashboard-talk-speaker">{{ talk_speaker_label(t) }}</span>
+                  <span class="dashboard-talk-topic muted">{{ t.topic }}</span>
+                  <a class="small" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <div class="muted small mb-2">No talks logged for this week yet.</div>
+          {% endif %}
+
+          {% if talk_count < max_talks_per_week %}
+            <details class="dashboard-add-talk-details mt-2"{% if talk_count == 0 %} open{% endif %}>
+              <summary class="small fw-bold">{% if talk_count == 0 %}Log a talk{% else %}Add talk {{ talk_count + 1 }} of {{ max_talks_per_week }}{% endif %}</summary>
+              <form method="post" action="{{ url_for('main.add_talk') }}" class="dashboard-week-form talk-add-form mt-2">
                 <input type="hidden" name="return_to" value="dashboard" />
-                <label class="form-label small fw-bold mb-1" for="member_id_w{{ loop.index }}">Speaker</label>
-                <select class="form-select form-select-sm mb-2" id="member_id_w{{ loop.index }}" name="member_id">
-                  <option value="">— Member —</option>
-                  {% for m in members %}
-                    <option value="{{ m.id }}">{{ m.full_name }}</option>
-                  {% endfor %}
-                </select>
-                <div class="speaker-recency-alert alert py-1 px-2 small d-none" role="alert" aria-live="polite"></div>
-                <input class="form-control form-control-sm mb-2" type="text" name="speaker_text" placeholder="Or type name (visitor, etc.)" autocomplete="off" />
-                <label class="form-label small fw-bold mb-1" for="talk_date_w{{ loop.index }}">Talk date</label>
-                <input class="form-control form-control-sm mb-2" type="date" id="talk_date_w{{ loop.index }}" name="talk_date" value="{{ week.week_start.isoformat() }}" required />
-                <label class="form-label small fw-bold mb-1" for="topic_w{{ loop.index }}">Topic</label>
-                <input class="form-control form-control-sm mb-2" type="text" id="topic_w{{ loop.index }}" name="topic" placeholder="Topic" required />
-                <button class="btn btn-sm btn-primary w-100" type="submit">{% if talk_count == 0 %}Save talk{% else %}Add talk{% endif %}</button>
+                <div class="row g-2">
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold mb-1" for="member_id_dash">Speaker</label>
+                    <select class="form-select form-select-sm" id="member_id_dash" name="member_id">
+                      <option value="">— Member —</option>
+                      {% for m in members %}
+                        <option value="{{ m.id }}">{{ m.full_name }}</option>
+                      {% endfor %}
+                    </select>
+                    <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-1" role="alert" aria-live="polite"></div>
+                    <input class="form-control form-control-sm mt-2" type="text" name="speaker_text" placeholder="Or type name (visitor, etc.)" autocomplete="off" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold mb-1" for="talk_date_dash">Talk date</label>
+                    <input class="form-control form-control-sm mb-2" type="date" id="talk_date_dash" name="talk_date" value="{{ week.sacrament_date.isoformat() }}" required />
+                    <label class="form-label small fw-bold mb-1" for="topic_dash">Topic</label>
+                    <input class="form-control form-control-sm mb-2" type="text" id="topic_dash" name="topic" placeholder="Topic" required />
+                    <button class="btn btn-sm btn-primary" type="submit">Save talk</button>
+                  </div>
+                </div>
               </form>
-            {% elif talk_count >= max_talks_per_week %}
-              <div class="muted small mt-2 pt-2">All {{ max_talks_per_week }} talks logged this week</div>
-            {% endif %}
-          </div>
+            </details>
+          {% endif %}
         </div>
       </div>
-    {% endfor %}
-    {% if not talk_weeks %}
-      <div class="col-12">
-        <div class="muted">No weeks to show yet.</div>
-      </div>
-    {% endif %}
+
+      <div class="card shadow-sm dashboard-talks-history">
+        <div class="card-body p-0">
+          {% if recent_talks %}
+            <div class="table-responsive dashboard-talks-table-wrap">
+              <table class="table table-sm table-hover dashboard-talks-table mb-0">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Speaker</th>
+                    <th>Topic</th>
+                    <th class="text-end"> </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% set ns = namespace(month='') %}
+                  {% for t in recent_talks %}
+                    {% set month_label = t.talk_date.strftime('%B %Y') %}
+                    {% if month_label != ns.month %}
+                      {% set ns.month = month_label %}
+                      <tr class="talk-month-row">
+                        <td colspan="4">{{ month_label }}</td>
+                      </tr>
+                    {% endif %}
+                    <tr>
+                      <td class="text-nowrap dashboard-talk-date-cell">{{ t.talk_date.strftime("%a, %b %d, %Y") }}</td>
+                      <td class="fw-bold">{{ talk_speaker_label(t) }}</td>
+                      <td class="text-secondary">{{ t.topic }}</td>
+                      <td class="text-end text-nowrap">
+                        <a class="btn btn-sm btn-outline-secondary py-0" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="p-3 muted">No talks logged in the last 6 months.</div>
+          {% endif %}
+        </div>
       </div>
     </section>
   </div>

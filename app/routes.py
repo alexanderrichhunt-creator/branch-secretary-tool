@@ -102,26 +102,22 @@ def _talks_in_week(talk_date: date) -> int:
     ).count()
 
 
-def _build_talk_week_blocks(talks: list[Talk], cutoff: date, today: date) -> list[dict]:
-    """Group talks into Sunday–Saturday week blocks for the dashboard."""
-    by_week: dict[date, list[Talk]] = defaultdict(list)
-    for t in talks:
-        by_week[_week_start_sunday(t.talk_date)].append(t)
+def _build_current_talk_week(recent_talks: list[Talk], today: date) -> dict:
+    """Week block for the upcoming/current sacrament Sunday."""
+    from .bulletin import default_sacrament_sunday
 
-    blocks: list[dict] = []
-    week_start = _week_start_sunday(today)
-    cutoff_week = _week_start_sunday(cutoff)
-    while week_start >= cutoff_week:
-        week_talks = sorted(by_week.get(week_start, []), key=lambda t: t.talk_date)
-        blocks.append(
-            {
-                "week_start": week_start,
-                "week_end": week_start + timedelta(days=6),
-                "talks": week_talks,
-            }
-        )
-        week_start -= timedelta(days=7)
-    return blocks
+    sacrament_date = default_sacrament_sunday(today)
+    week_start = _week_start_sunday(sacrament_date)
+    week_talks = sorted(
+        (t for t in recent_talks if _week_start_sunday(t.talk_date) == week_start),
+        key=lambda t: t.talk_date,
+    )
+    return {
+        "week_start": week_start,
+        "week_end": week_start + timedelta(days=6),
+        "sacrament_date": sacrament_date,
+        "talks": week_talks,
+    }
 
 
 def _redirect_after_interview_action():
@@ -244,13 +240,14 @@ def dashboard():
         .order_by(Talk.talk_date.desc())
         .all()
     )
-    talk_weeks = _build_talk_week_blocks(recent_talks, cutoff, today)
+    current_talk_week = _build_current_talk_week(recent_talks, today)
 
     upcoming_items = _build_upcoming_schedule_items(limit=12)
 
     return render_template(
         "dashboard.html",
-        talk_weeks=talk_weeks,
+        recent_talks=recent_talks,
+        current_talk_week=current_talk_week,
         upcoming_items=upcoming_items,
         today=today,
         cutoff=cutoff,
