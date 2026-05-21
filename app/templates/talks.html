@@ -36,8 +36,8 @@
             <input class="form-control form-control-lg" type="date" id="talk_date" name="talk_date" required />
           </div>
           <div class="mb-3">
-            <label class="form-label big-label" for="topic">Topic</label>
-            <input class="form-control form-control-lg" id="topic" name="topic" placeholder="Faith, Atonement, Service..." required />
+            <label class="form-label big-label" for="topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
+            <input class="form-control form-control-lg" id="topic" name="topic" placeholder="Faith, Atonement, Service..." />
           </div>
           <div class="mb-3">
             <label class="form-label big-label" for="notes">Notes (optional)</label>
@@ -68,7 +68,7 @@
                 <tr>
                   <td class="text-nowrap">{{ t.talk_date.strftime("%b %d, %Y") }}</td>
                   <td class="fw-bold">{{ talk_speaker_label(t) }}</td>
-                  <td>{{ t.topic }}</td>
+                  <td>{% if t.topic %}{{ t.topic }}{% else %}<span class="muted">—</span>{% endif %}</td>
                   <td class="text-end text-nowrap">
                     <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
                     <form class="d-inline" method="post" action="{{ url_for('main.delete_talk', talk_id=t.id) }}" onsubmit="return confirm('Delete this talk?');">

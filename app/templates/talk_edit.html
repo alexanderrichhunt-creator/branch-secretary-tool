@@ -31,8 +31,8 @@
         <input class="form-control form-control-lg" type="date" id="talk_date" name="talk_date" value="{{ talk.talk_date.isoformat() }}" required />
       </div>
       <div class="mb-3">
-        <label class="form-label big-label" for="topic">Topic</label>
-        <input class="form-control form-control-lg" id="topic" name="topic" value="{{ talk.topic }}" required />
+        <label class="form-label big-label" for="topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
+        <input class="form-control form-control-lg" id="topic" name="topic" value="{{ talk.topic or '' }}" />
       </div>
       <div class="mb-3">
         <label class="form-label big-label" for="notes">Notes (optional)</label>

@@ -39,7 +39,7 @@ class Member(db.Model):
 class Talk(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     talk_date = db.Column(db.Date, nullable=False, index=True)
-    topic = db.Column(db.String(256), nullable=False)
+    topic = db.Column(db.String(256), nullable=False, default="")
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 

@@ -79,6 +79,14 @@ def _talk_speaker_name(t: Talk) -> str:
     return (t.speaker_text or "").strip() or "—"
 
 
+def _talk_calendar_title(t: Talk) -> str:
+    speaker = _talk_speaker_name(t)
+    topic = (t.topic or "").strip()
+    if topic:
+        return f"Talk: {speaker} — {topic}"
+    return f"Talk: {speaker}"
+
+
 def _interview_subject_name(i: Interview) -> str:
     if i.member_id and i.member is not None:
         return i.member.full_name
@@ -502,8 +510,8 @@ def add_talk():
     topic = (request.form.get("topic") or "").strip()
     notes = (request.form.get("notes") or "").strip() or None
 
-    if not talk_date_raw or not topic:
-        flash("Date and topic are required.", "warning")
+    if not talk_date_raw:
+        flash("Date is required.", "warning")
         return _redirect_after_talk_action()
     if not member_id and not speaker_text:
         flash("Choose a speaker from the list or type a name.", "warning")
@@ -555,8 +563,8 @@ def edit_talk_post(talk_id: int):
     topic = (request.form.get("topic") or "").strip()
     notes = (request.form.get("notes") or "").strip() or None
 
-    if not talk_date_raw or not topic:
-        flash("Date and topic are required.", "warning")
+    if not talk_date_raw:
+        flash("Date is required.", "warning")
         return redirect(url_for("main.edit_talk", talk_id=talk_id))
     if not member_id and not speaker_text:
         flash("Choose a speaker or enter a name under “Speaker (free text)”.", "warning")
@@ -823,7 +831,7 @@ def api_events():
     branch_events = Event.query.all()
 
     for t in talks:
-        full_title = f"Talk: {_talk_speaker_name(t)} — {t.topic}"
+        full_title = _talk_calendar_title(t)
         detail = full_title
         if t.notes:
             detail += "\n\nNotes:\n" + t.notes.strip()

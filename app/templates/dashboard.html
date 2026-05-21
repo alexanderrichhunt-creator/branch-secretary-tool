@@ -45,7 +45,7 @@
                 <li class="dashboard-current-talk-item">
                   <span class="dashboard-talk-date">{{ t.talk_date.strftime("%a %b %d") }}</span>
                   <span class="dashboard-talk-speaker">{{ talk_speaker_label(t) }}</span>
-                  <span class="dashboard-talk-topic muted">{{ t.topic }}</span>
+                  <span class="dashboard-talk-topic muted">{% if t.topic %}{{ t.topic }}{% endif %}</span>
                   <a class="small" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
                 </li>
               {% endfor %}
@@ -106,7 +106,7 @@
                       {% for t in group.talks %}
                         <li class="dashboard-sunday-talk-item">
                           <span class="fw-bold">{{ talk_speaker_label(t) }}</span>
-                          <span class="text-secondary">{{ t.topic }}</span>
+                          <span class="text-secondary">{% if t.topic %}{{ t.topic }}{% else %}<span class="muted">—</span>{% endif %}</span>
                           {% if group_count > 1 and t.talk_date != group.sacrament_date %}
                             <span class="small muted">{{ t.talk_date.strftime("%a %b %d") }}</span>
                           {% endif %}
@@ -189,8 +189,8 @@
             <input class="form-control mt-2" type="text" name="speaker_text" placeholder="Or type name (visitor, etc.)" autocomplete="off" />
           </div>
           <div class="mb-3">
-            <label class="form-label big-label" for="dashboard_add_topic">Topic</label>
-            <input class="form-control" type="text" id="dashboard_add_topic" name="topic" placeholder="Topic" required />
+            <label class="form-label big-label" for="dashboard_add_topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
+            <input class="form-control" type="text" id="dashboard_add_topic" name="topic" placeholder="Topic" />
           </div>
           <button class="btn btn-primary" type="submit">Save talk</button>
         </form>
