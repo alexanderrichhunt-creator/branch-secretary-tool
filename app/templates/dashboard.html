@@ -31,12 +31,9 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
             <div>
               <div class="small text-uppercase fw-bold text-primary">This sacrament Sunday</div>
-              <div class="fw-bold">{{ week.sacrament_date.strftime("%A, %b %d, %Y") }}</div>
+              <div class="dashboard-sacrament-date dashboard-sacrament-date-main">{{ week.sacrament_date.strftime("%A, %b %d, %Y") }}</div>
               <div class="small muted">Week of {{ week.week_start.strftime("%b %d") }} – {{ week.week_end.strftime("%b %d, %Y") }}</div>
             </div>
-            {% if talk_count >= max_talks_per_week %}
-              <span class="badge text-bg-success">{{ talk_count }} talks logged</span>
-            {% endif %}
           </div>
 
           {% if week.talks %}
@@ -82,10 +79,8 @@
                 <div class="dashboard-sunday-group{% if group_count == 0 %} dashboard-sunday-group-empty{% endif %}">
                   <div class="dashboard-sunday-header">
                     <div>
-                      <div class="dashboard-sunday-title">{{ group.sacrament_date.strftime("%A, %b %d, %Y") }}</div>
-                      {% if group_count > 0 and group_count < max_talks_per_week %}
-                        <div class="small muted">{{ group_count }} of {{ max_talks_per_week }} talks logged</div>
-                      {% elif group_count == 0 %}
+                      <div class="dashboard-sacrament-date">{{ group.sacrament_date.strftime("%A, %b %d, %Y") }}</div>
+                      {% if group_count == 0 %}
                         <div class="small muted">No talks logged</div>
                       {% endif %}
                     </div>
@@ -105,10 +100,10 @@
                     <ul class="list-unstyled mb-0 dashboard-sunday-talks">
                       {% for t in group.talks %}
                         <li class="dashboard-sunday-talk-item">
-                          <span class="fw-bold">{{ talk_speaker_label(t) }}</span>
+                          <span class="dashboard-talk-speaker">{{ talk_speaker_label(t) }}</span>
                           <span class="text-secondary">{% if t.topic %}{{ t.topic }}{% else %}<span class="muted">—</span>{% endif %}</span>
                           {% if group_count > 1 and t.talk_date != group.sacrament_date %}
-                            <span class="small muted">{{ t.talk_date.strftime("%a %b %d") }}</span>
+                            <span class="dashboard-talk-date">{{ t.talk_date.strftime("%a %b %d") }}</span>
                           {% endif %}
                           <a class="small" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
                         </li>
