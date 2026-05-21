@@ -4,11 +4,11 @@
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
   <div>
     <h1 class="h2 fw-bold mb-1">Calendar</h1>
-    <div class="muted">Talks (blue) and interviews (green). Click an event for details and edit.</div>
+    <div class="muted">Talks (blue), interviews (green), and events (purple). Click a day or time slot to add; click an item for details.</div>
   </div>
   <div class="d-flex gap-2">
+    <button class="btn btn-outline-secondary btn-lg" type="button" id="calOpenCreateBtn">Add event</button>
     <a class="btn btn-primary btn-lg" href="{{ url_for('main.talks') }}">Add talk</a>
-    <a class="btn btn-success btn-lg" href="{{ url_for('main.interviews') }}">Add interview</a>
   </div>
 </div>
 
@@ -37,19 +37,140 @@
   </div>
 </div>
 
-<!-- Add on blank date / slot -->
-<div class="modal fade" id="calAddModal" tabindex="-1" aria-labelledby="calAddModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+<!-- Create event / interview (Google Calendar-style) -->
+<div class="modal fade" id="calCreateModal" tabindex="-1" aria-labelledby="calCreateModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h2 class="modal-title h5 fw-bold" id="calAddModalLabel">Add to calendar</h2>
+        <h2 class="modal-title h5 fw-bold" id="calCreateModalLabel">Add to calendar</h2>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <p class="cal-add-summary muted mb-3"></p>
-        <div class="d-grid gap-2">
-          <a class="btn btn-primary btn-lg cal-add-talk" href="#">Add sacrament talk</a>
-          <a class="btn btn-success btn-lg cal-add-interview" href="#">Add interview</a>
+        <ul class="nav nav-pills mb-3 cal-create-tabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="cal-tab-event" data-bs-toggle="pill" data-bs-target="#cal-pane-event" type="button" role="tab" data-item-kind="event">Event / meeting</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="cal-tab-interview" data-bs-toggle="pill" data-bs-target="#cal-pane-interview" type="button" role="tab" data-item-kind="interview">Interview</button>
+          </li>
+        </ul>
+
+        <div class="tab-content">
+          <div class="tab-pane fade show active" id="cal-pane-event" role="tabpanel">
+            <form method="post" action="{{ url_for('main.add_event') }}" id="calEventForm" class="cal-create-form">
+              <input type="hidden" name="return_to" value="calendar" />
+              <div class="mb-3">
+                <label class="form-label big-label" for="event_title">Title</label>
+                <input class="form-control form-control-lg" type="text" id="event_title" name="title" placeholder="Branch council, youth night, etc." required />
+              </div>
+              <div class="row g-2 mb-3 cal-schedule-row">
+                <div class="col-sm-6">
+                  <label class="form-label big-label" for="event_date_event">Date</label>
+                  <input class="form-control form-control-lg cal-event-date" type="date" id="event_date_event" name="event_date" required />
+                </div>
+                <div class="col-sm-6 d-flex align-items-end">
+                  <div class="form-check mb-2">
+                    <input class="form-check-input cal-all-day" type="checkbox" id="all_day_event" name="all_day" value="1" />
+                    <label class="form-check-label" for="all_day_event">All day</label>
+                  </div>
+                </div>
+              </div>
+              <div class="row g-2 mb-3 cal-time-row">
+                <div class="col-6">
+                  <label class="form-label big-label" for="start_time_event">Start</label>
+                  <input class="form-control form-control-lg cal-start-time" type="time" id="start_time_event" name="start_time" value="09:00" />
+                </div>
+                <div class="col-6">
+                  <label class="form-label big-label" for="end_time_event">End</label>
+                  <input class="form-control form-control-lg cal-end-time" type="time" id="end_time_event" name="end_time" value="10:00" />
+                </div>
+              </div>
+              <div class="row g-2 mb-3">
+                <div class="col-md-6">
+                  <label class="form-label big-label" for="recurrence_freq">Repeat</label>
+                  <select class="form-select form-select-lg cal-recurrence-freq" id="recurrence_freq" name="recurrence_freq">
+                    <option value="none">Does not repeat</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+                <div class="col-md-6 cal-repeat-until-wrap">
+                  <label class="form-label big-label" for="recurrence_until">Repeat until (optional)</label>
+                  <input class="form-control form-control-lg" type="date" id="recurrence_until" name="recurrence_until" />
+                </div>
+              </div>
+              <div class="mb-3 cal-weekdays-wrap d-none">
+                <div class="form-label big-label">On these days</div>
+                <div class="d-flex flex-wrap gap-2">
+                  {% for code in weekday_codes %}
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" name="recurrence_byweekday" value="{{ code }}" id="wd_event_{{ code }}" />
+                      <label class="form-check-label" for="wd_event_{{ code }}">{{ code }}</label>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label big-label" for="event_location">Location (optional)</label>
+                <input class="form-control form-control-lg" type="text" id="event_location" name="location" placeholder="Chapel, Zoom link, etc." />
+              </div>
+              <div class="mb-3">
+                <label class="form-label big-label" for="event_notes">Notes (optional)</label>
+                <textarea class="form-control" id="event_notes" name="notes" rows="2"></textarea>
+              </div>
+              <button class="btn btn-primary btn-lg" type="submit">Save event</button>
+            </form>
+          </div>
+
+          <div class="tab-pane fade" id="cal-pane-interview" role="tabpanel">
+            <form method="post" action="{{ url_for('main.add_interview') }}" id="calInterviewForm" class="cal-create-form">
+              <input type="hidden" name="return_to" value="calendar" />
+              <div class="mb-3">
+                <label class="form-label big-label" for="interview_purpose">Purpose</label>
+                <input class="form-control form-control-lg" type="text" id="interview_purpose" name="purpose" value="Interview" required />
+              </div>
+              <div class="row g-2 mb-3 cal-schedule-row">
+                <div class="col-sm-6">
+                  <label class="form-label big-label" for="event_date_interview">Date</label>
+                  <input class="form-control form-control-lg cal-event-date" type="date" id="event_date_interview" name="event_date" required />
+                </div>
+              </div>
+              <div class="row g-2 mb-3 cal-time-row">
+                <div class="col-6">
+                  <label class="form-label big-label" for="start_time_interview">Start</label>
+                  <input class="form-control form-control-lg cal-start-time" type="time" id="start_time_interview" name="start_time" value="09:00" />
+                </div>
+                <div class="col-6">
+                  <label class="form-label big-label" for="end_time_interview">End</label>
+                  <input class="form-control form-control-lg cal-end-time" type="time" id="end_time_interview" name="end_time" value="09:15" />
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label big-label" for="cal_member_id">Member (optional)</label>
+                <select class="form-select form-select-lg" id="cal_member_id" name="member_id">
+                  <option value="">(none)</option>
+                  {% for m in members %}
+                    <option value="{{ m.id }}">{{ m.full_name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label big-label" for="cal_who_text">Who / what (free text, optional)</label>
+                <input class="form-control form-control-lg" type="text" id="cal_who_text" name="who_text" placeholder="If not on the members list" autocomplete="off" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label big-label" for="interview_notes">Notes (optional)</label>
+                <textarea class="form-control" id="interview_notes" name="notes" rows="2"></textarea>
+              </div>
+              <button class="btn btn-success btn-lg" type="submit">Save interview</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-3 border-top">
+          <div class="small muted mb-2">Sacrament talks are all-day items on the calendar.</div>
+          <a class="btn btn-outline-primary cal-add-talk-link" href="{{ url_for('main.talks') }}">Add sacrament talk</a>
         </div>
       </div>
     </div>
@@ -61,29 +182,20 @@
 {% block scripts %}
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script src="{{ url_for('static', filename='calendar-form.js') }}"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     const el = document.getElementById('calendar');
     const eventModalEl = document.getElementById('calEventModal');
-    const addModalEl = document.getElementById('calAddModal');
+    const createModalEl = document.getElementById('calCreateModal');
     const eventModal = eventModalEl ? new bootstrap.Modal(eventModalEl) : null;
-    const addModal = addModalEl ? new bootstrap.Modal(addModalEl) : null;
-
-    function pad(n) { return String(n).padStart(2, '0'); }
-    function toDateOnly(d) {
-      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
-    }
-    function toDatetimeLocalValue(d) {
-      return toDateOnly(d) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-    }
-
-    const talksBase = "{{ url_for('main.talks') }}";
-    const interviewsBase = "{{ url_for('main.interviews') }}";
 
     const cal = new FullCalendar.Calendar(el, {
       initialView: 'dayGridMonth',
       height: 'auto',
       selectable: true,
+      selectMirror: true,
+      unselectAuto: true,
       navLinks: true,
       dayMaxEvents: true,
       headerToolbar: {
@@ -102,38 +214,38 @@
 
         eventModalEl.querySelector('.modal-title').textContent = title;
         eventModalEl.querySelector('.cal-detail-body').textContent = detail;
-        const editBtn = eventModalEl.querySelector('.cal-edit-link');
-        editBtn.href = editUrl;
+        eventModalEl.querySelector('.cal-edit-link').href = editUrl;
         eventModal.show();
       },
       dateClick: function(info) {
-        let talkDate;
-        let interviewStarts;
-        const d = info.date;
+        const start = info.date;
+        let end = new Date(start);
         if (info.allDay) {
-          talkDate = toDateOnly(d);
-          const slot = new Date(d);
-          slot.setHours(9, 0, 0, 0);
-          interviewStarts = toDatetimeLocalValue(slot);
+          end.setHours(10, 0, 0, 0);
+          start.setHours(9, 0, 0, 0);
         } else {
-          talkDate = toDateOnly(d);
-          interviewStarts = toDatetimeLocalValue(d);
+          end = new Date(start.getTime() + 60 * 60 * 1000);
         }
-
-        const talkUrl = talksBase + '?prefill_date=' + encodeURIComponent(talkDate);
-        const intUrl = interviewsBase + '?prefill_starts=' + encodeURIComponent(interviewStarts);
-
-        addModalEl.querySelector('.cal-add-talk').href = talkUrl;
-        addModalEl.querySelector('.cal-add-interview').href = intUrl;
-
-        const summary = info.allDay
-          ? 'Pick what to add on ' + talkDate + ':'
-          : 'Pick what to add starting ' + interviewStarts.replace('T', ' ') + ':';
-        addModalEl.querySelector('.cal-add-summary').textContent = summary;
-        addModal.show();
+        window.CalCreateForm.open({ start: start, end: end, allDay: info.allDay });
+      },
+      select: function(info) {
+        window.CalCreateForm.open({ start: info.start, end: info.end, allDay: info.allDay });
+        cal.unselect();
       }
     });
     cal.render();
+    window.CalCreateForm.init(createModalEl);
+
+    const openBtn = document.getElementById('calOpenCreateBtn');
+    if (openBtn) {
+      openBtn.addEventListener('click', function() {
+        const now = new Date();
+        now.setMinutes(0, 0, 0);
+        now.setHours(now.getHours() + 1);
+        const end = new Date(now.getTime() + 60 * 60 * 1000);
+        window.CalCreateForm.open({ start: now, end: end, allDay: false });
+      });
+    }
   });
 </script>
 {% endblock %}

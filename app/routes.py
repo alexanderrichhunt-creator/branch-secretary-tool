@@ -9,7 +9,7 @@ from flask import Blueprint, flash, jsonify, redirect, render_template, request,
 from flask_login import current_user, login_required
 
 from . import db
-from .models import Interview, Member, Talk, User, parse_us_date
+from .models import Event, Interview, Member, Talk, User, parse_us_date
 
 
 def _short_calendar_title(text: str, max_len: int = 40) -> str:
@@ -35,6 +35,42 @@ def _parse_interview_who_submission():
     if member_id:
         who_text = None
     return member_id, who_text
+
+
+def _parse_interview_schedule_from_form() -> tuple[datetime | None, int | None, str | None]:
+    """Parse interview start + duration from datetime-local or calendar date/time fields."""
+    starts_at_raw = (request.form.get("starts_at") or "").strip()
+    if starts_at_raw:
+        try:
+            starts_at = datetime.strptime(starts_at_raw, "%Y-%m-%dT%H:%M")
+        except Exception:
+            return None, None, "Invalid start date & time."
+        duration_minutes = int(request.form.get("duration_minutes") or "15")
+        return starts_at, max(5, min(duration_minutes, 180)), None
+
+    event_date_raw = (request.form.get("event_date") or "").strip()
+    start_time_raw = (request.form.get("start_time") or "").strip()
+    end_time_raw = (request.form.get("end_time") or "").strip()
+    if not event_date_raw or not start_time_raw:
+        return None, None, "Start date & time is required."
+    try:
+        event_date = datetime.strptime(event_date_raw, "%Y-%m-%d").date()
+        start_time = datetime.strptime(start_time_raw, "%H:%M").time()
+        starts_at = datetime.combine(event_date, start_time)
+    except Exception:
+        return None, None, "Invalid start date & time."
+
+    duration_minutes = 15
+    if end_time_raw:
+        try:
+            end_time = datetime.strptime(end_time_raw, "%H:%M").time()
+            end_at = datetime.combine(event_date, end_time)
+            if end_at <= starts_at:
+                end_at += timedelta(days=1)
+            duration_minutes = max(5, min(int((end_at - starts_at).total_seconds() // 60), 180))
+        except Exception:
+            return None, None, "Invalid end time."
+    return starts_at, duration_minutes, None
 
 
 def _talk_speaker_name(t: Talk) -> str:
@@ -88,6 +124,99 @@ def _build_talk_week_blocks(talks: list[Talk], cutoff: date, today: date) -> lis
     return blocks
 
 
+def _redirect_after_interview_action():
+    if (request.form.get("return_to") or "").strip() == "calendar":
+        return redirect(url_for("main.calendar"))
+    return redirect(url_for("main.interviews"))
+
+
+def _redirect_after_event_action():
+    if (request.form.get("return_to") or "").strip() == "calendar":
+        return redirect(url_for("main.calendar"))
+    return redirect(url_for("main.events"))
+
+
+def _parse_event_times_from_form():
+    """Parse date, times, and all-day flag from an event form."""
+    event_date_raw = (request.form.get("event_date") or "").strip()
+    all_day = (request.form.get("all_day") or "").strip() == "1"
+    if not event_date_raw:
+        return None, None, None, "Date is required."
+
+    try:
+        event_date = datetime.strptime(event_date_raw, "%Y-%m-%d").date()
+    except Exception:
+        return None, None, None, "Invalid date."
+
+    if all_day:
+        starts_at = datetime.combine(event_date, datetime.min.time())
+        end_at = starts_at + timedelta(days=1)
+        return starts_at, end_at, True, None
+
+    start_time_raw = (request.form.get("start_time") or "").strip()
+    end_time_raw = (request.form.get("end_time") or "").strip()
+    if not start_time_raw or not end_time_raw:
+        return None, None, None, "Start and end times are required."
+
+    try:
+        start_time = datetime.strptime(start_time_raw, "%H:%M").time()
+        end_time = datetime.strptime(end_time_raw, "%H:%M").time()
+    except Exception:
+        return None, None, None, "Invalid start or end time."
+
+    starts_at = datetime.combine(event_date, start_time)
+    end_at = datetime.combine(event_date, end_time)
+    if end_at <= starts_at:
+        end_at += timedelta(days=1)
+    return starts_at, end_at, False, None
+
+
+def _build_upcoming_schedule_items(limit: int = 12) -> list[dict]:
+    from .event_utils import iter_event_occurrences, recurrence_label
+
+    now = datetime.now() - timedelta(hours=2)
+    horizon = now + timedelta(days=120)
+    items: list[dict] = []
+
+    interviews = (
+        Interview.query.filter(Interview.starts_at >= now)
+        .order_by(Interview.starts_at.asc())
+        .limit(limit * 2)
+        .all()
+    )
+    for interview in interviews:
+        items.append(
+            {
+                "kind": "interview",
+                "starts_at": interview.starts_at,
+                "all_day": False,
+                "title": f"Interview: {_interview_subject_name(interview)}",
+                "subtitle": f"{interview.purpose} ({interview.duration_minutes} min)",
+                "edit_url": url_for("main.edit_interview", interview_id=interview.id),
+            }
+        )
+
+    for event in Event.query.order_by(Event.starts_at.asc()).all():
+        for occ_start, _occ_end in iter_event_occurrences(event, now, horizon):
+            if occ_start < now:
+                continue
+            repeat = recurrence_label(event)
+            subtitle = repeat or (event.location or "Meeting / event")
+            items.append(
+                {
+                    "kind": "event",
+                    "starts_at": occ_start,
+                    "all_day": event.all_day,
+                    "title": event.title,
+                    "subtitle": subtitle,
+                    "edit_url": url_for("main.edit_event", event_id=event.id),
+                }
+            )
+
+    items.sort(key=lambda item: item["starts_at"])
+    return items[:limit]
+
+
 main_bp = Blueprint("main", __name__)
 
 
@@ -111,17 +240,12 @@ def dashboard():
     )
     talk_weeks = _build_talk_week_blocks(recent_talks, cutoff, today)
 
-    upcoming_interviews = (
-        Interview.query.filter(Interview.starts_at >= datetime.now() - timedelta(hours=2))
-        .order_by(Interview.starts_at.asc())
-        .limit(10)
-        .all()
-    )
+    upcoming_items = _build_upcoming_schedule_items(limit=12)
 
     return render_template(
         "dashboard.html",
         talk_weeks=talk_weeks,
-        upcoming_interviews=upcoming_interviews,
+        upcoming_items=upcoming_items,
         today=today,
         cutoff=cutoff,
         max_talks_per_week=MAX_TALKS_PER_SACRAMENT_WEEK,
@@ -445,28 +569,28 @@ def admin_users():
 @login_required
 def add_interview():
     member_id, who_text = _parse_interview_who_submission()
-    starts_at_raw = (request.form.get("starts_at") or "").strip()
-    duration_minutes = int(request.form.get("duration_minutes") or "15")
+    starts_at, duration_minutes, err = _parse_interview_schedule_from_form()
     purpose = (request.form.get("purpose") or "Interview").strip() or "Interview"
     notes = (request.form.get("notes") or "").strip() or None
 
-    if not starts_at_raw:
-        return redirect(url_for("main.interviews"))
-    try:
-        starts_at = datetime.strptime(starts_at_raw, "%Y-%m-%dT%H:%M")
-    except Exception:
-        return redirect(url_for("main.interviews"))
+    if err:
+        flash(err, "warning")
+        return _redirect_after_interview_action()
+    if starts_at is None or duration_minutes is None:
+        flash("Start date & time is required.", "warning")
+        return _redirect_after_interview_action()
     i = Interview(
         member_id=member_id,
         who_text=who_text,
         starts_at=starts_at,
-        duration_minutes=max(5, min(duration_minutes, 180)),
+        duration_minutes=duration_minutes,
         purpose=purpose,
         notes=notes,
     )
     db.session.add(i)
     db.session.commit()
-    return redirect(url_for("main.interviews"))
+    flash("Interview saved.", "success")
+    return _redirect_after_interview_action()
 
 
 @main_bp.get("/interviews/<int:interview_id>/edit")
@@ -520,20 +644,136 @@ def delete_interview(interview_id: int):
     return redirect(url_for("main.interviews"))
 
 
+@main_bp.get("/events")
+@login_required
+def events():
+    branch_events = Event.query.order_by(Event.starts_at.desc()).limit(200).all()
+    return render_template("events.html", events=branch_events)
+
+
+@main_bp.post("/events/add")
+@login_required
+def add_event():
+    from .event_utils import parse_recurrence_form
+
+    title = (request.form.get("title") or "").strip()
+    notes = (request.form.get("notes") or "").strip() or None
+    location = (request.form.get("location") or "").strip() or None
+    starts_at, end_at, all_day, err = _parse_event_times_from_form()
+    if err:
+        flash(err, "warning")
+        return _redirect_after_event_action()
+
+    freq, interval, byweekday, until = parse_recurrence_form(request.form)
+    if freq == "weekly" and not byweekday:
+        weekday_codes = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
+        byweekday = weekday_codes[starts_at.weekday()]
+    event = Event(
+        title=title or "Untitled event",
+        notes=notes,
+        location=location,
+        starts_at=starts_at,
+        end_at=end_at,
+        all_day=all_day,
+        recurrence_freq=freq,
+        recurrence_interval=interval,
+        recurrence_byweekday=byweekday,
+        recurrence_until=until,
+    )
+    db.session.add(event)
+    db.session.commit()
+    flash("Event saved.", "success")
+
+    return_to = (request.form.get("return_to") or "").strip()
+    if return_to == "calendar":
+        return redirect(url_for("main.calendar"))
+    return redirect(url_for("main.events"))
+
+
+@main_bp.get("/events/<int:event_id>/edit")
+@login_required
+def edit_event(event_id: int):
+    from .event_utils import WEEKDAY_CODES
+
+    event = Event.query.get_or_404(event_id)
+    return render_template("event_edit.html", event=event, weekday_codes=WEEKDAY_CODES)
+
+
+@main_bp.post("/events/<int:event_id>/edit")
+@login_required
+def edit_event_post(event_id: int):
+    from .event_utils import parse_recurrence_form
+
+    event = Event.query.get_or_404(event_id)
+    title = (request.form.get("title") or "").strip()
+    notes = (request.form.get("notes") or "").strip() or None
+    location = (request.form.get("location") or "").strip() or None
+    starts_at, end_at, all_day, err = _parse_event_times_from_form()
+    if err or not title:
+        flash(err or "Title is required.", "warning")
+        return redirect(url_for("main.edit_event", event_id=event_id))
+
+    freq, interval, byweekday, until = parse_recurrence_form(request.form)
+    if freq == "weekly" and not byweekday:
+        weekday_codes = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
+        byweekday = weekday_codes[starts_at.weekday()]
+    event.title = title
+    event.notes = notes
+    event.location = location
+    event.starts_at = starts_at
+    event.end_at = end_at
+    event.all_day = all_day
+    event.recurrence_freq = freq
+    event.recurrence_interval = interval
+    event.recurrence_byweekday = byweekday
+    event.recurrence_until = until
+    db.session.commit()
+    flash("Event updated.", "success")
+    return redirect(url_for("main.events"))
+
+
+@main_bp.post("/events/<int:event_id>/delete")
+@login_required
+def delete_event(event_id: int):
+    event = Event.query.get_or_404(event_id)
+    db.session.delete(event)
+    db.session.commit()
+    flash("Event deleted.", "success")
+    return redirect(url_for("main.events"))
+
+
 @main_bp.get("/calendar")
 @login_required
 def calendar():
-    return render_template("calendar.html")
+    members = Member.query.order_by(Member.full_name.asc()).all()
+    from .event_utils import WEEKDAY_CODES
+
+    return render_template("calendar.html", members=members, weekday_codes=WEEKDAY_CODES)
 
 
 @main_bp.get("/api/events")
 @login_required
 def api_events():
-    # FullCalendar expects ISO date strings.
-    talks = Talk.query.all()
-    interviews = Interview.query.all()
+    from .event_utils import iter_event_occurrences, parse_calendar_range, recurrence_label
+
+    range_start, range_end = parse_calendar_range(
+        request.args.get("start"),
+        request.args.get("end"),
+    )
+    range_start_date = range_start.date()
+    range_end_date = range_end.date()
 
     events = []
+    talks = Talk.query.filter(
+        Talk.talk_date >= range_start_date,
+        Talk.talk_date <= range_end_date,
+    ).all()
+    interviews = Interview.query.filter(
+        Interview.starts_at < range_end,
+        Interview.starts_at >= range_start - timedelta(days=1),
+    ).all()
+    branch_events = Event.query.all()
+
     for t in talks:
         full_title = f"Talk: {_talk_speaker_name(t)} — {t.topic}"
         detail = full_title
@@ -578,6 +818,38 @@ def api_events():
                 },
             }
         )
+
+    for event in branch_events:
+        repeat = recurrence_label(event)
+        for occ_start, occ_end in iter_event_occurrences(event, range_start, range_end):
+            detail = event.title
+            if event.location:
+                detail += f"\n\nLocation: {event.location}"
+            if repeat:
+                detail += f"\n\nRepeats: {repeat}"
+            if event.notes:
+                detail += "\n\nNotes:\n" + event.notes.strip()
+
+            occ_id = f"event-{event.id}-{occ_start.strftime('%Y%m%d%H%M')}"
+            fc_event = {
+                "id": occ_id,
+                "title": _short_calendar_title(event.title),
+                "start": occ_start.date().isoformat() if event.all_day else occ_start.isoformat(),
+                "allDay": event.all_day,
+                "backgroundColor": "#9333ea",
+                "borderColor": "#7e22ce",
+                "extendedProps": {
+                    "kind": "event",
+                    "editUrl": url_for("main.edit_event", event_id=event.id),
+                    "fullTitle": event.title,
+                    "detailText": detail,
+                },
+            }
+            if event.all_day:
+                fc_event["end"] = occ_end.date().isoformat()
+            else:
+                fc_event["end"] = occ_end.isoformat()
+            events.append(fc_event)
 
     return jsonify(events)
 

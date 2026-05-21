@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <div>
+    <h1 class="h2 fw-bold mb-1">Edit event</h1>
+    <div class="muted">Update times, location, or repeat settings.</div>
+  </div>
+  <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.events') }}">Back</a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <form method="post" action="{{ url_for('main.edit_event_post', event_id=event.id) }}">
+      <div class="mb-3">
+        <label class="form-label big-label" for="title">Title</label>
+        <input class="form-control form-control-lg" type="text" id="title" name="title" value="{{ event.title }}" required />
+      </div>
+      <div class="row g-2 mb-3">
+        <div class="col-sm-6">
+          <label class="form-label big-label" for="event_date">Date</label>
+          <input class="form-control form-control-lg" type="date" id="event_date" name="event_date" value="{{ event.starts_at.strftime('%Y-%m-%d') }}" required />
+        </div>
+        <div class="col-sm-6 d-flex align-items-end">
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="all_day" name="all_day" value="1" {% if event.all_day %}checked{% endif %} />
+            <label class="form-check-label" for="all_day">All day</label>
+          </div>
+        </div>
+      </div>
+      <div class="row g-2 mb-3" id="time-row">
+        <div class="col-6">
+          <label class="form-label big-label" for="start_time">Start</label>
+          <input class="form-control form-control-lg" type="time" id="start_time" name="start_time" value="{{ event.starts_at.strftime('%H:%M') }}" />
+        </div>
+        <div class="col-6">
+          <label class="form-label big-label" for="end_time">End</label>
+          <input class="form-control form-control-lg" type="time" id="end_time" name="end_time" value="{{ (event.end_at or event.starts_at).strftime('%H:%M') }}" />
+        </div>
+      </div>
+      <div class="row g-2 mb-3">
+        <div class="col-md-6">
+          <label class="form-label big-label" for="recurrence_freq">Repeat</label>
+          <select class="form-select form-select-lg" id="recurrence_freq" name="recurrence_freq">
+            <option value="none" {% if not event.recurrence_freq %}selected{% endif %}>Does not repeat</option>
+            <option value="daily" {% if event.recurrence_freq == 'daily' %}selected{% endif %}>Daily</option>
+            <option value="weekly" {% if event.recurrence_freq == 'weekly' %}selected{% endif %}>Weekly</option>
+            <option value="monthly" {% if event.recurrence_freq == 'monthly' %}selected{% endif %}>Monthly</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label big-label" for="recurrence_until">Repeat until (optional)</label>
+          <input class="form-control form-control-lg" type="date" id="recurrence_until" name="recurrence_until" value="{{ event.recurrence_until.isoformat() if event.recurrence_until else '' }}" />
+        </div>
+      </div>
+      <div class="mb-3" id="weekdays-wrap">
+        <div class="form-label big-label">On these days</div>
+        <div class="d-flex flex-wrap gap-2">
+          {% set selected_days = (event.recurrence_byweekday or '').split(',') %}
+          {% for code in weekday_codes %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="recurrence_byweekday" value="{{ code }}" id="wd_{{ code }}" {% if code in selected_days %}checked{% endif %} />
+              <label class="form-check-label" for="wd_{{ code }}">{{ code }}</label>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label big-label" for="location">Location (optional)</label>
+        <input class="form-control form-control-lg" type="text" id="location" name="location" value="{{ event.location or '' }}" />
+      </div>
+      <div class="mb-3">
+        <label class="form-label big-label" for="notes">Notes (optional)</label>
+        <textarea class="form-control form-control-lg" id="notes" name="notes" rows="3">{{ event.notes or "" }}</textarea>
+      </div>
+      {% if event.recurrence_freq %}
+        <div class="alert alert-info py-2">Changes apply to the whole repeating series.</div>
+      {% endif %}
+      <button class="btn btn-primary btn-lg" type="submit">Save changes</button>
+    </form>
+    <form class="mt-3" method="post" action="{{ url_for('main.delete_event', event_id=event.id) }}" onsubmit="return confirm('Delete this event{% if event.recurrence_freq %} series{% endif %}?');">
+      <button class="btn btn-outline-danger btn-lg" type="submit">Delete event</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    const allDay = document.getElementById('all_day');
+    const timeRow = document.getElementById('time-row');
+    const startTime = document.getElementById('start_time');
+    const endTime = document.getElementById('end_time');
+    const freq = document.getElementById('recurrence_freq');
+    const weekdays = document.getElementById('weekdays-wrap');
+
+    function syncAllDay() {
+      const on = allDay && allDay.checked;
+      if (timeRow) timeRow.classList.toggle('d-none', on);
+      if (startTime) { startTime.disabled = on; startTime.required = !on; }
+      if (endTime) { endTime.disabled = on; endTime.required = !on; }
+    }
+    function syncWeekdays() {
+      if (weekdays && freq) weekdays.classList.toggle('d-none', freq.value !== 'weekly');
+    }
+    if (allDay) allDay.addEventListener('change', syncAllDay);
+    if (freq) freq.addEventListener('change', syncWeekdays);
+    syncAllDay();
+    syncWeekdays();
+  })();
+</script>
+{% endblock %}

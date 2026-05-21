@@ -64,6 +64,24 @@ body {
   border: 1px solid rgba(25, 135, 84, 0.15);
 }
 
+.dashboard-schedule-item + .dashboard-schedule-item {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+.dashboard-schedule-event .small:first-of-type {
+  color: #7e22ce;
+}
+
+.dashboard-schedule-interview .small:first-of-type {
+  color: #15803d;
+}
+
+.cal-create-tabs .nav-link {
+  font-weight: 600;
+}
+
 .dashboard-interviews-card .card-body {
   display: flex;
   flex-direction: column;

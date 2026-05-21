@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <div>
+    <h1 class="h2 fw-bold mb-1">Events & meetings</h1>
+    <div class="muted">Branch activities, recurring meetings, and other calendar events.</div>
+  </div>
+  <a class="btn btn-outline-primary btn-lg" href="{{ url_for('main.calendar') }}">Calendar view</a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h2 class="h4 fw-bold mb-3">Scheduled events</h2>
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th>Starts</th>
+            <th>Title</th>
+            <th>Repeat</th>
+            <th>Location</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in events %}
+            <tr>
+              <td class="text-nowrap">
+                {% if e.all_day %}
+                  {{ e.starts_at.strftime("%b %d, %Y") }} <span class="small muted">(all day)</span>
+                {% else %}
+                  {{ e.starts_at.strftime("%b %d, %Y %I:%M %p") }}
+                {% endif %}
+              </td>
+              <td class="fw-bold">{{ e.title }}</td>
+              <td>
+                {% if e.recurrence_freq %}
+                  {{ e.recurrence_freq|title }}{% if e.recurrence_until %} until {{ e.recurrence_until.strftime("%b %d, %Y") }}{% endif %}
+                {% else %}
+                  <span class="muted">—</span>
+                {% endif %}
+              </td>
+              <td>{{ e.location or "—" }}</td>
+              <td class="text-end text-nowrap">
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.edit_event', event_id=e.id) }}">Edit</a>
+                <form class="d-inline" method="post" action="{{ url_for('main.delete_event', event_id=e.id) }}" onsubmit="return confirm('Delete this event{% if e.recurrence_freq %} series{% endif %}?');">
+                  <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="5" class="muted">No events yet. Use the calendar to add meetings and repeating activities.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

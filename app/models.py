@@ -58,9 +58,25 @@ class Interview(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     member_id = db.Column(db.Integer, db.ForeignKey("member.id"), nullable=True, index=True)
-    # When no member is selected, e.g. "Visiting high councilor" or a generic label.
     who_text = db.Column(db.String(256), nullable=True)
     member = db.relationship("Member", back_populates="interviews")
+
+
+class Event(db.Model):
+    """Branch meetings and calendar events (supports simple recurrence)."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(256), nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+    location = db.Column(db.String(256), nullable=True)
+    starts_at = db.Column(db.DateTime, nullable=False, index=True)
+    end_at = db.Column(db.DateTime, nullable=True)
+    all_day = db.Column(db.Boolean, nullable=False, default=False)
+    recurrence_freq = db.Column(db.String(16), nullable=True)  # daily, weekly, monthly
+    recurrence_interval = db.Column(db.Integer, nullable=True, default=1)
+    recurrence_byweekday = db.Column(db.String(32), nullable=True)  # MO,TU,...
+    recurrence_until = db.Column(db.Date, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 
 class BulletinDefaults(db.Model):
