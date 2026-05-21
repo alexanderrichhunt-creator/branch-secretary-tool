@@ -54,6 +54,18 @@ def _week_start_sunday(d: date) -> date:
     return d - timedelta(days=(d.weekday() + 1) % 7)
 
 
+MAX_TALKS_PER_SACRAMENT_WEEK = 4
+
+
+def _talks_in_week(talk_date: date) -> int:
+    week_start = _week_start_sunday(talk_date)
+    week_end = week_start + timedelta(days=6)
+    return Talk.query.filter(
+        Talk.talk_date >= week_start,
+        Talk.talk_date <= week_end,
+    ).count()
+
+
 def _build_talk_week_blocks(talks: list[Talk], cutoff: date, today: date) -> list[dict]:
     """Group talks into Sunday–Saturday week blocks for the dashboard."""
     by_week: dict[date, list[Talk]] = defaultdict(list)
@@ -112,6 +124,7 @@ def dashboard():
         upcoming_interviews=upcoming_interviews,
         today=today,
         cutoff=cutoff,
+        max_talks_per_week=MAX_TALKS_PER_SACRAMENT_WEEK,
         members=Member.query.order_by(Member.full_name.asc()).all(),
         member_talk_recency=_member_talk_recency(),
     )
@@ -334,6 +347,12 @@ def add_talk():
         talk_date = datetime.strptime(talk_date_raw, "%Y-%m-%d").date()
     except Exception:
         flash("Invalid date.", "warning")
+        return _redirect_after_talk_action()
+    if _talks_in_week(talk_date) >= MAX_TALKS_PER_SACRAMENT_WEEK:
+        flash(
+            f"That week already has {MAX_TALKS_PER_SACRAMENT_WEEK} talks logged.",
+            "warning",
+        )
         return _redirect_after_talk_action()
     t = Talk(
         member_id=member_id,

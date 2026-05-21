@@ -56,6 +56,44 @@ body {
 }
 
 /* Dashboard: weekly talk blocks */
+.dashboard-main {
+  align-items: flex-start;
+}
+
+.dashboard-interviews-card {
+  border: 1px solid rgba(25, 135, 84, 0.15);
+}
+
+.dashboard-interviews-card .card-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-interview-list {
+  max-height: min(50vh, 24rem);
+  overflow-y: auto;
+}
+
+@media (min-width: 992px) {
+  .dashboard-interviews-card {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+  }
+
+  .dashboard-interviews-card .card-body {
+    max-height: calc(100vh - 2rem);
+    overflow: hidden;
+  }
+
+  .dashboard-interview-list {
+    flex: 1 1 auto;
+    max-height: none;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
 .dashboard-week-grid {
   max-height: min(70vh, 42rem);
   overflow-y: auto;
@@ -88,6 +126,10 @@ body {
 .week-talk-list .week-talk-item + .week-talk-item {
   margin-top: 0.65rem;
   padding-top: 0.65rem;
+  border-top: 1px dashed rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-add-talk-label {
   border-top: 1px dashed rgba(0, 0, 0, 0.1);
 }
 
