@@ -72,6 +72,16 @@
           </div>
           <div class="row g-2 mb-3">
             <div class="col-4">
+              <label class="form-label big-label" for="intermediate_hymn_num">Intermediate # <span class="text-muted fw-normal">(optional)</span></label>
+              <input class="form-control hymn-num-input" type="number" min="1" max="341" id="intermediate_hymn_num" name="intermediate_hymn_num" value="{{ defaults.intermediate_hymn_num }}" data-title-target="intermediate_hymn_title" placeholder="" />
+            </div>
+            <div class="col-8">
+              <label class="form-label big-label" for="intermediate_hymn_title">Intermediate hymn title</label>
+              <input class="form-control hymn-title-display" type="text" id="intermediate_hymn_title" readonly value="{{ defaults.intermediate_hymn_title }}" />
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-4">
               <label class="form-label big-label" for="closing_hymn_num">Closing #</label>
               <input class="form-control hymn-num-input" type="number" min="1" max="341" id="closing_hymn_num" name="closing_hymn_num" value="{{ defaults.closing_hymn_num }}" data-title-target="closing_hymn_title" />
             </div>

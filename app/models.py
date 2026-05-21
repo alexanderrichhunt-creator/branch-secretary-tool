@@ -97,6 +97,7 @@ class BulletinDefaults(db.Model):
     announcements = db.Column(db.Text, nullable=False, default="")
     sacrament_notes = db.Column(db.Text, nullable=False, default="")
     sacrament_hymn_num = db.Column(db.String(8), nullable=False, default="190")
+    intermediate_hymn_num = db.Column(db.String(8), nullable=False, default="")
     closing_hymn_num = db.Column(db.String(8), nullable=False, default="141")
     benediction = db.Column(db.String(256), nullable=False, default="(by invitation)")
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)

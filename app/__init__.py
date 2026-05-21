@@ -72,9 +72,15 @@ def _apply_schema_patches():
             conn.execute(
                 text("ALTER TABLE event ADD COLUMN IF NOT EXISTS category VARCHAR(32)")
             )
+            conn.execute(
+                text(
+                    "ALTER TABLE bulletin_defaults ADD COLUMN IF NOT EXISTS intermediate_hymn_num VARCHAR(8) DEFAULT ''"
+                )
+            )
         elif dialect == "sqlite":
             _sqlite_patch_talk_interview_schema(conn, engine, inspect)
             _sqlite_patch_event_schema(conn, engine, inspect)
+            _sqlite_patch_bulletin_defaults_schema(conn, engine, inspect)
 
 
 def _sqlite_patch_talk_interview_schema(conn, engine, sa_inspect):
@@ -131,6 +137,17 @@ def _sqlite_patch_event_schema(conn, engine, sa_inspect):
     cols = {c["name"] for c in insp.get_columns("event")}
     if "category" not in cols:
         conn.execute(text("ALTER TABLE event ADD COLUMN category VARCHAR(32)"))
+
+
+def _sqlite_patch_bulletin_defaults_schema(conn, engine, sa_inspect):
+    from sqlalchemy import text
+
+    insp = sa_inspect(engine)
+    if "bulletin_defaults" not in insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("bulletin_defaults")}
+    if "intermediate_hymn_num" not in cols:
+        conn.execute(text("ALTER TABLE bulletin_defaults ADD COLUMN intermediate_hymn_num VARCHAR(8) DEFAULT ''"))
 
 
 def _talk_speaker_label(talk) -> str:

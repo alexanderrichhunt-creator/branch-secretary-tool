@@ -66,6 +66,14 @@
       lines.push(val("speakers_text"));
       lines.push("");
     }
+    const intermediate = hymnLine(
+      document.getElementById("intermediate_hymn_num"),
+      document.getElementById("intermediate_hymn_title")
+    );
+    if (intermediate) {
+      lines.push("Intermediate Hymn: " + intermediate);
+      lines.push("");
+    }
     const closing = hymnLine(
       document.getElementById("closing_hymn_num"),
       document.getElementById("closing_hymn_title")

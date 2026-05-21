@@ -32,6 +32,7 @@ DEFAULT_BULLETIN = {
         "please take this as your opportunity to do so."
     ),
     "sacrament_hymn_num": "190",
+    "intermediate_hymn_num": "",
     "closing_hymn_num": "141",
     "benediction": "(by invitation)",
 }
@@ -48,6 +49,7 @@ SAVABLE_BULLETIN_KEYS = (
     "announcements",
     "sacrament_notes",
     "sacrament_hymn_num",
+    "intermediate_hymn_num",
     "closing_hymn_num",
     "benediction",
 )
@@ -127,6 +129,7 @@ def bulletin_from_form(form) -> dict:
 
     opening_num = _parse_hymn_num(form.get("opening_hymn_num"))
     sacrament_num = _parse_hymn_num(form.get("sacrament_hymn_num"))
+    intermediate_num = _parse_hymn_num(form.get("intermediate_hymn_num"))
     closing_num = _parse_hymn_num(form.get("closing_hymn_num"))
 
     return {
@@ -145,6 +148,8 @@ def bulletin_from_form(form) -> dict:
         "sacrament_notes": (form.get("sacrament_notes") or "").strip(),
         "sacrament_hymn_num": sacrament_num,
         "sacrament_hymn_line": hymn_line(sacrament_num),
+        "intermediate_hymn_num": intermediate_num,
+        "intermediate_hymn_line": hymn_line(intermediate_num),
         "speakers_text": (form.get("speakers_text") or "").strip(),
         "closing_hymn_num": closing_num,
         "closing_hymn_line": hymn_line(closing_num),
@@ -189,6 +194,9 @@ def build_bulletin_text(data: dict) -> str:
     lines.append("")
     if data.get("speakers_text"):
         lines.append(data["speakers_text"])
+        lines.append("")
+    if data.get("intermediate_hymn_line"):
+        lines.append(f"Intermediate Hymn: {data['intermediate_hymn_line']}")
         lines.append("")
     if data.get("closing_hymn_line"):
         lines.append(f"Closing Hymn {data['closing_hymn_line']}")

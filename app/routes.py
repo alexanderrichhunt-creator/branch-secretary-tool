@@ -904,6 +904,7 @@ def bulletin_builder():
     defaults["branch_business"] = ""
     defaults["opening_hymn_title"] = hymn_title(_parse_hymn_num(defaults.get("opening_hymn_num")))
     defaults["sacrament_hymn_title"] = hymn_title(_parse_hymn_num(defaults.get("sacrament_hymn_num")))
+    defaults["intermediate_hymn_title"] = hymn_title(_parse_hymn_num(defaults.get("intermediate_hymn_num")))
     defaults["closing_hymn_title"] = hymn_title(_parse_hymn_num(defaults.get("closing_hymn_num")))
     defaults["speakers_text"] = speakers_text_for_talks(_talks_for_bulletin_date(meeting_date))
 
