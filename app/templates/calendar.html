@@ -14,6 +14,7 @@
 
 <div class="d-flex flex-wrap gap-2 mb-3 cal-legend">
   <span class="badge cal-legend-item" style="background:#2563eb;">Talks</span>
+  <span class="badge cal-legend-item" style="background:#7c3aed;">Fast &amp; Testimony</span>
   <span class="badge cal-legend-item" style="background:#16a34a;">Interviews</span>
   <span class="badge cal-legend-item" style="background:#64748b;">General events</span>
   {% for slug, meta in EVENT_CATEGORIES.items() %}
@@ -36,7 +37,35 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <pre class="cal-detail-body mb-0"></pre>
+        <div class="cal-detail-view">
+          <span class="badge cal-detail-badge mb-3"></span>
+          <div class="cal-detail-schedule card border-0 mb-3">
+            <div class="card-body py-3">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <div class="cal-detail-field-label">Date</div>
+                  <div class="cal-detail-date cal-detail-field-value"></div>
+                </div>
+                <div class="col-md-4">
+                  <div class="cal-detail-field-label">Time</div>
+                  <div class="cal-detail-time cal-detail-field-value"></div>
+                </div>
+                <div class="col-md-4 cal-detail-duration-wrap">
+                  <div class="cal-detail-field-label">Duration</div>
+                  <div class="cal-detail-duration cal-detail-field-value"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="cal-detail-subtitle-wrap mb-2">
+            <div class="cal-detail-subtitle cal-detail-field-value"></div>
+          </div>
+          <div class="cal-detail-meta mb-3"></div>
+          <div class="cal-detail-notes-wrap">
+            <div class="cal-detail-field-label mb-1">Notes</div>
+            <div class="cal-detail-notes"></div>
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
@@ -61,6 +90,9 @@
           </li>
           <li class="nav-item" role="presentation">
             <button class="nav-link" id="cal-tab-interview" data-bs-toggle="pill" data-bs-target="#cal-pane-interview" type="button" role="tab" data-item-kind="interview">Interview</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="cal-tab-talk" data-bs-toggle="pill" data-bs-target="#cal-pane-talk" type="button" role="tab" data-item-kind="talk">Sacrament talk</button>
           </li>
         </ul>
 
@@ -178,11 +210,43 @@
               <button class="btn btn-success btn-lg" type="submit">Save interview</button>
             </form>
           </div>
+
+          <div class="tab-pane fade" id="cal-pane-talk" role="tabpanel">
+            <form method="post" action="{{ url_for('main.add_talk') }}" id="calTalkForm" class="talk-add-form cal-create-form">
+              <input type="hidden" name="return_to" value="calendar" />
+              {% set id_prefix = 'cal_' %}{% set is_fast_testimony = false %}{% include 'partials/talk_kind_selector.html' %}
+              <div class="mb-3">
+                <label class="form-label big-label" for="cal_talk_date">Sacrament date</label>
+                <input class="form-control form-control-lg cal-talk-date" type="date" id="cal_talk_date" name="talk_date" required />
+              </div>
+              <div class="talk-assigned-fields">
+                <div class="mb-3">
+                  <label class="form-label big-label" for="cal_talk_member_id">Speaker (optional)</label>
+                  <select class="form-select form-select-lg" id="cal_talk_member_id" name="member_id">
+                    <option value="">— Member —</option>
+                    {% for m in members %}
+                      <option value="{{ m.id }}">{{ m.full_name }}</option>
+                    {% endfor %}
+                  </select>
+                  <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
+                  <input class="form-control form-control-lg mt-2" type="text" name="speaker_text" placeholder="Or type name (visitor, etc.)" autocomplete="off" />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label big-label" for="cal_talk_topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
+                  <input class="form-control form-control-lg" type="text" id="cal_talk_topic" name="topic" placeholder="Topic" />
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label big-label" for="cal_talk_notes">Notes (optional)</label>
+                <textarea class="form-control" id="cal_talk_notes" name="notes" rows="2"></textarea>
+              </div>
+              <button class="btn btn-primary btn-lg" type="submit">Save to calendar</button>
+            </form>
+          </div>
         </div>
 
         <div class="mt-3 pt-3 border-top">
-          <div class="small muted mb-2">Sacrament talks are all-day items on the calendar.</div>
-          <a class="btn btn-outline-primary cal-add-talk-link" href="{{ url_for('main.talks') }}">Add sacrament talk</a>
+          <div class="small muted mb-0">Sacrament talks and Fast &amp; Testimony meetings appear as all-day items on the calendar.</div>
         </div>
       </div>
     </div>
@@ -195,6 +259,10 @@
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script src="{{ url_for('static', filename='calendar-form.js') }}"></script>
+<script src="{{ url_for('static', filename='calendar-detail.js') }}"></script>
+<script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
+<script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
+<script src="{{ url_for('static', filename='talk-form.js') }}"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     const el = document.getElementById('calendar');
@@ -225,14 +293,9 @@
       eventDisplay: 'block',
       eventClick: function(info) {
         info.jsEvent.preventDefault();
-        const p = info.event.extendedProps || {};
-        const title = p.fullTitle || info.event.title || '';
-        const detail = p.detailText || title;
-        const editUrl = p.editUrl || '#';
-
-        eventModalEl.querySelector('.modal-title').textContent = title;
-        eventModalEl.querySelector('.cal-detail-body').textContent = detail;
-        eventModalEl.querySelector('.cal-edit-link').href = editUrl;
+        if (window.CalEventDetail) {
+          window.CalEventDetail.render(eventModalEl, info.event);
+        }
         eventModal.show();
       },
       navLinkDayClick: function(info) {

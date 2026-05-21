@@ -11,28 +11,33 @@
 <div class="card shadow-sm">
   <div class="card-body">
         <form method="post" action="{{ url_for('main.edit_talk_post', talk_id=talk.id) }}" class="talk-add-form">
-      <div class="mb-3">
-        <label class="form-label big-label" for="member_id">Speaker (from members list)</label>
-        <select class="form-select form-select-lg" id="member_id" name="member_id">
-          <option value="" {% if not talk.member_id %}selected{% endif %}>— None — (use free text below)</option>
-          {% for m in members %}
-            <option value="{{ m.id }}" {% if m.id == talk.member_id %}selected{% endif %}>{{ m.full_name }}</option>
-          {% endfor %}
-        </select>
-        <div class="speaker-recency-alert alert mt-2 d-none" role="alert" aria-live="polite"></div>
-      </div>
-      <div class="mb-3">
-        <label class="form-label big-label" for="speaker_text">Speaker (free text)</label>
-        <input class="form-control form-control-lg" type="text" id="speaker_text" name="speaker_text" value="{{ talk.speaker_text or '' }}" placeholder="When not a member on file" autocomplete="off" />
-        <div class="form-text">If you select a member above, this is cleared on save.</div>
+      {% set id_prefix = '' %}{% include 'partials/talk_kind_selector.html' %}
+      <div class="talk-assigned-fields">
+        <div class="mb-3">
+          <label class="form-label big-label" for="member_id">Speaker (from members list)</label>
+          <select class="form-select form-select-lg" id="member_id" name="member_id">
+            <option value="" {% if not talk.member_id %}selected{% endif %}>— None — (use free text below)</option>
+            {% for m in members %}
+              <option value="{{ m.id }}" {% if m.id == talk.member_id %}selected{% endif %}>{{ m.full_name }}</option>
+            {% endfor %}
+          </select>
+          <div class="speaker-recency-alert alert mt-2 d-none" role="alert" aria-live="polite"></div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label big-label" for="speaker_text">Speaker (free text)</label>
+          <input class="form-control form-control-lg" type="text" id="speaker_text" name="speaker_text" value="{{ talk.speaker_text or '' }}" placeholder="When not a member on file" autocomplete="off" />
+          <div class="form-text">If you select a member above, this is cleared on save.</div>
+        </div>
       </div>
       <div class="mb-3">
         <label class="form-label big-label" for="talk_date">Date</label>
         <input class="form-control form-control-lg" type="date" id="talk_date" name="talk_date" value="{{ talk.talk_date.isoformat() }}" required />
       </div>
-      <div class="mb-3">
-        <label class="form-label big-label" for="topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
-        <input class="form-control form-control-lg" id="topic" name="topic" value="{{ talk.topic or '' }}" />
+      <div class="talk-assigned-fields">
+        <div class="mb-3">
+          <label class="form-label big-label" for="topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
+          <input class="form-control form-control-lg" id="topic" name="topic" value="{{ talk.topic or '' }}" />
+        </div>
       </div>
       <div class="mb-3">
         <label class="form-label big-label" for="notes">Notes (optional)</label>
@@ -52,4 +57,5 @@
 {% block scripts %}
 <script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
 <script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
+<script src="{{ url_for('static', filename='talk-form.js') }}"></script>
 {% endblock %}

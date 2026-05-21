@@ -314,10 +314,13 @@ def export_docx(data: dict) -> bytes:
     if data.get("intermediate_hymn_line"):
         add_line(f"Intermediate Hymn: {data['intermediate_hymn_line']}", after=section_after)
 
-    if data.get("closing_hymn_line"):
-        add_line(f"Closing Hymn {data['closing_hymn_line']}")
-    if data.get("benediction"):
-        add_line(f"Benediction: {data['benediction']}")
+    add_items(
+        [
+            f"Closing Hymn {data['closing_hymn_line']}" if data.get("closing_hymn_line") else "",
+            f"Benediction: {data['benediction']}" if data.get("benediction") else "",
+        ],
+        after_last=body_after,
+    )
 
     buf = io.BytesIO()
     doc.save(buf)
@@ -332,6 +335,39 @@ def speakers_text_for_talks(talks) -> str:
     if len(names) == 1:
         return f"Our speaker today will be {names[0]}."
     return "Our speakers today will be " + " followed by ".join(names) + "."
+
+
+SPEAKERS_MODE_TALKS = "talks"
+SPEAKERS_MODE_FAST_TESTIMONY = "fast_testimony"
+FAST_TESTIMONY_LABEL = "Fast and Testimony Meeting"
+FAST_TESTIMONY_SPEAKERS_TEXT = "Today we will hold a Fast and Testimony Meeting."
+TALK_KIND_ASSIGNED = "assigned"
+TALK_KIND_FAST_TESTIMONY = "fast_testimony"
+
+
+def is_fast_testimony_talk(talk) -> bool:
+    if getattr(talk, "member_id", None):
+        return False
+    speaker = (getattr(talk, "speaker_text", None) or "").strip().casefold()
+    return speaker == FAST_TESTIMONY_LABEL.casefold()
+
+
+def is_first_sacrament_sunday(d: date) -> bool:
+    return d.weekday() == 6 and d.day <= 7
+
+
+def default_speakers_mode(meeting_date: date, talks=None) -> str:
+    if talks and any(is_fast_testimony_talk(t) for t in talks):
+        return SPEAKERS_MODE_FAST_TESTIMONY
+    if is_first_sacrament_sunday(meeting_date):
+        return SPEAKERS_MODE_FAST_TESTIMONY
+    return SPEAKERS_MODE_TALKS
+
+
+def speakers_text_for_mode(mode: str, talks) -> str:
+    if mode == SPEAKERS_MODE_FAST_TESTIMONY or any(is_fast_testimony_talk(t) for t in talks):
+        return FAST_TESTIMONY_SPEAKERS_TEXT
+    return speakers_text_for_talks(talks)
 
 
 def bulletin_person_name(name: str) -> str:

@@ -41,9 +41,19 @@
     if (until) until.value = "";
     const category = document.getElementById("event_category");
     if (category) category.value = "";
-    document.querySelectorAll("#calEventForm textarea, #calInterviewForm textarea").forEach(function (el) {
+    document.querySelectorAll("#calEventForm textarea, #calInterviewForm textarea, #calTalkForm textarea").forEach(function (el) {
       el.value = "";
     });
+    const talkForm = document.getElementById("calTalkForm");
+    if (talkForm) {
+      talkForm.querySelectorAll('input[type="text"], input[type="date"]').forEach(function (el) {
+        if (el.name !== "talk_date") el.value = "";
+      });
+      const member = talkForm.querySelector('[name="member_id"]');
+      if (member) member.value = "";
+      const assigned = talkForm.querySelector('#cal_talk_kind_assigned');
+      if (assigned) assigned.checked = true;
+    }
   }
 
   function normalizeCalendarSelection(start, end, allDay) {
@@ -84,7 +94,7 @@
   }
 
   function syncDates(dateValue) {
-    document.querySelectorAll(".cal-event-date").forEach(function (el) {
+    document.querySelectorAll(".cal-event-date, .cal-talk-date").forEach(function (el) {
       el.value = dateValue;
     });
   }
@@ -185,9 +195,12 @@
       const dayBox = document.querySelector('input[name="recurrence_byweekday"][value="' + weekdayCode(start) + '"]');
       if (dayBox) dayBox.checked = true;
 
-      const talkLink = document.querySelector(".cal-add-talk-link");
-      if (talkLink) {
-        talkLink.href = talkLink.href.split("?")[0] + "?prefill_date=" + encodeURIComponent(dateValue);
+      const talkForm = document.getElementById("calTalkForm");
+      if (talkForm && typeof talkForm.dispatchEvent === "function") {
+        const dateInput = talkForm.querySelector('[name="talk_date"]');
+        if (dateInput) {
+          dateInput.dispatchEvent(new Event("change", { bubbles: true }));
+        }
       }
 
       this.modal.show();

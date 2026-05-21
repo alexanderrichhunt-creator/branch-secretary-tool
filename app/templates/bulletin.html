@@ -118,10 +118,44 @@
             <label class="form-label big-label" for="sacrament_notes">Sacrament / Zoom note</label>
             <textarea class="form-control bulletin-field" id="sacrament_notes" name="sacrament_notes" rows="5">{{ defaults.sacrament_notes }}</textarea>
           </div>
+          <div class="mb-2">
+            <label class="form-label big-label">Speaker type</label>
+            <div class="d-flex flex-wrap gap-3">
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="radio"
+                  name="speakers_mode"
+                  id="speakers_mode_talks"
+                  value="talks"
+                  {% if defaults.speakers_mode != 'fast_testimony' %}checked{% endif %}
+                />
+                <label class="form-check-label" for="speakers_mode_talks">Assigned speakers</label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="radio"
+                  name="speakers_mode"
+                  id="speakers_mode_fast"
+                  value="fast_testimony"
+                  {% if defaults.speakers_mode == 'fast_testimony' %}checked{% endif %}
+                />
+                <label class="form-check-label" for="speakers_mode_fast">Fast &amp; Testimony Meeting</label>
+              </div>
+            </div>
+            <div class="form-text" id="speakers_mode_hint">
+              {% if defaults.is_first_sacrament_sunday %}
+                First Sunday of the month — Fast &amp; Testimony Meeting selected automatically.
+              {% else %}
+                Auto-filled from calendar talks when assigned speakers is selected.
+              {% endif %}
+            </div>
+          </div>
           <div class="mb-0">
             <label class="form-label big-label" for="speakers_text">Speakers</label>
             <textarea class="form-control bulletin-field" id="speakers_text" name="speakers_text" rows="3">{{ defaults.speakers_text }}</textarea>
-            <div class="form-text">Auto-filled from calendar talks. Edit if needed (e.g. add “from the Stake High Council”).</div>
+            <div class="form-text">Edit if needed (e.g. add “from the Stake High Council”).</div>
           </div>
         </div>
       </div>

@@ -9,7 +9,10 @@
     btn.addEventListener("click", function () {
       const iso = btn.getAttribute("data-add-talk-date") || "";
       const label = btn.getAttribute("data-add-talk-label") || "Add talk";
-      if (dateInput && iso) dateInput.value = iso;
+      if (dateInput && iso) {
+        dateInput.value = iso;
+        dateInput.dispatchEvent(new Event("change", { bubbles: true }));
+      }
       if (titleEl) titleEl.textContent = label;
     });
   });

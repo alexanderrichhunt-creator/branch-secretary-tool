@@ -63,6 +63,73 @@ body {
   overflow: auto;
 }
 
+.cal-detail-badge {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 0.4rem 0.65rem;
+}
+
+.cal-detail-schedule {
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.cal-detail-field-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.45);
+  margin-bottom: 0.15rem;
+}
+
+.cal-detail-field-value {
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+  line-height: 1.35;
+}
+
+.cal-detail-subtitle {
+  font-size: 1.05rem;
+  color: rgba(0, 0, 0, 0.72);
+}
+
+.cal-detail-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  padding: 0.35rem 0;
+  border-top: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+.cal-detail-meta-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.cal-detail-meta-label {
+  min-width: 5.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.cal-detail-meta-value {
+  flex: 1 1 12rem;
+  font-size: 0.95rem;
+}
+
+.cal-detail-notes {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.95rem;
+  color: rgba(0, 0, 0, 0.78);
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  padding: 0.75rem 0.85rem;
+}
+
 /* Dashboard: weekly talk blocks */
 .dashboard-main {
   align-items: flex-start;

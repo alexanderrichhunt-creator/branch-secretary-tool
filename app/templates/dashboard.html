@@ -25,7 +25,7 @@
       </div>
 
       {% set week = current_talk_week %}
-      {% set talk_count = week.talks|length %}
+      {% set talk_count = week.regular_talk_count %}
       <div class="card shadow-sm mb-3 dashboard-current-week">
         <div class="card-body py-3">
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
@@ -51,7 +51,7 @@
             <div class="muted small mb-2">No talks logged for this week yet.</div>
           {% endif %}
 
-          {% if talk_count < max_talks_per_week %}
+          {% if not week.has_fast_testimony and talk_count < max_talks_per_week %}
             <button
               type="button"
               class="btn btn-sm btn-outline-primary mt-2"
@@ -75,16 +75,16 @@
                   <div class="talk-month-header">{{ group.month_label }}</div>
                 {% endif %}
 
-                {% set group_count = group.talks|length %}
-                <div class="dashboard-sunday-group{% if group_count == 0 %} dashboard-sunday-group-empty{% endif %}">
+                {% set group_count = group.regular_talk_count %}
+                <div class="dashboard-sunday-group{% if group.talks|length == 0 %} dashboard-sunday-group-empty{% endif %}">
                   <div class="dashboard-sunday-header">
                     <div>
                       <div class="dashboard-sacrament-date">{{ group.sacrament_date.strftime("%A, %b %d, %Y") }}</div>
-                      {% if group_count == 0 %}
+                      {% if group.talks|length == 0 %}
                         <div class="small muted">No talks logged</div>
                       {% endif %}
                     </div>
-                    {% if group_count < max_talks_per_week %}
+                    {% if not group.has_fast_testimony and group_count < max_talks_per_week %}
                       <button
                         type="button"
                         class="btn btn-sm btn-outline-primary dashboard-sunday-add-btn"
@@ -102,7 +102,7 @@
                         <li class="dashboard-sunday-talk-item">
                           <span class="dashboard-talk-speaker">{{ talk_speaker_label(t) }}</span>
                           <span class="text-secondary">{% if t.topic %}{{ t.topic }}{% else %}<span class="muted">—</span>{% endif %}</span>
-                          {% if group_count > 1 and t.talk_date != group.sacrament_date %}
+                          {% if group.talks|length > 1 and t.talk_date != group.sacrament_date %}
                             <span class="dashboard-talk-date">{{ t.talk_date.strftime("%a %b %d") }}</span>
                           {% endif %}
                           <a class="small" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
@@ -168,24 +168,27 @@
       <div class="modal-body">
         <form method="post" action="{{ url_for('main.add_talk') }}" class="talk-add-form">
           <input type="hidden" name="return_to" value="dashboard" />
+          {% set id_prefix = 'dashboard_' %}{% set is_fast_testimony = false %}{% include 'partials/talk_kind_selector.html' %}
           <div class="mb-3">
             <label class="form-label big-label" for="dashboard_add_talk_date">Talk date</label>
             <input class="form-control" type="date" id="dashboard_add_talk_date" name="talk_date" required />
           </div>
-          <div class="mb-3">
-            <label class="form-label big-label" for="dashboard_add_member_id">Speaker</label>
-            <select class="form-select" id="dashboard_add_member_id" name="member_id">
-              <option value="">— Member —</option>
-              {% for m in members %}
-                <option value="{{ m.id }}">{{ m.full_name }}</option>
-              {% endfor %}
-            </select>
-            <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
-            <input class="form-control mt-2" type="text" name="speaker_text" placeholder="Or type name (visitor, etc.)" autocomplete="off" />
-          </div>
-          <div class="mb-3">
-            <label class="form-label big-label" for="dashboard_add_topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
-            <input class="form-control" type="text" id="dashboard_add_topic" name="topic" placeholder="Topic" />
+          <div class="talk-assigned-fields">
+            <div class="mb-3">
+              <label class="form-label big-label" for="dashboard_add_member_id">Speaker</label>
+              <select class="form-select" id="dashboard_add_member_id" name="member_id">
+                <option value="">— Member —</option>
+                {% for m in members %}
+                  <option value="{{ m.id }}">{{ m.full_name }}</option>
+                {% endfor %}
+              </select>
+              <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
+              <input class="form-control mt-2" type="text" name="speaker_text" placeholder="Or type name (visitor, etc.)" autocomplete="off" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label big-label" for="dashboard_add_topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
+              <input class="form-control" type="text" id="dashboard_add_topic" name="topic" placeholder="Topic" />
+            </div>
           </div>
           <button class="btn btn-primary" type="submit">Save talk</button>
         </form>
@@ -198,5 +201,6 @@
 {% block scripts %}
 <script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
 <script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
+<script src="{{ url_for('static', filename='talk-form.js') }}"></script>
 <script src="{{ url_for('static', filename='dashboard-talks.js') }}"></script>
 {% endblock %}

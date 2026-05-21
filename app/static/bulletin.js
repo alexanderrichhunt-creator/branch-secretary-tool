@@ -3,7 +3,12 @@
   const preview = document.getElementById("bulletin-preview");
   const meetingDate = document.getElementById("meeting_date");
   const speakersField = document.getElementById("speakers_text");
+  const speakersHint = document.getElementById("speakers_mode_hint");
+  const modeInputs = document.querySelectorAll('input[name="speakers_mode"]');
   if (!form || !preview) return;
+
+  const MODE_TALKS = "talks";
+  const MODE_FAST = "fast_testimony";
 
   function formatDisplayDate(iso) {
     if (!iso) return "";
@@ -23,6 +28,30 @@
   function val(id) {
     const el = document.getElementById(id);
     return el ? el.value.trim() : "";
+  }
+
+  function selectedSpeakersMode() {
+    const checked = document.querySelector('input[name="speakers_mode"]:checked');
+    return checked ? checked.value : MODE_TALKS;
+  }
+
+  function setSpeakersMode(mode) {
+    modeInputs.forEach(function (input) {
+      input.checked = input.value === mode;
+    });
+  }
+
+  function updateSpeakersHint(isFirstSunday, mode) {
+    if (!speakersHint) return;
+    if (mode === MODE_FAST) {
+      speakersHint.textContent = isFirstSunday
+        ? "First Sunday of the month — Fast & Testimony Meeting selected automatically."
+        : "Fast & Testimony Meeting selected. You can still edit the text below.";
+      return;
+    }
+    speakersHint.textContent = isFirstSunday
+      ? "First Sunday of the month — switch to Fast & Testimony if needed."
+      : "Auto-filled from calendar talks when assigned speakers is selected.";
   }
 
   function updatePreview() {
@@ -104,17 +133,28 @@
     updatePreview();
   }
 
-  async function loadSpeakers() {
+  async function loadSpeakers(modeOverride) {
     if (!meetingDate || !speakersField) return;
     const d = meetingDate.value;
     if (!d) return;
+
+    const mode = modeOverride || selectedSpeakersMode();
     try {
-      const res = await fetch("/api/bulletin/speakers?date=" + encodeURIComponent(d));
+      const url =
+        "/api/bulletin/speakers?date=" +
+        encodeURIComponent(d) +
+        "&mode=" +
+        encodeURIComponent(mode);
+      const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
-      if (data.speakers_text) {
+      if (data.speakers_mode) {
+        setSpeakersMode(data.speakers_mode);
+      }
+      if (typeof data.speakers_text === "string") {
         speakersField.value = data.speakers_text;
       }
+      updateSpeakersHint(Boolean(data.is_first_sacrament_sunday), selectedSpeakersMode());
     } catch (e) {
       /* ignore */
     }
@@ -135,8 +175,16 @@
     el.addEventListener("change", updatePreview);
   });
 
+  modeInputs.forEach(function (input) {
+    input.addEventListener("change", function () {
+      loadSpeakers(input.value);
+    });
+  });
+
   if (meetingDate) {
-    meetingDate.addEventListener("change", loadSpeakers);
+    meetingDate.addEventListener("change", function () {
+      loadSpeakers();
+    });
   }
 
   const printBtn = document.getElementById("bulletin-print-btn");
