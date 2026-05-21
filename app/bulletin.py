@@ -216,15 +216,15 @@ def export_docx(data: dict) -> bytes:
 
     doc = Document()
     section = doc.sections[0]
-    section.top_margin = Inches(0.55)
-    section.bottom_margin = Inches(0.55)
-    section.left_margin = Inches(0.7)
-    section.right_margin = Inches(0.7)
+    section.top_margin = Inches(0.65)
+    section.bottom_margin = Inches(0.65)
+    section.left_margin = Inches(0.75)
+    section.right_margin = Inches(0.75)
 
     body_size = 11
-    body_after = 2
-    section_after = 5
-    leading = 1.12
+    body_after = 4
+    section_after = 8
+    leading = 1.22
 
     def set_para_spacing(pf, *, after: float = body_after, leading_val: float = leading) -> None:
         pf.space_before = Pt(0)
@@ -265,14 +265,14 @@ def export_docx(data: dict) -> bytes:
         for i, line in enumerate(lines):
             add_line(line, after=after_last if i == len(lines) - 1 else body_after)
 
-    add_line("Sacrament Meeting", bold=True, size=14, center=True, after=2, leading_val=1.0)
+    add_line("Sacrament Meeting", bold=True, size=15, center=True, after=3, leading_val=1.0)
     if data.get("meeting_date_display"):
         add_line(
             data["meeting_date_display"],
             bold=True,
             size=11,
             center=True,
-            after=section_after,
+            after=12,
             leading_val=1.0,
         )
 
