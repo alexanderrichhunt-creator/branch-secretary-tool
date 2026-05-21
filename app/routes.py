@@ -120,6 +120,38 @@ def _build_current_talk_week(recent_talks: list[Talk], today: date) -> dict:
     }
 
 
+def _build_talk_sunday_groups(
+    recent_talks: list[Talk],
+    cutoff: date,
+    today: date,
+    *,
+    exclude_week_start: date | None = None,
+) -> list[dict]:
+    """Every sacrament Sunday in range, newest first, with talks grouped per week."""
+    from .bulletin import default_sacrament_sunday
+
+    by_week: dict[date, list[Talk]] = defaultdict(list)
+    for talk in recent_talks:
+        by_week[_week_start_sunday(talk.talk_date)].append(talk)
+
+    groups: list[dict] = []
+    week_start = _week_start_sunday(default_sacrament_sunday(today))
+    cutoff_week = _week_start_sunday(cutoff)
+    while week_start >= cutoff_week:
+        if exclude_week_start is None or week_start != exclude_week_start:
+            talks = sorted(by_week.get(week_start, []), key=lambda t: t.talk_date)
+            groups.append(
+                {
+                    "sacrament_date": week_start,
+                    "week_end": week_start + timedelta(days=6),
+                    "talks": talks,
+                    "month_label": week_start.strftime("%B %Y"),
+                }
+            )
+        week_start -= timedelta(days=7)
+    return groups
+
+
 def _redirect_after_interview_action():
     if (request.form.get("return_to") or "").strip() == "calendar":
         return redirect(url_for("main.calendar"))
@@ -241,12 +273,18 @@ def dashboard():
         .all()
     )
     current_talk_week = _build_current_talk_week(recent_talks, today)
+    talk_sunday_groups = _build_talk_sunday_groups(
+        recent_talks,
+        cutoff,
+        today,
+        exclude_week_start=current_talk_week["week_start"],
+    )
 
     upcoming_items = _build_upcoming_schedule_items(limit=12)
 
     return render_template(
         "dashboard.html",
-        recent_talks=recent_talks,
+        talk_sunday_groups=talk_sunday_groups,
         current_talk_week=current_talk_week,
         upcoming_items=upcoming_items,
         today=today,
