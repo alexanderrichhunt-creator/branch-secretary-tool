@@ -30,6 +30,14 @@ body {
 }
 
 /* FullCalendar: slightly smaller events so month view stays readable */
+.calendar-page .fc .fc-daygrid-day-frame {
+  cursor: pointer;
+}
+
+.calendar-page .fc .fc-daygrid-day:not(.fc-day-disabled):hover .fc-daygrid-day-frame {
+  background: rgba(37, 99, 235, 0.06);
+}
+
 .calendar-page .fc .fc-event {
   font-size: 0.72rem;
   line-height: 1.15;

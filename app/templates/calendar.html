@@ -4,7 +4,7 @@
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
   <div>
     <h1 class="h2 fw-bold mb-1">Calendar</h1>
-    <div class="muted">Talks (blue), interviews (green), and events (purple). Click a day or time slot to add; click an item for details.</div>
+    <div class="muted">Talks (blue), interviews (green), and events (purple). Click any day to add an event or interview for that date.</div>
   </div>
   <div class="d-flex gap-2">
     <button class="btn btn-outline-secondary btn-lg" type="button" id="calOpenCreateBtn">Add event</button>
@@ -190,6 +190,12 @@
     const createModalEl = document.getElementById('calCreateModal');
     const eventModal = eventModalEl ? new bootstrap.Modal(eventModalEl) : null;
 
+    window.CalCreateForm.init(createModalEl);
+
+    function openCreateForDay(start, end, allDay) {
+      window.CalCreateForm.openFromCalendar(start, end, allDay);
+    }
+
     const cal = new FullCalendar.Calendar(el, {
       initialView: 'dayGridMonth',
       height: 'auto',
@@ -217,24 +223,18 @@
         eventModalEl.querySelector('.cal-edit-link').href = editUrl;
         eventModal.show();
       },
+      navLinkDayClick: function(info) {
+        openCreateForDay(info.date, info.date, true);
+      },
       dateClick: function(info) {
-        const start = info.date;
-        let end = new Date(start);
-        if (info.allDay) {
-          end.setHours(10, 0, 0, 0);
-          start.setHours(9, 0, 0, 0);
-        } else {
-          end = new Date(start.getTime() + 60 * 60 * 1000);
-        }
-        window.CalCreateForm.open({ start: start, end: end, allDay: info.allDay });
+        openCreateForDay(info.date, info.date, info.allDay);
       },
       select: function(info) {
-        window.CalCreateForm.open({ start: info.start, end: info.end, allDay: info.allDay });
+        openCreateForDay(info.start, info.end, info.allDay);
         cal.unselect();
       }
     });
     cal.render();
-    window.CalCreateForm.init(createModalEl);
 
     const openBtn = document.getElementById('calOpenCreateBtn');
     if (openBtn) {
@@ -243,7 +243,7 @@
         now.setMinutes(0, 0, 0);
         now.setHours(now.getHours() + 1);
         const end = new Date(now.getTime() + 60 * 60 * 1000);
-        window.CalCreateForm.open({ start: now, end: end, allDay: false });
+        openCreateForDay(now, end, false);
       });
     }
   });

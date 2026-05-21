@@ -17,8 +17,55 @@
     return WEEKDAY_CODES[d.getDay()];
   }
 
+  function formatDayLabel(d) {
+    return d.toLocaleDateString(undefined, {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+
+  function resetCreateForms() {
+    const title = document.getElementById("event_title");
+    if (title) title.value = "";
+    const location = document.getElementById("event_location");
+    if (location) location.value = "";
+    const purpose = document.getElementById("interview_purpose");
+    if (purpose) purpose.value = "Interview";
+    const who = document.getElementById("cal_who_text");
+    if (who) who.value = "";
+    const member = document.getElementById("cal_member_id");
+    if (member) member.value = "";
+    const until = document.getElementById("recurrence_until");
+    if (until) until.value = "";
+    document.querySelectorAll("#calEventForm textarea, #calInterviewForm textarea").forEach(function (el) {
+      el.value = "";
+    });
+  }
+
+  function normalizeCalendarSelection(start, end, allDay) {
+    const startDate = start instanceof Date ? new Date(start) : new Date();
+    let endDate = end instanceof Date ? new Date(end) : new Date(startDate.getTime() + 60 * 60 * 1000);
+    const spanMs = endDate.getTime() - startDate.getTime();
+
+    if (allDay && spanMs <= 36 * 60 * 60 * 1000) {
+      startDate.setHours(9, 0, 0, 0);
+      endDate = new Date(startDate);
+      endDate.setHours(10, 0, 0, 0);
+      return { start: startDate, end: endDate, allDay: false };
+    }
+
+    if (!allDay && endDate <= startDate) {
+      endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+    }
+
+    return { start: startDate, end: endDate, allDay: !!allDay };
+  }
+
   function setAllDayState(formRoot, allDay) {
-    const timeRow = formRoot.querySelector(".cal-time-row");
+    if (!formRoot) return;
+    const timeRow = formRoot.querySelector(":scope > .cal-time-row, .cal-time-row");
     const startInputs = formRoot.querySelectorAll(".cal-start-time");
     const endInputs = formRoot.querySelectorAll(".cal-end-time");
     if (timeRow) {
@@ -80,13 +127,21 @@
 
   const CalCreateForm = {
     modal: null,
+    modalTitleEl: null,
 
     init: function (modalEl) {
       this.modal = modalEl ? new bootstrap.Modal(modalEl) : null;
+      this.modalTitleEl = modalEl ? modalEl.querySelector("#calCreateModalLabel") : null;
       if (!modalEl) return;
       bindRecurrenceControls(modalEl);
       bindAllDayControls(modalEl);
       setAllDayState(modalEl.querySelector("#cal-pane-event"), false);
+      setAllDayState(modalEl.querySelector("#cal-pane-interview"), false);
+    },
+
+    openFromCalendar: function (start, end, allDay) {
+      const normalized = normalizeCalendarSelection(start, end, allDay);
+      this.open(normalized);
     },
 
     open: function (opts) {
@@ -94,6 +149,8 @@
       const start = opts.start instanceof Date ? opts.start : new Date();
       let end = opts.end instanceof Date ? opts.end : new Date(start.getTime() + 60 * 60 * 1000);
       const allDay = !!opts.allDay;
+
+      resetCreateForms();
 
       const dateValue = toDateInputValue(start);
       syncDates(dateValue);
@@ -109,6 +166,10 @@
       if (allDayBox && eventPane) {
         allDayBox.checked = allDay;
         setAllDayState(eventPane, allDay);
+      }
+
+      if (this.modalTitleEl) {
+        this.modalTitleEl.textContent = "Add to calendar — " + formatDayLabel(start);
       }
 
       const freq = document.querySelector(".cal-recurrence-freq");
