@@ -100,7 +100,7 @@
         {% if upcoming_items %}
           <div class="list-group list-group-flush dashboard-interview-list">
             {% for item in upcoming_items %}
-              <div class="list-group-item px-0 dashboard-schedule-item dashboard-schedule-{{ item.kind }}">
+              <div class="list-group-item px-0 dashboard-schedule-item dashboard-schedule-{{ item.kind }}{% if item.category %} dashboard-schedule-cat-{{ item.category }}{% endif %}">
                 <div class="fw-bold">
                   {% if item.all_day %}
                     {{ item.starts_at.strftime("%a %b %d, %Y") }} · All day
@@ -108,7 +108,7 @@
                     {{ item.starts_at.strftime("%a %b %d, %Y %I:%M %p") }}
                   {% endif %}
                 </div>
-                <div class="small">{{ item.title }}</div>
+                <div class="small dashboard-schedule-title">{{ item.title }}</div>
                 <div class="small muted">{{ item.subtitle }}</div>
                 <a class="small" href="{{ item.edit_url }}">Edit</a>
               </div>

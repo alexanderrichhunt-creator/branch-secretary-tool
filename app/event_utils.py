@@ -17,6 +17,55 @@ WEEKDAY_MAP = {
     "SU": SU,
 }
 
+EVENT_CATEGORIES = {
+    "leadership": {
+        "label": "Leadership Meetings",
+        "color": "#4338ca",
+        "border": "#3730a3",
+    },
+    "branch": {
+        "label": "Branch Events",
+        "color": "#9333ea",
+        "border": "#7e22ce",
+    },
+    "stake": {
+        "label": "Stake Events",
+        "color": "#d97706",
+        "border": "#b45309",
+    },
+    "youth": {
+        "label": "Youth Events",
+        "color": "#0891b2",
+        "border": "#0e7490",
+    },
+}
+
+DEFAULT_EVENT_STYLE = {
+    "label": "General event",
+    "color": "#64748b",
+    "border": "#475569",
+}
+
+
+def normalize_event_category(raw: str | None) -> str | None:
+    slug = (raw or "").strip().lower()
+    return slug if slug in EVENT_CATEGORIES else None
+
+
+def event_category_meta(slug: str | None) -> dict:
+    if slug and slug in EVENT_CATEGORIES:
+        return EVENT_CATEGORIES[slug]
+    return DEFAULT_EVENT_STYLE
+
+
+def event_category_label(slug: str | None) -> str:
+    return event_category_meta(slug)["label"]
+
+
+def event_category_colors(slug: str | None) -> tuple[str, str]:
+    meta = event_category_meta(slug)
+    return meta["color"], meta["border"]
+
 
 def parse_calendar_range(start_raw: str | None, end_raw: str | None) -> tuple[datetime, datetime]:
     """Parse FullCalendar fetch range; fall back to a sensible window."""

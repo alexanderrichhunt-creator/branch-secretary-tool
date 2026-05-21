@@ -76,6 +76,7 @@ class Event(db.Model):
     recurrence_interval = db.Column(db.Integer, nullable=True, default=1)
     recurrence_byweekday = db.Column(db.String(32), nullable=True)  # MO,TU,...
     recurrence_until = db.Column(db.Date, nullable=True)
+    category = db.Column(db.String(32), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 

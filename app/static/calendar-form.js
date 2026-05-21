@@ -39,6 +39,8 @@
     if (member) member.value = "";
     const until = document.getElementById("recurrence_until");
     if (until) until.value = "";
+    const category = document.getElementById("event_category");
+    if (category) category.value = "";
     document.querySelectorAll("#calEventForm textarea, #calInterviewForm textarea").forEach(function (el) {
       el.value = "";
     });

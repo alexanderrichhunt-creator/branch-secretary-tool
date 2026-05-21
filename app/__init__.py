@@ -47,6 +47,10 @@ def create_app():
     app.jinja_env.globals["member_label"] = _member_label
     app.jinja_env.globals["talk_speaker_label"] = _talk_speaker_label
     app.jinja_env.globals["interview_who_label"] = _interview_who_label
+    from .event_utils import EVENT_CATEGORIES, event_category_label
+
+    app.jinja_env.globals["EVENT_CATEGORIES"] = EVENT_CATEGORIES
+    app.jinja_env.globals["event_category_label"] = event_category_label
     return app
 
 
@@ -65,8 +69,12 @@ def _apply_schema_patches():
                 text("ALTER TABLE interview ADD COLUMN IF NOT EXISTS who_text VARCHAR(256)")
             )
             conn.execute(text("ALTER TABLE talk ALTER COLUMN member_id DROP NOT NULL"))
+            conn.execute(
+                text("ALTER TABLE event ADD COLUMN IF NOT EXISTS category VARCHAR(32)")
+            )
         elif dialect == "sqlite":
             _sqlite_patch_talk_interview_schema(conn, engine, inspect)
+            _sqlite_patch_event_schema(conn, engine, inspect)
 
 
 def _sqlite_patch_talk_interview_schema(conn, engine, sa_inspect):
@@ -112,6 +120,17 @@ def _sqlite_patch_talk_interview_schema(conn, engine, sa_inspect):
         cols_i = {c["name"] for c in insp.get_columns("interview")}
         if "who_text" not in cols_i:
             conn.execute(text("ALTER TABLE interview ADD COLUMN who_text VARCHAR(256)"))
+
+
+def _sqlite_patch_event_schema(conn, engine, sa_inspect):
+    from sqlalchemy import text
+
+    insp = sa_inspect(engine)
+    if "event" not in insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("event")}
+    if "category" not in cols:
+        conn.execute(text("ALTER TABLE event ADD COLUMN category VARCHAR(32)"))
 
 
 def _talk_speaker_label(talk) -> str:

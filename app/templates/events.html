@@ -17,6 +17,7 @@
           <tr>
             <th>Starts</th>
             <th>Title</th>
+            <th>Category</th>
             <th>Repeat</th>
             <th>Location</th>
             <th class="text-end">Actions</th>
@@ -34,6 +35,13 @@
               </td>
               <td class="fw-bold">{{ e.title }}</td>
               <td>
+                {% if e.category %}
+                  <span class="badge" style="background:{{ EVENT_CATEGORIES[e.category].color }};">{{ event_category_label(e.category) }}</span>
+                {% else %}
+                  <span class="muted">—</span>
+                {% endif %}
+              </td>
+              <td>
                 {% if e.recurrence_freq %}
                   {{ e.recurrence_freq|title }}{% if e.recurrence_until %} until {{ e.recurrence_until.strftime("%b %d, %Y") }}{% endif %}
                 {% else %}
@@ -50,7 +58,7 @@
             </tr>
           {% else %}
             <tr>
-              <td colspan="5" class="muted">No events yet. Use the calendar to add meetings and repeating activities.</td>
+              <td colspan="6" class="muted">No events yet. Use the calendar to add meetings and repeating activities.</td>
             </tr>
           {% endfor %}
         </tbody>

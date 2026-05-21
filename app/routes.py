@@ -172,7 +172,7 @@ def _parse_event_times_from_form():
 
 
 def _build_upcoming_schedule_items(limit: int = 12) -> list[dict]:
-    from .event_utils import iter_event_occurrences, recurrence_label
+    from .event_utils import event_category_label, iter_event_occurrences, recurrence_label
 
     now = datetime.now() - timedelta(hours=2)
     horizon = now + timedelta(days=120)
@@ -201,14 +201,20 @@ def _build_upcoming_schedule_items(limit: int = 12) -> list[dict]:
             if occ_start < now:
                 continue
             repeat = recurrence_label(event)
-            subtitle = repeat or (event.location or "Meeting / event")
+            category_label = event_category_label(getattr(event, "category", None))
+            subtitle_parts = [category_label]
+            if repeat:
+                subtitle_parts.append(repeat)
+            elif event.location:
+                subtitle_parts.append(event.location)
             items.append(
                 {
                     "kind": "event",
+                    "category": getattr(event, "category", None),
                     "starts_at": occ_start,
                     "all_day": event.all_day,
                     "title": event.title,
-                    "subtitle": subtitle,
+                    "subtitle": " · ".join(subtitle_parts),
                     "edit_url": url_for("main.edit_event", event_id=event.id),
                 }
             )
@@ -654,11 +660,12 @@ def events():
 @main_bp.post("/events/add")
 @login_required
 def add_event():
-    from .event_utils import parse_recurrence_form
+    from .event_utils import normalize_event_category, parse_recurrence_form
 
     title = (request.form.get("title") or "").strip()
     notes = (request.form.get("notes") or "").strip() or None
     location = (request.form.get("location") or "").strip() or None
+    category = normalize_event_category(request.form.get("category"))
     starts_at, end_at, all_day, err = _parse_event_times_from_form()
     if err:
         flash(err, "warning")
@@ -679,15 +686,12 @@ def add_event():
         recurrence_interval=interval,
         recurrence_byweekday=byweekday,
         recurrence_until=until,
+        category=category,
     )
     db.session.add(event)
     db.session.commit()
     flash("Event saved.", "success")
-
-    return_to = (request.form.get("return_to") or "").strip()
-    if return_to == "calendar":
-        return redirect(url_for("main.calendar"))
-    return redirect(url_for("main.events"))
+    return _redirect_after_event_action()
 
 
 @main_bp.get("/events/<int:event_id>/edit")
@@ -702,12 +706,13 @@ def edit_event(event_id: int):
 @main_bp.post("/events/<int:event_id>/edit")
 @login_required
 def edit_event_post(event_id: int):
-    from .event_utils import parse_recurrence_form
+    from .event_utils import normalize_event_category, parse_recurrence_form
 
     event = Event.query.get_or_404(event_id)
     title = (request.form.get("title") or "").strip()
     notes = (request.form.get("notes") or "").strip() or None
     location = (request.form.get("location") or "").strip() or None
+    category = normalize_event_category(request.form.get("category"))
     starts_at, end_at, all_day, err = _parse_event_times_from_form()
     if err or not title:
         flash(err or "Title is required.", "warning")
@@ -727,6 +732,7 @@ def edit_event_post(event_id: int):
     event.recurrence_interval = interval
     event.recurrence_byweekday = byweekday
     event.recurrence_until = until
+    event.category = category
     db.session.commit()
     flash("Event updated.", "success")
     return redirect(url_for("main.events"))
@@ -754,7 +760,14 @@ def calendar():
 @main_bp.get("/api/events")
 @login_required
 def api_events():
-    from .event_utils import iter_event_occurrences, parse_calendar_range, recurrence_label
+    from .event_utils import (
+        WEEKDAY_CODES,
+        event_category_colors,
+        event_category_label,
+        iter_event_occurrences,
+        parse_calendar_range,
+        recurrence_label,
+    )
 
     range_start, range_end = parse_calendar_range(
         request.args.get("start"),
@@ -821,8 +834,12 @@ def api_events():
 
     for event in branch_events:
         repeat = recurrence_label(event)
+        category_label = event_category_label(getattr(event, "category", None))
+        bg, border = event_category_colors(getattr(event, "category", None))
         for occ_start, occ_end in iter_event_occurrences(event, range_start, range_end):
             detail = event.title
+            if category_label and category_label != "General event":
+                detail += f"\n\nCategory: {category_label}"
             if event.location:
                 detail += f"\n\nLocation: {event.location}"
             if repeat:
@@ -836,10 +853,12 @@ def api_events():
                 "title": _short_calendar_title(event.title),
                 "start": occ_start.date().isoformat() if event.all_day else occ_start.isoformat(),
                 "allDay": event.all_day,
-                "backgroundColor": "#9333ea",
-                "borderColor": "#7e22ce",
+                "backgroundColor": bg,
+                "borderColor": border,
                 "extendedProps": {
                     "kind": "event",
+                    "category": getattr(event, "category", None),
+                    "categoryLabel": category_label,
                     "editUrl": url_for("main.edit_event", event_id=event.id),
                     "fullTitle": event.title,
                     "detailText": detail,

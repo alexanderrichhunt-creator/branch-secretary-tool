@@ -1,0 +1,9 @@
+<div class="mb-3">
+  <label class="form-label big-label" for="{{ field_id }}">Category (optional)</label>
+  <select class="form-select form-select-lg" id="{{ field_id }}" name="category">
+    <option value="">— None —</option>
+    {% for slug, meta in EVENT_CATEGORIES.items() %}
+      <option value="{{ slug }}" {% if selected == slug %}selected{% endif %}>{{ meta.label }}</option>
+    {% endfor %}
+  </select>
+</div>

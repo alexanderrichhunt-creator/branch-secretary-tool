@@ -15,6 +15,9 @@
         <label class="form-label big-label" for="title">Title</label>
         <input class="form-control form-control-lg" type="text" id="title" name="title" value="{{ event.title }}" required />
       </div>
+      {% set field_id = "event_category" %}
+      {% set selected = event.category or "" %}
+      {% include "partials/event_category_field.html" %}
       <div class="row g-2 mb-3">
         <div class="col-sm-6">
           <label class="form-label big-label" for="event_date">Date</label>

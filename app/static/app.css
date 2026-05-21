@@ -78,15 +78,36 @@ body {
   border-top: 1px dashed rgba(0, 0, 0, 0.08);
 }
 
-.dashboard-schedule-event .small:first-of-type {
-  color: #7e22ce;
-}
-
-.dashboard-schedule-interview .small:first-of-type {
+.dashboard-schedule-interview .dashboard-schedule-title {
   color: #15803d;
 }
 
+.dashboard-schedule-event .dashboard-schedule-title {
+  color: #64748b;
+}
+
+.dashboard-schedule-cat-leadership .dashboard-schedule-title {
+  color: #4338ca;
+}
+
+.dashboard-schedule-cat-branch .dashboard-schedule-title {
+  color: #7e22ce;
+}
+
+.dashboard-schedule-cat-stake .dashboard-schedule-title {
+  color: #b45309;
+}
+
+.dashboard-schedule-cat-youth .dashboard-schedule-title {
+  color: #0e7490;
+}
+
 .cal-create-tabs .nav-link {
+  font-weight: 600;
+}
+
+.cal-legend .cal-legend-item {
+  font-size: 0.85rem;
   font-weight: 600;
 }
 
