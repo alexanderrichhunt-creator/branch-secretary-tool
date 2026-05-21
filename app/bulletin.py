@@ -205,25 +205,6 @@ def build_bulletin_text(data: dict) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
-def _ascii_safe(text: str) -> str:
-    """Make text safe for PDF fonts that only support Latin-1."""
-    import unicodedata
-
-    text = unicodedata.normalize("NFKD", text or "")
-    replacements = {
-        "\u2018": "'",
-        "\u2019": "'",
-        "\u201c": '"',
-        "\u201d": '"',
-        "\u2013": "-",
-        "\u2014": "-",
-        "\u2026": "...",
-    }
-    for src, dst in replacements.items():
-        text = text.replace(src, dst)
-    return text.encode("latin-1", errors="replace").decode("latin-1")
-
-
 def _iter_bulletin_lines(data: dict) -> list[str]:
     return build_bulletin_text(data).split("\n")
 
@@ -282,38 +263,6 @@ def export_docx(data: dict) -> bytes:
     buf = io.BytesIO()
     doc.save(buf)
     return buf.getvalue()
-
-
-def export_pdf(data: dict) -> bytes:
-    from fpdf import FPDF
-
-    pdf = FPDF(format="Letter")
-    pdf.set_auto_page_break(auto=True, margin=12)
-    pdf.set_margins(12, 12, 12)
-    pdf.add_page()
-    pdf.set_font("Helvetica", size=10)
-    width = pdf.epw
-    line_height = 4.5
-    blank_height = 3.0
-
-    prev_blank = False
-    for line in _iter_bulletin_lines(data):
-        pdf.set_x(pdf.l_margin)
-        if not line.strip():
-            if not prev_blank:
-                pdf.ln(blank_height)
-            prev_blank = True
-            continue
-        prev_blank = False
-        safe_line = _ascii_safe(line)
-        if line == "Sacrament Meeting":
-            pdf.set_font("Helvetica", style="B", size=11)
-        else:
-            pdf.set_font("Helvetica", size=10)
-        pdf.multi_cell(width, line_height, safe_line)
-    pdf.set_font("Helvetica", size=10)
-
-    return bytes(pdf.output())
 
 
 def speakers_text_for_talks(talks) -> str:

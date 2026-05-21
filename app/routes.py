@@ -952,7 +952,7 @@ def api_hymn(number: int):
 @main_bp.post("/bulletin/export/<fmt>")
 @login_required
 def bulletin_export(fmt: str):
-    from .bulletin import bulletin_from_form, build_bulletin_text, export_docx, export_pdf
+    from .bulletin import bulletin_from_form, build_bulletin_text, export_docx
 
     data = bulletin_from_form(request.form)
     meeting_date = data.get("meeting_date")
@@ -966,14 +966,6 @@ def bulletin_export(fmt: str):
                 as_attachment=True,
                 download_name=f"branch-bulletin-{suffix}.docx",
                 mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            )
-        if fmt == "pdf":
-            payload = export_pdf(data)
-            return send_file(
-                io.BytesIO(bytes(payload)),
-                as_attachment=True,
-                download_name=f"branch-bulletin-{suffix}.pdf",
-                mimetype="application/pdf",
             )
         if fmt == "txt":
             text = build_bulletin_text(data)

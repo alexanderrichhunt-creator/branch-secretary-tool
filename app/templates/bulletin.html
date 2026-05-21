@@ -132,11 +132,11 @@
             <h2 class="h5 fw-bold mb-0">Preview</h2>
             <div class="d-flex flex-wrap gap-2">
               <button type="submit" class="btn btn-primary" formaction="{{ url_for('main.bulletin_export', fmt='docx') }}" formtarget="_blank">Download Word</button>
-              <button type="submit" class="btn btn-outline-primary" formaction="{{ url_for('main.bulletin_export', fmt='pdf') }}" formtarget="_blank">Download PDF</button>
               <button type="submit" class="btn btn-outline-secondary" formaction="{{ url_for('main.bulletin_export', fmt='txt') }}" formtarget="_blank">Download text</button>
               <button type="submit" class="btn btn-success" formaction="{{ url_for('main.bulletin_save_defaults') }}">Save branch defaults</button>
               <button type="button" class="btn btn-outline-dark" id="bulletin-print-btn">Print</button>
             </div>
+            <div class="form-text">Use <strong>Print</strong> and choose “Save as PDF” in your browser for a PDF copy.</div>
           </div>
           <pre id="bulletin-preview" class="bulletin-preview mb-0"></pre>
         </div>
