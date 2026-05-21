@@ -211,54 +211,115 @@ def _iter_bulletin_lines(data: dict) -> list[str]:
 
 def export_docx(data: dict) -> bytes:
     from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
     from docx.shared import Inches, Pt
 
     doc = Document()
     section = doc.sections[0]
-    section.top_margin = Inches(0.45)
-    section.bottom_margin = Inches(0.45)
-    section.left_margin = Inches(0.65)
-    section.right_margin = Inches(0.65)
+    section.top_margin = Inches(1)
+    section.bottom_margin = Inches(1)
+    section.left_margin = Inches(1)
+    section.right_margin = Inches(1)
 
-    normal = doc.styles["Normal"]
-    normal.font.name = "Times New Roman"
-    normal.font.size = Pt(10.5)
-    normal.paragraph_format.space_before = Pt(0)
-    normal.paragraph_format.space_after = Pt(0)
-    normal.paragraph_format.line_spacing = 1.0
+    body_size = 12
+    body_after = 8
+    section_gap = 14
 
-    def add_spacer() -> None:
-        p = doc.add_paragraph()
-        pf = p.paragraph_format
+    def set_para_spacing(pf, *, after: float = body_after, leading: float = 1.5) -> None:
         pf.space_before = Pt(0)
-        pf.space_after = Pt(0)
-        pf.line_spacing = Pt(4)
+        pf.space_after = Pt(after)
+        pf.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
+        pf.line_spacing = leading
 
-    def add_line(text: str, *, bold: bool = False, size: float = 10.5) -> None:
+    def add_blank(*, after: float = section_gap) -> None:
         p = doc.add_paragraph()
-        pf = p.paragraph_format
-        pf.space_before = Pt(0)
-        pf.space_after = Pt(1)
-        pf.line_spacing = 1.0
+        set_para_spacing(p.paragraph_format, after=after, leading=1.0)
+
+    def add_line(
+        text: str,
+        *,
+        bold: bool = False,
+        size: float = body_size,
+        center: bool = False,
+        after: float = body_after,
+        leading: float = 1.5,
+    ) -> None:
+        p = doc.add_paragraph()
+        set_para_spacing(p.paragraph_format, after=after, leading=leading)
+        if center:
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = p.add_run(text)
         run.bold = bold
         run.font.name = "Times New Roman"
         run.font.size = Pt(size)
 
-    prev_blank = False
-    for line in _iter_bulletin_lines(data):
-        if not line.strip():
-            if not prev_blank:
-                add_spacer()
-            prev_blank = True
-            continue
-        prev_blank = False
-        if line == "Sacrament Meeting":
-            add_line(line, bold=True, size=12)
-        elif line == data.get("meeting_date_display"):
-            add_line(line, bold=True)
-        else:
-            add_line(line)
+    def add_multiline(text: str, **kwargs) -> None:
+        for part in (text or "").splitlines():
+            part = part.strip()
+            if part:
+                add_line(part, **kwargs)
+
+    add_line("Sacrament Meeting", bold=True, size=18, center=True, after=8, leading=1.0)
+    if data.get("meeting_date_display"):
+        add_line(
+            data["meeting_date_display"],
+            bold=True,
+            size=13,
+            center=True,
+            after=22,
+            leading=1.0,
+        )
+    add_blank()
+
+    if data.get("presiding"):
+        add_line(f"Presiding: {data['presiding']}")
+    if data.get("conducting"):
+        add_line(f"Conducting: {data['conducting']}")
+    if data.get("on_the_stand"):
+        add_line(f"On the stand: {data['on_the_stand']}")
+    add_blank()
+
+    if data.get("welcome_text"):
+        add_multiline(data["welcome_text"])
+        add_blank()
+
+    if data.get("opening_hymn_line"):
+        add_line(f"Opening Hymn: {data['opening_hymn_line']}")
+    if data.get("invocation"):
+        add_line(f"Invocation: {data['invocation']}")
+    add_blank()
+
+    add_line("Branch Business:", bold=True, after=4)
+    add_multiline(data.get("branch_business") or "")
+    add_blank()
+
+    add_line(f"Stake Business: {data.get('stake_business') or ''}")
+    add_blank()
+
+    if data.get("announcements"):
+        add_multiline(data["announcements"])
+        add_blank()
+
+    if data.get("sacrament_notes"):
+        add_multiline(data["sacrament_notes"])
+        add_blank()
+
+    if data.get("sacrament_hymn_line"):
+        add_line(f"The Sacrament Hymn is {data['sacrament_hymn_line']}")
+    add_blank()
+
+    if data.get("speakers_text"):
+        add_multiline(data["speakers_text"])
+        add_blank()
+
+    if data.get("intermediate_hymn_line"):
+        add_line(f"Intermediate Hymn: {data['intermediate_hymn_line']}")
+        add_blank()
+
+    if data.get("closing_hymn_line"):
+        add_line(f"Closing Hymn {data['closing_hymn_line']}")
+    if data.get("benediction"):
+        add_line(f"Benediction: {data['benediction']}")
 
     buf = io.BytesIO()
     doc.save(buf)
@@ -275,7 +336,20 @@ def speakers_text_for_talks(talks) -> str:
     return "Our speakers today will be " + " followed by ".join(names) + "."
 
 
+def bulletin_person_name(name: str) -> str:
+    """Render stored 'Last, First' names as 'First Last' on the bulletin."""
+    name = " ".join((name or "").strip().split())
+    if not name or "," not in name:
+        return name
+    last, _, first = name.partition(",")
+    last = last.strip()
+    first = first.strip()
+    if first and last:
+        return f"{first} {last}"
+    return name
+
+
 def _talk_display_name(t) -> str:
     if t.member_id and t.member is not None:
-        return t.member.full_name
+        return bulletin_person_name(t.member.full_name)
     return (getattr(t, "speaker_text", None) or "").strip() or "—"
