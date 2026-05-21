@@ -95,6 +95,24 @@ body {
   font-weight: 600;
 }
 
+.bulletin-preview {
+  white-space: pre-wrap;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  background: #fafafa;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  padding: 1rem;
+  max-height: min(70vh, 36rem);
+  overflow: auto;
+}
+
+.bulletin-preview-card .hymn-title-display,
+.hymn-title-display {
+  background-color: #f8f9fa;
+}
+
 .dashboard-week-form .form-label {
   margin-bottom: 0.15rem;
 }

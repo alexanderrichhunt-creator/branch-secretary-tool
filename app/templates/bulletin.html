@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <div>
+    <h1 class="h2 fw-bold mb-1">Branch Bulletin Builder</h1>
+    <div class="muted">Build a sacrament meeting bulletin from your template. Speakers load from talks on the calendar.</div>
+  </div>
+  <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.dashboard') }}">Dashboard</a>
+</div>
+
+<form id="bulletin-form" method="post" action="{{ url_for('main.bulletin_export', fmt='docx') }}">
+  <div class="row g-3">
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <h2 class="h5 fw-bold mb-3">Meeting details</h2>
+          <div class="mb-3">
+            <label class="form-label big-label" for="meeting_date">Sacrament meeting date</label>
+            <input class="form-control form-control-lg" type="date" id="meeting_date" name="meeting_date" value="{{ defaults.meeting_date }}" required />
+            <div class="form-text">Speakers are loaded from talks logged for this Sunday (or that week).</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="presiding">Presiding</label>
+            <input class="form-control" id="presiding" name="presiding" value="{{ defaults.presiding }}" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="conducting">Conducting</label>
+            <input class="form-control" id="conducting" name="conducting" value="{{ defaults.conducting }}" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="on_the_stand">On the stand</label>
+            <input class="form-control" id="on_the_stand" name="on_the_stand" value="{{ defaults.on_the_stand }}" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="welcome_text">Welcome</label>
+            <textarea class="form-control" id="welcome_text" name="welcome_text" rows="3">{{ defaults.welcome_text }}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <h2 class="h5 fw-bold mb-3">Music &amp; prayers</h2>
+          <div class="row g-2 mb-3">
+            <div class="col-4">
+              <label class="form-label big-label" for="opening_hymn_num">Opening #</label>
+              <input class="form-control hymn-num-input" type="number" min="1" max="341" id="opening_hymn_num" name="opening_hymn_num" value="{{ defaults.opening_hymn_num }}" data-title-target="opening_hymn_title" />
+            </div>
+            <div class="col-8">
+              <label class="form-label big-label" for="opening_hymn_title">Opening hymn title</label>
+              <input class="form-control hymn-title-display" type="text" id="opening_hymn_title" readonly value="{{ defaults.opening_hymn_title }}" />
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="invocation">Invocation</label>
+            <input class="form-control" id="invocation" name="invocation" value="{{ defaults.invocation }}" />
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-4">
+              <label class="form-label big-label" for="sacrament_hymn_num">Sacrament #</label>
+              <input class="form-control hymn-num-input" type="number" min="1" max="341" id="sacrament_hymn_num" name="sacrament_hymn_num" value="{{ defaults.sacrament_hymn_num }}" data-title-target="sacrament_hymn_title" />
+            </div>
+            <div class="col-8">
+              <label class="form-label big-label" for="sacrament_hymn_title">Sacrament hymn title</label>
+              <input class="form-control hymn-title-display" type="text" id="sacrament_hymn_title" readonly value="{{ defaults.sacrament_hymn_title }}" />
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-4">
+              <label class="form-label big-label" for="closing_hymn_num">Closing #</label>
+              <input class="form-control hymn-num-input" type="number" min="1" max="341" id="closing_hymn_num" name="closing_hymn_num" value="{{ defaults.closing_hymn_num }}" data-title-target="closing_hymn_title" />
+            </div>
+            <div class="col-8">
+              <label class="form-label big-label" for="closing_hymn_title">Closing hymn title</label>
+              <input class="form-control hymn-title-display" type="text" id="closing_hymn_title" readonly value="{{ defaults.closing_hymn_title }}" />
+            </div>
+          </div>
+          <div class="mb-0">
+            <label class="form-label big-label" for="benediction">Benediction</label>
+            <input class="form-control" id="benediction" name="benediction" value="{{ defaults.benediction }}" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <h2 class="h5 fw-bold mb-3">Business &amp; announcements</h2>
+          <div class="mb-3">
+            <label class="form-label big-label" for="branch_business">Branch business</label>
+            <textarea class="form-control bulletin-field" id="branch_business" name="branch_business" rows="4">{{ defaults.branch_business }}</textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="stake_business">Stake business</label>
+            <input class="form-control bulletin-field" id="stake_business" name="stake_business" value="{{ defaults.stake_business }}" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="announcements">Announcements (Zoom, Facebook, etc.)</label>
+            <textarea class="form-control bulletin-field" id="announcements" name="announcements" rows="6">{{ defaults.announcements }}</textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="sacrament_notes">Sacrament / Zoom note</label>
+            <textarea class="form-control bulletin-field" id="sacrament_notes" name="sacrament_notes" rows="5">{{ defaults.sacrament_notes }}</textarea>
+          </div>
+          <div class="mb-0">
+            <label class="form-label big-label" for="speakers_text">Speakers</label>
+            <textarea class="form-control bulletin-field" id="speakers_text" name="speakers_text" rows="3">{{ defaults.speakers_text }}</textarea>
+            <div class="form-text">Auto-filled from calendar talks. Edit if needed (e.g. add “from the Stake High Council”).</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm bulletin-preview-card">
+        <div class="card-body">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <h2 class="h5 fw-bold mb-0">Preview</h2>
+            <div class="d-flex flex-wrap gap-2">
+              <button type="submit" class="btn btn-primary" formaction="{{ url_for('main.bulletin_export', fmt='docx') }}">Download Word</button>
+              <button type="submit" class="btn btn-outline-primary" formaction="{{ url_for('main.bulletin_export', fmt='pdf') }}">Download PDF</button>
+              <button type="submit" class="btn btn-outline-secondary" formaction="{{ url_for('main.bulletin_export', fmt='txt') }}">Download text</button>
+              <button type="button" class="btn btn-outline-dark" id="bulletin-print-btn">Print</button>
+            </div>
+          </div>
+          <pre id="bulletin-preview" class="bulletin-preview mb-0"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='bulletin.js') }}"></script>
+{% endblock %}

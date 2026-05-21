@@ -5,7 +5,7 @@ import io
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 
 from . import db
@@ -561,3 +561,99 @@ def api_events():
         )
 
     return jsonify(events)
+
+
+def _talks_for_bulletin_date(talk_date: date) -> list[Talk]:
+    talks = Talk.query.filter_by(talk_date=talk_date).order_by(Talk.id.asc()).all()
+    if talks:
+        return talks
+    week_start = _week_start_sunday(talk_date)
+    week_end = week_start + timedelta(days=6)
+    return (
+        Talk.query.filter(Talk.talk_date >= week_start, Talk.talk_date <= week_end)
+        .order_by(Talk.talk_date.asc(), Talk.id.asc())
+        .all()
+    )
+
+
+@main_bp.get("/bulletin")
+@login_required
+def bulletin_builder():
+    from .bulletin import DEFAULT_BULLETIN, default_sacrament_sunday
+    from .hymns import hymn_title
+
+    meeting_date = default_sacrament_sunday()
+    defaults = dict(DEFAULT_BULLETIN)
+    defaults["meeting_date"] = meeting_date.isoformat()
+    defaults["opening_hymn_title"] = hymn_title(int(defaults.get("opening_hymn_num") or 0) or None)
+    defaults["sacrament_hymn_title"] = hymn_title(int(defaults.get("sacrament_hymn_num") or 0) or None)
+    defaults["closing_hymn_title"] = hymn_title(int(defaults.get("closing_hymn_num") or 0) or None)
+
+    talks = _talks_for_bulletin_date(meeting_date)
+    from .bulletin import speakers_text_for_talks
+
+    defaults["speakers_text"] = speakers_text_for_talks(talks)
+
+    return render_template("bulletin.html", defaults=defaults)
+
+
+@main_bp.get("/api/bulletin/speakers")
+@login_required
+def api_bulletin_speakers():
+    from .bulletin import speakers_text_for_talks
+
+    raw = (request.args.get("date") or "").strip()
+    if not raw:
+        return jsonify({"speakers_text": ""})
+    try:
+        talk_date = datetime.strptime(raw, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"speakers_text": ""})
+    talks = _talks_for_bulletin_date(talk_date)
+    return jsonify({"speakers_text": speakers_text_for_talks(talks)})
+
+
+@main_bp.get("/api/hymn/<int:number>")
+@login_required
+def api_hymn(number: int):
+    from .hymns import hymn_line, hymn_title
+
+    return jsonify({"number": number, "title": hymn_title(number), "line": hymn_line(number)})
+
+
+@main_bp.post("/bulletin/export/<fmt>")
+@login_required
+def bulletin_export(fmt: str):
+    from .bulletin import bulletin_from_form, build_bulletin_text, export_docx, export_pdf
+
+    data = bulletin_from_form(request.form)
+    meeting_date = data.get("meeting_date")
+    suffix = meeting_date.isoformat() if meeting_date else "draft"
+
+    if fmt == "docx":
+        payload = export_docx(data)
+        return send_file(
+            io.BytesIO(payload),
+            as_attachment=True,
+            download_name=f"branch-bulletin-{suffix}.docx",
+            mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+    if fmt == "pdf":
+        payload = export_pdf(data)
+        return send_file(
+            io.BytesIO(payload),
+            as_attachment=True,
+            download_name=f"branch-bulletin-{suffix}.pdf",
+            mimetype="application/pdf",
+        )
+    if fmt == "txt":
+        text = build_bulletin_text(data)
+        return send_file(
+            io.BytesIO(text.encode("utf-8")),
+            as_attachment=True,
+            download_name=f"branch-bulletin-{suffix}.txt",
+            mimetype="text/plain; charset=utf-8",
+        )
+
+    flash("Unknown export format.", "warning")
+    return redirect(url_for("main.bulletin_builder"))
