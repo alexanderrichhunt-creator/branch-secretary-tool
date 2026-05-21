@@ -17,6 +17,26 @@
     return WEEKDAY_CODES[d.getDay()];
   }
 
+  function toDateInputValueUTC(d) {
+    return d.getUTCFullYear() + "-" + pad(d.getUTCMonth() + 1) + "-" + pad(d.getUTCDate());
+  }
+
+  function resolveDateValue(start, allDay, dateStr) {
+    if (dateStr && dateStr.length >= 10) {
+      return dateStr.slice(0, 10);
+    }
+    if (allDay && start instanceof Date) {
+      return toDateInputValueUTC(start);
+    }
+    return toDateInputValue(start instanceof Date ? start : new Date());
+  }
+
+  function dateFromParts(dateValue) {
+    const parts = dateValue.split("-");
+    if (parts.length !== 3) return new Date();
+    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  }
+
   function formatDayLabel(d) {
     return d.toLocaleDateString(undefined, {
       weekday: "long",
@@ -46,33 +66,23 @@
     });
     const talkForm = document.getElementById("calTalkForm");
     if (talkForm) {
-      talkForm.querySelectorAll('input[type="text"], input[type="date"]').forEach(function (el) {
-        if (el.name !== "talk_date") el.value = "";
+      talkForm.querySelectorAll('input[type="text"]').forEach(function (el) {
+        el.value = "";
       });
       const member = talkForm.querySelector('[name="member_id"]');
       if (member) member.value = "";
-      const assigned = talkForm.querySelector('#cal_talk_kind_assigned');
+      const assigned = talkForm.querySelector("#cal_talk_kind_assigned");
       if (assigned) assigned.checked = true;
     }
   }
 
-  function normalizeCalendarSelection(start, end, allDay) {
-    const startDate = start instanceof Date ? new Date(start) : new Date();
-    let endDate = end instanceof Date ? new Date(end) : new Date(startDate.getTime() + 60 * 60 * 1000);
-    const spanMs = endDate.getTime() - startDate.getTime();
-
-    if (allDay && spanMs <= 36 * 60 * 60 * 1000) {
-      startDate.setHours(9, 0, 0, 0);
-      endDate = new Date(startDate);
-      endDate.setHours(10, 0, 0, 0);
-      return { start: startDate, end: endDate, allDay: false };
+  function dispatchTalkDateChange() {
+    const talkForm = document.getElementById("calTalkForm");
+    if (!talkForm) return;
+    const dateInput = talkForm.querySelector('[name="talk_date"]');
+    if (dateInput) {
+      dateInput.dispatchEvent(new Event("change", { bubbles: true }));
     }
-
-    if (!allDay && endDate <= startDate) {
-      endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
-    }
-
-    return { start: startDate, end: endDate, allDay: !!allDay };
   }
 
   function setAllDayState(formRoot, allDay) {
@@ -151,25 +161,34 @@
       setAllDayState(modalEl.querySelector("#cal-pane-interview"), false);
     },
 
-    openFromCalendar: function (start, end, allDay) {
-      const normalized = normalizeCalendarSelection(start, end, allDay);
-      this.open(normalized);
+    openFromCalendar: function (start, end, allDay, dateStr) {
+      this.open({
+        start: start,
+        end: end,
+        allDay: allDay,
+        dateStr: dateStr,
+      });
     },
 
     open: function (opts) {
       if (!this.modal) return;
-      const start = opts.start instanceof Date ? opts.start : new Date();
-      let end = opts.end instanceof Date ? opts.end : new Date(start.getTime() + 60 * 60 * 1000);
       const allDay = !!opts.allDay;
+      let start = opts.start instanceof Date ? new Date(opts.start) : new Date();
+      let end = opts.end instanceof Date ? new Date(opts.end) : new Date(start.getTime() + 60 * 60 * 1000);
 
       resetCreateForms();
 
-      const dateValue = toDateInputValue(start);
+      const dateValue = resolveDateValue(start, allDay, opts.dateStr);
       syncDates(dateValue);
+
+      const titleDate = dateFromParts(dateValue);
 
       if (allDay) {
         syncTimes("09:00", "10:00");
       } else {
+        if (end <= start) {
+          end = new Date(start.getTime() + 60 * 60 * 1000);
+        }
         syncTimes(toTimeInputValue(start), toTimeInputValue(end));
       }
 
@@ -181,7 +200,7 @@
       }
 
       if (this.modalTitleEl) {
-        this.modalTitleEl.textContent = "Add to calendar — " + formatDayLabel(start);
+        this.modalTitleEl.textContent = "Add to calendar — " + formatDayLabel(titleDate);
       }
 
       const freq = document.querySelector(".cal-recurrence-freq");
@@ -192,17 +211,12 @@
       document.querySelectorAll('input[name="recurrence_byweekday"]').forEach(function (el) {
         el.checked = false;
       });
-      const dayBox = document.querySelector('input[name="recurrence_byweekday"][value="' + weekdayCode(start) + '"]');
+      const dayBox = document.querySelector(
+        'input[name="recurrence_byweekday"][value="' + weekdayCode(titleDate) + '"]'
+      );
       if (dayBox) dayBox.checked = true;
 
-      const talkForm = document.getElementById("calTalkForm");
-      if (talkForm && typeof talkForm.dispatchEvent === "function") {
-        const dateInput = talkForm.querySelector('[name="talk_date"]');
-        if (dateInput) {
-          dateInput.dispatchEvent(new Event("change", { bubbles: true }));
-        }
-      }
-
+      dispatchTalkDateChange();
       this.modal.show();
     },
   };

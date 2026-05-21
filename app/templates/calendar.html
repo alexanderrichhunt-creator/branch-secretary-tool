@@ -272,8 +272,8 @@
 
     window.CalCreateForm.init(createModalEl);
 
-    function openCreateForDay(start, end, allDay) {
-      window.CalCreateForm.openFromCalendar(start, end, allDay);
+    function openCreateForDay(start, end, allDay, dateStr) {
+      window.CalCreateForm.openFromCalendar(start, end, allDay, dateStr);
     }
 
     const cal = new FullCalendar.Calendar(el, {
@@ -298,14 +298,14 @@
         }
         eventModal.show();
       },
-      navLinkDayClick: function(info) {
-        openCreateForDay(info.date, info.date, true);
+      navLinkDayClick: function(date, jsEvent) {
+        openCreateForDay(date, date, true);
       },
       dateClick: function(info) {
-        openCreateForDay(info.date, info.date, info.allDay);
+        openCreateForDay(info.date, info.date, true, info.dateStr);
       },
       select: function(info) {
-        openCreateForDay(info.start, info.end, info.allDay);
+        openCreateForDay(info.start, info.end, info.allDay, info.startStr);
         cal.unselect();
       }
     });
