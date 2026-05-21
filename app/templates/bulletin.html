@@ -4,6 +4,11 @@
   <div>
     <h1 class="h2 fw-bold mb-1">Branch Bulletin Builder</h1>
     <div class="muted">Build a sacrament meeting bulletin from your template. Speakers load from talks on the calendar.</div>
+    {% if has_saved_defaults %}
+      <div class="small text-success mt-1">Branch defaults are saved and load automatically each week.</div>
+    {% else %}
+      <div class="small muted mt-1">Fill in your usual info once, then click <strong>Save branch defaults</strong>.</div>
+    {% endif %}
   </div>
   <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.dashboard') }}">Dashboard</a>
 </div>
@@ -87,9 +92,9 @@
       <div class="card shadow-sm mb-3">
         <div class="card-body">
           <h2 class="h5 fw-bold mb-3">Business &amp; announcements</h2>
-          <div class="mb-3">
+            <div class="mb-3">
             <label class="form-label big-label" for="branch_business">Branch business</label>
-            <textarea class="form-control bulletin-field" id="branch_business" name="branch_business" rows="4">{{ defaults.branch_business }}</textarea>
+            <textarea class="form-control bulletin-field" id="branch_business" name="branch_business" rows="4" placeholder="This week’s announcements (starts blank each week)">{{ defaults.branch_business }}</textarea>
           </div>
           <div class="mb-3">
             <label class="form-label big-label" for="stake_business">Stake business</label>
@@ -119,6 +124,7 @@
               <button type="submit" class="btn btn-primary" formaction="{{ url_for('main.bulletin_export', fmt='docx') }}">Download Word</button>
               <button type="submit" class="btn btn-outline-primary" formaction="{{ url_for('main.bulletin_export', fmt='pdf') }}">Download PDF</button>
               <button type="submit" class="btn btn-outline-secondary" formaction="{{ url_for('main.bulletin_export', fmt='txt') }}">Download text</button>
+              <button type="submit" class="btn btn-success" formaction="{{ url_for('main.bulletin_save_defaults') }}">Save branch defaults</button>
               <button type="button" class="btn btn-outline-dark" id="bulletin-print-btn">Print</button>
             </div>
           </div>

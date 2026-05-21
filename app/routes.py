@@ -579,22 +579,39 @@ def _talks_for_bulletin_date(talk_date: date) -> list[Talk]:
 @main_bp.get("/bulletin")
 @login_required
 def bulletin_builder():
-    from .bulletin import DEFAULT_BULLETIN, default_sacrament_sunday
+    from .bulletin import (
+        _parse_hymn_num,
+        default_sacrament_sunday,
+        get_branch_bulletin_defaults,
+        has_saved_branch_defaults,
+        speakers_text_for_talks,
+    )
     from .hymns import hymn_title
 
     meeting_date = default_sacrament_sunday()
-    defaults = dict(DEFAULT_BULLETIN)
+    defaults = get_branch_bulletin_defaults()
     defaults["meeting_date"] = meeting_date.isoformat()
-    defaults["opening_hymn_title"] = hymn_title(int(defaults.get("opening_hymn_num") or 0) or None)
-    defaults["sacrament_hymn_title"] = hymn_title(int(defaults.get("sacrament_hymn_num") or 0) or None)
-    defaults["closing_hymn_title"] = hymn_title(int(defaults.get("closing_hymn_num") or 0) or None)
+    defaults["branch_business"] = ""
+    defaults["opening_hymn_title"] = hymn_title(_parse_hymn_num(defaults.get("opening_hymn_num")))
+    defaults["sacrament_hymn_title"] = hymn_title(_parse_hymn_num(defaults.get("sacrament_hymn_num")))
+    defaults["closing_hymn_title"] = hymn_title(_parse_hymn_num(defaults.get("closing_hymn_num")))
+    defaults["speakers_text"] = speakers_text_for_talks(_talks_for_bulletin_date(meeting_date))
 
-    talks = _talks_for_bulletin_date(meeting_date)
-    from .bulletin import speakers_text_for_talks
+    return render_template(
+        "bulletin.html",
+        defaults=defaults,
+        has_saved_defaults=has_saved_branch_defaults(),
+    )
 
-    defaults["speakers_text"] = speakers_text_for_talks(talks)
 
-    return render_template("bulletin.html", defaults=defaults)
+@main_bp.post("/bulletin/save-defaults")
+@login_required
+def bulletin_save_defaults():
+    from .bulletin import save_branch_bulletin_defaults
+
+    save_branch_bulletin_defaults(request.form)
+    flash("Branch bulletin defaults saved. They will load automatically next time.", "success")
+    return redirect(url_for("main.bulletin_builder"))
 
 
 @main_bp.get("/api/bulletin/speakers")

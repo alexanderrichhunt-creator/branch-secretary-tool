@@ -36,6 +36,55 @@ DEFAULT_BULLETIN = {
     "benediction": "(by invitation)",
 }
 
+# Fields stored as branch defaults (not meeting_date or speakers_text).
+SAVABLE_BULLETIN_KEYS = (
+    "presiding",
+    "conducting",
+    "on_the_stand",
+    "welcome_text",
+    "opening_hymn_num",
+    "invocation",
+    "stake_business",
+    "announcements",
+    "sacrament_notes",
+    "sacrament_hymn_num",
+    "closing_hymn_num",
+    "benediction",
+)
+
+
+def get_branch_bulletin_defaults() -> dict:
+    """Built-in template merged with saved branch defaults from the database."""
+    from .models import BulletinDefaults
+
+    merged = dict(DEFAULT_BULLETIN)
+    row = BulletinDefaults.query.get(1)
+    if not row:
+        return merged
+    for key in SAVABLE_BULLETIN_KEYS:
+        merged[key] = getattr(row, key) or ""
+    return merged
+
+
+def has_saved_branch_defaults() -> bool:
+    from .models import BulletinDefaults
+
+    return BulletinDefaults.query.get(1) is not None
+
+
+def save_branch_bulletin_defaults(form) -> None:
+    from . import db
+    from .models import BulletinDefaults
+
+    row = BulletinDefaults.query.get(1)
+    if not row:
+        row = BulletinDefaults(id=1)
+        db.session.add(row)
+    for key in SAVABLE_BULLETIN_KEYS:
+        setattr(row, key, (form.get(key) or "").strip())
+    row.updated_at = datetime.utcnow()
+    db.session.commit()
+
 
 def default_sacrament_sunday(today: date | None = None) -> date:
     today = today or date.today()

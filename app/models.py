@@ -63,6 +63,28 @@ class Interview(db.Model):
     member = db.relationship("Member", back_populates="interviews")
 
 
+class BulletinDefaults(db.Model):
+    """Single-row branch defaults for the bulletin builder (id=1)."""
+
+    __tablename__ = "bulletin_defaults"
+
+    id = db.Column(db.Integer, primary_key=True)
+    presiding = db.Column(db.String(512), nullable=False, default="")
+    conducting = db.Column(db.String(512), nullable=False, default="")
+    on_the_stand = db.Column(db.String(512), nullable=False, default="")
+    welcome_text = db.Column(db.Text, nullable=False, default="")
+    opening_hymn_num = db.Column(db.String(8), nullable=False, default="6")
+    invocation = db.Column(db.String(256), nullable=False, default="(by invitation)")
+    branch_business = db.Column(db.Text, nullable=False, default="")
+    stake_business = db.Column(db.String(256), nullable=False, default="(if any)")
+    announcements = db.Column(db.Text, nullable=False, default="")
+    sacrament_notes = db.Column(db.Text, nullable=False, default="")
+    sacrament_hymn_num = db.Column(db.String(8), nullable=False, default="190")
+    closing_hymn_num = db.Column(db.String(8), nullable=False, default="141")
+    benediction = db.Column(db.String(256), nullable=False, default="(by invitation)")
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
 def parse_us_date(value: str | None) -> date | None:
     if not value:
         return None
