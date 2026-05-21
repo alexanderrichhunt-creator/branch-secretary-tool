@@ -216,24 +216,21 @@ def export_docx(data: dict) -> bytes:
 
     doc = Document()
     section = doc.sections[0]
-    section.top_margin = Inches(1)
-    section.bottom_margin = Inches(1)
-    section.left_margin = Inches(1)
-    section.right_margin = Inches(1)
+    section.top_margin = Inches(0.55)
+    section.bottom_margin = Inches(0.55)
+    section.left_margin = Inches(0.7)
+    section.right_margin = Inches(0.7)
 
-    body_size = 12
-    body_after = 8
-    section_gap = 14
+    body_size = 11
+    body_after = 2
+    section_after = 5
+    leading = 1.12
 
-    def set_para_spacing(pf, *, after: float = body_after, leading: float = 1.5) -> None:
+    def set_para_spacing(pf, *, after: float = body_after, leading_val: float = leading) -> None:
         pf.space_before = Pt(0)
         pf.space_after = Pt(after)
         pf.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
-        pf.line_spacing = leading
-
-    def add_blank(*, after: float = section_gap) -> None:
-        p = doc.add_paragraph()
-        set_para_spacing(p.paragraph_format, after=after, leading=1.0)
+        pf.line_spacing = leading_val
 
     def add_line(
         text: str,
@@ -242,10 +239,10 @@ def export_docx(data: dict) -> bytes:
         size: float = body_size,
         center: bool = False,
         after: float = body_after,
-        leading: float = 1.5,
+        leading_val: float = leading,
     ) -> None:
         p = doc.add_paragraph()
-        set_para_spacing(p.paragraph_format, after=after, leading=leading)
+        set_para_spacing(p.paragraph_format, after=after, leading_val=leading_val)
         if center:
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = p.add_run(text)
@@ -253,68 +250,69 @@ def export_docx(data: dict) -> bytes:
         run.font.name = "Times New Roman"
         run.font.size = Pt(size)
 
-    def add_multiline(text: str, **kwargs) -> None:
-        for part in (text or "").splitlines():
-            part = part.strip()
-            if part:
-                add_line(part, **kwargs)
+    def add_multiline(text: str, *, after_last: float = body_after, **kwargs) -> None:
+        parts = [part.strip() for part in (text or "").splitlines() if part.strip()]
+        for i, part in enumerate(parts):
+            is_last = i == len(parts) - 1
+            add_line(
+                part,
+                after=after_last if is_last else body_after,
+                **kwargs,
+            )
 
-    add_line("Sacrament Meeting", bold=True, size=18, center=True, after=8, leading=1.0)
+    def add_items(lines: list[str], *, after_last: float = section_after) -> None:
+        lines = [line for line in lines if line]
+        for i, line in enumerate(lines):
+            add_line(line, after=after_last if i == len(lines) - 1 else body_after)
+
+    add_line("Sacrament Meeting", bold=True, size=14, center=True, after=2, leading_val=1.0)
     if data.get("meeting_date_display"):
         add_line(
             data["meeting_date_display"],
             bold=True,
-            size=13,
+            size=11,
             center=True,
-            after=22,
-            leading=1.0,
+            after=section_after,
+            leading_val=1.0,
         )
-    add_blank()
 
-    if data.get("presiding"):
-        add_line(f"Presiding: {data['presiding']}")
-    if data.get("conducting"):
-        add_line(f"Conducting: {data['conducting']}")
-    if data.get("on_the_stand"):
-        add_line(f"On the stand: {data['on_the_stand']}")
-    add_blank()
+    add_items(
+        [
+            f"Presiding: {data['presiding']}" if data.get("presiding") else "",
+            f"Conducting: {data['conducting']}" if data.get("conducting") else "",
+            f"On the stand: {data['on_the_stand']}" if data.get("on_the_stand") else "",
+        ]
+    )
 
     if data.get("welcome_text"):
-        add_multiline(data["welcome_text"])
-        add_blank()
+        add_multiline(data["welcome_text"], after_last=section_after)
 
-    if data.get("opening_hymn_line"):
-        add_line(f"Opening Hymn: {data['opening_hymn_line']}")
-    if data.get("invocation"):
-        add_line(f"Invocation: {data['invocation']}")
-    add_blank()
+    add_items(
+        [
+            f"Opening Hymn: {data['opening_hymn_line']}" if data.get("opening_hymn_line") else "",
+            f"Invocation: {data['invocation']}" if data.get("invocation") else "",
+        ]
+    )
 
-    add_line("Branch Business:", bold=True, after=4)
-    add_multiline(data.get("branch_business") or "")
-    add_blank()
+    add_line("Branch Business:", bold=True, after=1)
+    add_multiline(data.get("branch_business") or "", after_last=section_after)
 
-    add_line(f"Stake Business: {data.get('stake_business') or ''}")
-    add_blank()
+    add_line(f"Stake Business: {data.get('stake_business') or ''}", after=section_after)
 
     if data.get("announcements"):
-        add_multiline(data["announcements"])
-        add_blank()
+        add_multiline(data["announcements"], after_last=section_after)
 
     if data.get("sacrament_notes"):
-        add_multiline(data["sacrament_notes"])
-        add_blank()
+        add_multiline(data["sacrament_notes"], after_last=section_after)
 
     if data.get("sacrament_hymn_line"):
-        add_line(f"The Sacrament Hymn is {data['sacrament_hymn_line']}")
-    add_blank()
+        add_line(f"The Sacrament Hymn is {data['sacrament_hymn_line']}", after=section_after)
 
     if data.get("speakers_text"):
-        add_multiline(data["speakers_text"])
-        add_blank()
+        add_multiline(data["speakers_text"], after_last=section_after)
 
     if data.get("intermediate_hymn_line"):
-        add_line(f"Intermediate Hymn: {data['intermediate_hymn_line']}")
-        add_blank()
+        add_line(f"Intermediate Hymn: {data['intermediate_hymn_line']}", after=section_after)
 
     if data.get("closing_hymn_line"):
         add_line(f"Closing Hymn {data['closing_hymn_line']}")
