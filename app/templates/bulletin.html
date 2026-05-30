@@ -46,14 +46,15 @@
       <div class="card shadow-sm mb-3">
         <div class="card-body">
           <h2 class="h5 fw-bold mb-3">Music &amp; prayers</h2>
+          <p class="form-text mb-3">Hymn numbers are optional while the new hymnbook is finalized. You can type the hymn title directly.</p>
           <div class="row g-2 mb-3">
             <div class="col-4">
-              <label class="form-label big-label" for="opening_hymn_num">Opening #</label>
-              <input class="form-control hymn-num-input" type="number" min="1" max="341" id="opening_hymn_num" name="opening_hymn_num" value="{{ defaults.opening_hymn_num }}" data-title-target="opening_hymn_title" />
+              <label class="form-label big-label" for="opening_hymn_num">Opening # <span class="text-muted fw-normal">(optional)</span></label>
+              <input class="form-control hymn-num-input" type="text" inputmode="numeric" id="opening_hymn_num" name="opening_hymn_num" value="{{ defaults.opening_hymn_num }}" data-title-target="opening_hymn_title" placeholder="#" />
             </div>
             <div class="col-8">
               <label class="form-label big-label" for="opening_hymn_title">Opening hymn title</label>
-              <input class="form-control hymn-title-display" type="text" id="opening_hymn_title" readonly value="{{ defaults.opening_hymn_title }}" />
+              <input class="form-control hymn-title-display" type="text" id="opening_hymn_title" name="opening_hymn_title" value="{{ defaults.opening_hymn_title }}" placeholder="Hymn title" />
             </div>
           </div>
           <div class="mb-3">
@@ -62,32 +63,32 @@
           </div>
           <div class="row g-2 mb-3">
             <div class="col-4">
-              <label class="form-label big-label" for="sacrament_hymn_num">Sacrament #</label>
-              <input class="form-control hymn-num-input" type="number" min="1" max="341" id="sacrament_hymn_num" name="sacrament_hymn_num" value="{{ defaults.sacrament_hymn_num }}" data-title-target="sacrament_hymn_title" />
+              <label class="form-label big-label" for="sacrament_hymn_num">Sacrament # <span class="text-muted fw-normal">(optional)</span></label>
+              <input class="form-control hymn-num-input" type="text" inputmode="numeric" id="sacrament_hymn_num" name="sacrament_hymn_num" value="{{ defaults.sacrament_hymn_num }}" data-title-target="sacrament_hymn_title" placeholder="#" />
             </div>
             <div class="col-8">
               <label class="form-label big-label" for="sacrament_hymn_title">Sacrament hymn title</label>
-              <input class="form-control hymn-title-display" type="text" id="sacrament_hymn_title" readonly value="{{ defaults.sacrament_hymn_title }}" />
+              <input class="form-control hymn-title-display" type="text" id="sacrament_hymn_title" name="sacrament_hymn_title" value="{{ defaults.sacrament_hymn_title }}" placeholder="Hymn title" />
             </div>
           </div>
           <div class="row g-2 mb-3">
             <div class="col-4">
               <label class="form-label big-label" for="intermediate_hymn_num">Intermediate # <span class="text-muted fw-normal">(optional)</span></label>
-              <input class="form-control hymn-num-input" type="number" min="1" max="341" id="intermediate_hymn_num" name="intermediate_hymn_num" value="{{ defaults.intermediate_hymn_num }}" data-title-target="intermediate_hymn_title" placeholder="" />
+              <input class="form-control hymn-num-input" type="text" inputmode="numeric" id="intermediate_hymn_num" name="intermediate_hymn_num" value="{{ defaults.intermediate_hymn_num }}" data-title-target="intermediate_hymn_title" placeholder="" />
             </div>
             <div class="col-8">
               <label class="form-label big-label" for="intermediate_hymn_title">Intermediate hymn title</label>
-              <input class="form-control hymn-title-display" type="text" id="intermediate_hymn_title" readonly value="{{ defaults.intermediate_hymn_title }}" />
+              <input class="form-control hymn-title-display" type="text" id="intermediate_hymn_title" name="intermediate_hymn_title" value="{{ defaults.intermediate_hymn_title }}" placeholder="Hymn title" />
             </div>
           </div>
           <div class="row g-2 mb-3">
             <div class="col-4">
-              <label class="form-label big-label" for="closing_hymn_num">Closing #</label>
-              <input class="form-control hymn-num-input" type="number" min="1" max="341" id="closing_hymn_num" name="closing_hymn_num" value="{{ defaults.closing_hymn_num }}" data-title-target="closing_hymn_title" />
+              <label class="form-label big-label" for="closing_hymn_num">Closing # <span class="text-muted fw-normal">(optional)</span></label>
+              <input class="form-control hymn-num-input" type="text" inputmode="numeric" id="closing_hymn_num" name="closing_hymn_num" value="{{ defaults.closing_hymn_num }}" data-title-target="closing_hymn_title" placeholder="#" />
             </div>
             <div class="col-8">
               <label class="form-label big-label" for="closing_hymn_title">Closing hymn title</label>
-              <input class="form-control hymn-title-display" type="text" id="closing_hymn_title" readonly value="{{ defaults.closing_hymn_title }}" />
+              <input class="form-control hymn-title-display" type="text" id="closing_hymn_title" name="closing_hymn_title" value="{{ defaults.closing_hymn_title }}" placeholder="Hymn title" />
             </div>
           </div>
           <div class="mb-0">

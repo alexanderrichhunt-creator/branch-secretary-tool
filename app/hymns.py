@@ -32,3 +32,17 @@ def hymn_line(number: int | None) -> str:
     if not title:
         return f"#{number}"
     return f"#{number}  {title}"
+
+
+def hymn_display(num_raw: str | None, title: str | None) -> str:
+    """Build bulletin hymn text from optional number and free-text title."""
+    title = (title or "").strip()
+    num_raw = (num_raw or "").strip()
+    if num_raw and title:
+        prefix = num_raw if num_raw.startswith("#") else f"#{num_raw}"
+        return f"{prefix}  {title}"
+    if title:
+        return title
+    if num_raw:
+        return num_raw if num_raw.startswith("#") else f"#{num_raw}"
+    return ""

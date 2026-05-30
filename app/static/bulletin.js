@@ -19,10 +19,15 @@
   }
 
   function hymnLine(numInput, titleInput) {
-    const n = parseInt(numInput.value, 10);
-    const title = (titleInput && titleInput.value) || "";
-    if (!n) return "";
-    return title ? "#" + n + "  " + title : "#" + n;
+    const numRaw = (numInput && numInput.value || "").trim();
+    const title = (titleInput && titleInput.value || "").trim();
+    if (numRaw && title) {
+      const prefix = numRaw.startsWith("#") ? numRaw : "#" + numRaw;
+      return prefix + "  " + title;
+    }
+    if (title) return title;
+    if (numRaw) return numRaw.startsWith("#") ? numRaw : "#" + numRaw;
+    return "";
   }
 
   function val(id) {
@@ -116,9 +121,21 @@
   async function lookupHymn(input) {
     const targetId = input.getAttribute("data-title-target");
     const target = targetId ? document.getElementById(targetId) : null;
-    const n = parseInt(input.value, 10);
-    if (!target || !n) {
-      if (target) target.value = "";
+    const numRaw = (input.value || "").trim();
+    if (!target) {
+      updatePreview();
+      return;
+    }
+    if (!numRaw) {
+      updatePreview();
+      return;
+    }
+    if ((target.value || "").trim()) {
+      updatePreview();
+      return;
+    }
+    const n = parseInt(numRaw.replace(/^#/, ""), 10);
+    if (!n) {
       updatePreview();
       return;
     }
@@ -126,7 +143,9 @@
       const res = await fetch("/api/hymn/" + n);
       if (!res.ok) return;
       const data = await res.json();
-      target.value = data.title || "";
+      if (!(target.value || "").trim()) {
+        target.value = data.title || "";
+      }
     } catch (e) {
       /* ignore */
     }

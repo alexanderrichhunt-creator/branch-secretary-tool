@@ -3,7 +3,7 @@ from __future__ import annotations
 import io
 from datetime import date, datetime, timedelta
 
-from .hymns import hymn_line, hymn_title
+from .hymns import hymn_display, hymn_title
 
 DEFAULT_BULLETIN = {
     "presiding": "Michael Reynolds, Madisonville Branch President",
@@ -14,6 +14,7 @@ DEFAULT_BULLETIN = {
         "Acknowledgment of any Stake visitors."
     ),
     "opening_hymn_num": "6",
+    "opening_hymn_title": "",
     "invocation": "(by invitation)",
     "branch_business": (
         "Seminary Graduation on Sunday, May 17th, 5:00 p.m. at the Creighton Building in Conroe."
@@ -32,8 +33,11 @@ DEFAULT_BULLETIN = {
         "please take this as your opportunity to do so."
     ),
     "sacrament_hymn_num": "190",
+    "sacrament_hymn_title": "",
     "intermediate_hymn_num": "",
+    "intermediate_hymn_title": "",
     "closing_hymn_num": "141",
+    "closing_hymn_title": "",
     "benediction": "(by invitation)",
 }
 
@@ -44,13 +48,17 @@ SAVABLE_BULLETIN_KEYS = (
     "on_the_stand",
     "welcome_text",
     "opening_hymn_num",
+    "opening_hymn_title",
     "invocation",
     "stake_business",
     "announcements",
     "sacrament_notes",
     "sacrament_hymn_num",
+    "sacrament_hymn_title",
     "intermediate_hymn_num",
+    "intermediate_hymn_title",
     "closing_hymn_num",
+    "closing_hymn_title",
     "benediction",
 )
 
@@ -127,10 +135,14 @@ def bulletin_from_form(form) -> dict:
         except ValueError:
             meeting_date = None
 
-    opening_num = _parse_hymn_num(form.get("opening_hymn_num"))
-    sacrament_num = _parse_hymn_num(form.get("sacrament_hymn_num"))
-    intermediate_num = _parse_hymn_num(form.get("intermediate_hymn_num"))
-    closing_num = _parse_hymn_num(form.get("closing_hymn_num"))
+    opening_num = (form.get("opening_hymn_num") or "").strip()
+    opening_title = (form.get("opening_hymn_title") or "").strip()
+    sacrament_num = (form.get("sacrament_hymn_num") or "").strip()
+    sacrament_title = (form.get("sacrament_hymn_title") or "").strip()
+    intermediate_num = (form.get("intermediate_hymn_num") or "").strip()
+    intermediate_title = (form.get("intermediate_hymn_title") or "").strip()
+    closing_num = (form.get("closing_hymn_num") or "").strip()
+    closing_title = (form.get("closing_hymn_title") or "").strip()
 
     return {
         "meeting_date": meeting_date,
@@ -140,19 +152,23 @@ def bulletin_from_form(form) -> dict:
         "on_the_stand": (form.get("on_the_stand") or "").strip(),
         "welcome_text": (form.get("welcome_text") or "").strip(),
         "opening_hymn_num": opening_num,
-        "opening_hymn_line": hymn_line(opening_num),
+        "opening_hymn_title": opening_title,
+        "opening_hymn_line": hymn_display(opening_num, opening_title),
         "invocation": (form.get("invocation") or "").strip(),
         "branch_business": (form.get("branch_business") or "").strip(),
         "stake_business": (form.get("stake_business") or "").strip(),
         "announcements": (form.get("announcements") or "").strip(),
         "sacrament_notes": (form.get("sacrament_notes") or "").strip(),
         "sacrament_hymn_num": sacrament_num,
-        "sacrament_hymn_line": hymn_line(sacrament_num),
+        "sacrament_hymn_title": sacrament_title,
+        "sacrament_hymn_line": hymn_display(sacrament_num, sacrament_title),
         "intermediate_hymn_num": intermediate_num,
-        "intermediate_hymn_line": hymn_line(intermediate_num),
+        "intermediate_hymn_title": intermediate_title,
+        "intermediate_hymn_line": hymn_display(intermediate_num, intermediate_title),
         "speakers_text": (form.get("speakers_text") or "").strip(),
         "closing_hymn_num": closing_num,
-        "closing_hymn_line": hymn_line(closing_num),
+        "closing_hymn_title": closing_title,
+        "closing_hymn_line": hymn_display(closing_num, closing_title),
         "benediction": (form.get("benediction") or "").strip(),
     }
 
@@ -260,10 +276,26 @@ def export_docx(data: dict) -> bytes:
                 **kwargs,
             )
 
-    def add_items(lines: list[str], *, after_last: float = section_after) -> None:
-        lines = [line for line in lines if line]
-        for i, line in enumerate(lines):
-            add_line(line, after=after_last if i == len(lines) - 1 else body_after)
+    def add_labeled_line(
+        label: str,
+        value: str,
+        *,
+        separator: str = ": ",
+        after: float = body_after,
+        show_empty: bool = False,
+    ) -> None:
+        if not value and not show_empty:
+            return
+        p = doc.add_paragraph()
+        set_para_spacing(p.paragraph_format, after=after, leading_val=leading)
+        label_run = p.add_run(label + separator)
+        label_run.bold = True
+        label_run.font.name = "Times New Roman"
+        label_run.font.size = Pt(body_size)
+        if value:
+            value_run = p.add_run(value)
+            value_run.font.name = "Times New Roman"
+            value_run.font.size = Pt(body_size)
 
     add_line("Sacrament Meeting", bold=True, size=15, center=True, after=3, leading_val=1.0)
     if data.get("meeting_date_display"):
@@ -276,28 +308,25 @@ def export_docx(data: dict) -> bytes:
             leading_val=1.0,
         )
 
-    add_items(
-        [
-            f"Presiding: {data['presiding']}" if data.get("presiding") else "",
-            f"Conducting: {data['conducting']}" if data.get("conducting") else "",
-            f"On the stand: {data['on_the_stand']}" if data.get("on_the_stand") else "",
-        ]
-    )
+    add_labeled_line("Presiding", data.get("presiding") or "", after=body_after)
+    add_labeled_line("Conducting", data.get("conducting") or "", after=body_after)
+    add_labeled_line("On the stand", data.get("on_the_stand") or "", after=section_after)
 
     if data.get("welcome_text"):
         add_multiline(data["welcome_text"], after_last=section_after)
 
-    add_items(
-        [
-            f"Opening Hymn: {data['opening_hymn_line']}" if data.get("opening_hymn_line") else "",
-            f"Invocation: {data['invocation']}" if data.get("invocation") else "",
-        ]
-    )
+    add_labeled_line("Opening Hymn", data.get("opening_hymn_line") or "", after=body_after)
+    add_labeled_line("Invocation", data.get("invocation") or "", after=section_after)
 
-    add_line("Branch Business:", bold=True, after=1)
+    add_line("Branch Business:", bold=True, after=2)
     add_multiline(data.get("branch_business") or "", after_last=section_after)
 
-    add_line(f"Stake Business: {data.get('stake_business') or ''}", after=section_after)
+    add_labeled_line(
+        "Stake Business",
+        data.get("stake_business") or "",
+        after=section_after,
+        show_empty=True,
+    )
 
     if data.get("announcements"):
         add_multiline(data["announcements"], after_last=section_after)
@@ -306,21 +335,21 @@ def export_docx(data: dict) -> bytes:
         add_multiline(data["sacrament_notes"], after_last=section_after)
 
     if data.get("sacrament_hymn_line"):
-        add_line(f"The Sacrament Hymn is {data['sacrament_hymn_line']}", after=section_after)
+        add_labeled_line(
+            "The Sacrament Hymn is",
+            data["sacrament_hymn_line"],
+            separator=" ",
+            after=section_after,
+        )
 
     if data.get("speakers_text"):
         add_multiline(data["speakers_text"], after_last=section_after)
 
     if data.get("intermediate_hymn_line"):
-        add_line(f"Intermediate Hymn: {data['intermediate_hymn_line']}", after=section_after)
+        add_labeled_line("Intermediate Hymn", data["intermediate_hymn_line"], after=section_after)
 
-    add_items(
-        [
-            f"Closing Hymn {data['closing_hymn_line']}" if data.get("closing_hymn_line") else "",
-            f"Benediction: {data['benediction']}" if data.get("benediction") else "",
-        ],
-        after_last=body_after,
-    )
+    add_labeled_line("Closing Hymn", data.get("closing_hymn_line") or "", separator=" ", after=body_after)
+    add_labeled_line("Benediction", data.get("benediction") or "", after=body_after)
 
     buf = io.BytesIO()
     doc.save(buf)
@@ -368,6 +397,13 @@ def speakers_text_for_mode(mode: str, talks) -> str:
     if mode == SPEAKERS_MODE_FAST_TESTIMONY or any(is_fast_testimony_talk(t) for t in talks):
         return FAST_TESTIMONY_SPEAKERS_TEXT
     return speakers_text_for_talks(talks)
+
+
+def resolved_hymn_title(defaults: dict, num_key: str, title_key: str) -> str:
+    saved = (defaults.get(title_key) or "").strip()
+    if saved:
+        return saved
+    return hymn_title(_parse_hymn_num(defaults.get(num_key)))
 
 
 def bulletin_person_name(name: str) -> str:

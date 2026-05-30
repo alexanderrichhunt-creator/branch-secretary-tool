@@ -1016,24 +1016,25 @@ def _talks_for_bulletin_date(talk_date: date) -> list[Talk]:
 @login_required
 def bulletin_builder():
     from .bulletin import (
-        _parse_hymn_num,
         default_sacrament_sunday,
         default_speakers_mode,
         get_branch_bulletin_defaults,
         has_saved_branch_defaults,
         is_first_sacrament_sunday,
+        resolved_hymn_title,
         speakers_text_for_mode,
     )
-    from .hymns import hymn_title
 
     meeting_date = default_sacrament_sunday()
     defaults = get_branch_bulletin_defaults()
     defaults["meeting_date"] = meeting_date.isoformat()
     defaults["branch_business"] = ""
-    defaults["opening_hymn_title"] = hymn_title(_parse_hymn_num(defaults.get("opening_hymn_num")))
-    defaults["sacrament_hymn_title"] = hymn_title(_parse_hymn_num(defaults.get("sacrament_hymn_num")))
-    defaults["intermediate_hymn_title"] = hymn_title(_parse_hymn_num(defaults.get("intermediate_hymn_num")))
-    defaults["closing_hymn_title"] = hymn_title(_parse_hymn_num(defaults.get("closing_hymn_num")))
+    defaults["opening_hymn_title"] = resolved_hymn_title(defaults, "opening_hymn_num", "opening_hymn_title")
+    defaults["sacrament_hymn_title"] = resolved_hymn_title(defaults, "sacrament_hymn_num", "sacrament_hymn_title")
+    defaults["intermediate_hymn_title"] = resolved_hymn_title(
+        defaults, "intermediate_hymn_num", "intermediate_hymn_title"
+    )
+    defaults["closing_hymn_title"] = resolved_hymn_title(defaults, "closing_hymn_num", "closing_hymn_title")
     defaults["speakers_mode"] = default_speakers_mode(
         meeting_date,
         _talks_for_bulletin_date(meeting_date),
