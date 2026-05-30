@@ -9,6 +9,38 @@
 
   const MODE_TALKS = "talks";
   const MODE_FAST = "fast_testimony";
+  const URL_PATTERN = /https?:\/\/[^\s<>"']+/g;
+
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function linkifyText(text) {
+    return escapeHtml(text).replace(URL_PATTERN, function (url) {
+      var clean = url.replace(/[.,);]+$/, "");
+      var trailing = url.slice(clean.length);
+      return (
+        '<a href="' +
+        clean +
+        '" target="_blank" rel="noopener noreferrer">' +
+        clean +
+        "</a>" +
+        trailing
+      );
+    });
+  }
+
+  function renderPreviewLines(lines) {
+    return lines
+      .map(function (line) {
+        return linkifyText(line);
+      })
+      .join("\n");
+  }
 
   function formatDisplayDate(iso) {
     if (!iso) return "";
@@ -115,7 +147,7 @@
     if (closing) lines.push("Closing Hymn " + closing);
     if (val("benediction")) lines.push("Benediction: " + val("benediction"));
 
-    preview.textContent = lines.join("\n").trim() + "\n";
+    preview.innerHTML = renderPreviewLines(lines).trim() + "\n";
   }
 
   async function lookupHymn(input) {
@@ -212,9 +244,9 @@
       const w = window.open("", "_blank");
       if (!w) return;
       w.document.write(
-        "<pre style=\"font-family: Georgia, serif; font-size: 14px; white-space: pre-wrap; padding: 24px;\">" +
-          preview.textContent.replace(/&/g, "&amp;").replace(/</g, "&lt;") +
-          "</pre>"
+        "<div style=\"font-family: Georgia, serif; font-size: 14px; white-space: pre-wrap; padding: 24px;\">" +
+          preview.innerHTML +
+          "</div>"
       );
       w.document.close();
       w.focus();

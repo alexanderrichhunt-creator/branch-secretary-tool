@@ -418,6 +418,11 @@ body {
   overflow: auto;
 }
 
+.bulletin-preview a {
+  color: #0d6efd;
+  word-break: break-all;
+}
+
 .bulletin-preview-card .hymn-title-display,
 .hymn-title-display {
   background-color: #f8f9fa;

@@ -1,9 +1,20 @@
 from __future__ import annotations
 
 import io
+import re
 from datetime import date, datetime, timedelta
 
 from .hymns import hymn_display, hymn_title
+
+URL_PATTERN = re.compile(r"https?://[^\s<>\"']+")
+
+
+def _split_trailing_url_punctuation(url: str) -> tuple[str, str]:
+    trailing = ""
+    while url and url[-1] in ".,);":
+        trailing = url[-1] + trailing
+        url = url[:-1]
+    return url, trailing
 
 DEFAULT_BULLETIN = {
     "presiding": "Michael Reynolds, Madisonville Branch President",
@@ -266,15 +277,88 @@ def export_docx(data: dict) -> bytes:
         run.font.name = "Times New Roman"
         run.font.size = Pt(size)
 
-    def add_multiline(text: str, *, after_last: float = body_after, **kwargs) -> None:
+    def add_hyperlink(paragraph, text: str, url: str) -> None:
+        from docx.opc.constants import RELATIONSHIP_TYPE as RT
+        from docx.oxml.shared import OxmlElement, qn
+
+        part = paragraph.part
+        r_id = part.relate_to(url, RT.HYPERLINK, is_external=True)
+        hyperlink = OxmlElement("w:hyperlink")
+        hyperlink.set(qn("r:id"), r_id)
+
+        new_run = OxmlElement("w:r")
+        r_pr = OxmlElement("w:rPr")
+
+        underline = OxmlElement("w:u")
+        underline.set(qn("w:val"), "single")
+        r_pr.append(underline)
+
+        color = OxmlElement("w:color")
+        color.set(qn("w:val"), "0563C1")
+        r_pr.append(color)
+
+        r_fonts = OxmlElement("w:rFonts")
+        r_fonts.set(qn("w:ascii"), "Times New Roman")
+        r_fonts.set(qn("w:hAnsi"), "Times New Roman")
+        r_pr.append(r_fonts)
+
+        size_el = OxmlElement("w:sz")
+        size_el.set(qn("w:val"), str(int(body_size * 2)))
+        r_pr.append(size_el)
+
+        new_run.append(r_pr)
+        text_el = OxmlElement("w:t")
+        text_el.text = text
+        new_run.append(text_el)
+        hyperlink.append(new_run)
+        paragraph._p.append(hyperlink)
+
+    def add_paragraph_with_links(
+        text: str,
+        *,
+        after: float = body_after,
+        bold: bool = False,
+        center: bool = False,
+        size: float = body_size,
+        leading_val: float = leading,
+    ) -> None:
+        p = doc.add_paragraph()
+        set_para_spacing(p.paragraph_format, after=after, leading_val=leading_val)
+        if center:
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        pos = 0
+        for match in URL_PATTERN.finditer(text):
+            if match.start() > pos:
+                run = p.add_run(text[pos : match.start()])
+                run.bold = bold
+                run.font.name = "Times New Roman"
+                run.font.size = Pt(size)
+            url = match.group(0)
+            url, trailing = _split_trailing_url_punctuation(url)
+            add_hyperlink(p, url, url)
+            if trailing:
+                run = p.add_run(trailing)
+                run.bold = bold
+                run.font.name = "Times New Roman"
+                run.font.size = Pt(size)
+            pos = match.end()
+
+        if pos < len(text):
+            run = p.add_run(text[pos:])
+            run.bold = bold
+            run.font.name = "Times New Roman"
+            run.font.size = Pt(size)
+
+    def add_multiline(text: str, *, after_last: float = body_after, linkify: bool = True, **kwargs) -> None:
         parts = [part.strip() for part in (text or "").splitlines() if part.strip()]
         for i, part in enumerate(parts):
             is_last = i == len(parts) - 1
-            add_line(
-                part,
-                after=after_last if is_last else body_after,
-                **kwargs,
-            )
+            after = after_last if is_last else body_after
+            if linkify and URL_PATTERN.search(part):
+                add_paragraph_with_links(part, after=after, **kwargs)
+            else:
+                add_line(part, after=after, **kwargs)
 
     def add_labeled_line(
         label: str,
