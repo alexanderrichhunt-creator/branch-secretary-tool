@@ -5,6 +5,9 @@
   const editModalEl = document.getElementById("suggestedTalkEditModal");
   const editSaveBtn = document.getElementById("suggestedTalkEditSaveBtn");
   const countBadge = document.querySelector(".cal-suggested-count");
+  const dateFilterEl = document.getElementById("suggested_date_filter");
+  const dateFilterClearBtn = document.getElementById("suggested_date_filter_clear");
+  const addDateEl = document.getElementById("suggested_date");
 
   if (!listEl) return;
 
@@ -33,7 +36,23 @@
     if (countBadge) countBadge.textContent = String(count);
   }
 
+  function currentFilterDate() {
+    return dateFilterEl && dateFilterEl.value ? dateFilterEl.value : "";
+  }
+
+  function setSelectedDate(dateStr) {
+    const value = dateStr || "";
+    if (addDateEl && value) addDateEl.value = value;
+    if (dateFilterEl) dateFilterEl.value = value;
+    refreshList();
+  }
+
   function renderSuggestionItem(item) {
+    const dateHtml = item.suggested_date_display
+      ? '<div class="cal-suggested-date small fw-semibold text-primary">' +
+        escapeHtml(item.suggested_date_display) +
+        "</div>"
+      : "";
     const topicHtml = item.topic
       ? '<div class="cal-suggested-topic small">' + escapeHtml(item.topic) + "</div>"
       : "";
@@ -46,6 +65,7 @@
       item.id +
       '">' +
       '<div class="cal-suggested-item-main">' +
+      dateHtml +
       '<div class="cal-suggested-speaker fw-semibold">' +
       escapeHtml(item.speaker_label || "—") +
       "</div>" +
@@ -63,8 +83,13 @@
   function renderList(items) {
     updateCount(items.length);
     if (!items.length) {
+      const filterDate = currentFilterDate();
       listEl.innerHTML =
-        '<div class="cal-suggested-empty muted small">No suggestions yet. Add speakers or topics above.</div>';
+        '<div class="cal-suggested-empty muted small">' +
+        (filterDate
+          ? "No suggestions for this date yet. Add a speaker above."
+          : "No suggestions yet. Pick a date and add a speaker above.") +
+        "</div>";
       return;
     }
     listEl.innerHTML = items.map(renderSuggestionItem).join("");
@@ -72,7 +97,11 @@
 
   async function refreshList() {
     try {
-      const res = await fetch("/api/suggested-talks");
+      const filterDate = currentFilterDate();
+      const url = filterDate
+        ? "/api/suggested-talks?date=" + encodeURIComponent(filterDate)
+        : "/api/suggested-talks";
+      const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
       renderList(data.suggestions || []);
@@ -89,7 +118,9 @@
 
   function resetAddForm() {
     if (!addForm) return;
+    const keepDate = addDateEl ? addDateEl.value : "";
     addForm.reset();
+    if (addDateEl && keepDate) addDateEl.value = keepDate;
     showFormError(addForm.querySelector(".cal-suggested-form-error"), "");
     if (window.MemberSelectFilter) window.MemberSelectFilter.resetAll();
   }
@@ -108,11 +139,25 @@
           showFormError(addForm.querySelector(".cal-suggested-form-error"), data.error || "Could not save.");
           return;
         }
+        if (dateFilterEl && addDateEl && addDateEl.value) {
+          dateFilterEl.value = addDateEl.value;
+        }
         resetAddForm();
         await refreshList();
       } catch (e) {
         showFormError(addForm.querySelector(".cal-suggested-form-error"), "Could not save.");
       }
+    });
+  }
+
+  if (dateFilterEl) {
+    dateFilterEl.addEventListener("change", refreshList);
+  }
+
+  if (dateFilterClearBtn) {
+    dateFilterClearBtn.addEventListener("click", function () {
+      if (dateFilterEl) dateFilterEl.value = "";
+      refreshList();
     });
   }
 
@@ -137,6 +182,7 @@
       try {
         const suggestion = await fetchSuggestion(id);
         document.getElementById("suggested_edit_id").value = suggestion.id;
+        document.getElementById("suggested_edit_date").value = suggestion.suggested_date || "";
         document.getElementById("suggested_edit_member_id").value = suggestion.member_id
           ? String(suggestion.member_id)
           : "";
@@ -157,7 +203,7 @@
       try {
         const suggestion = await fetchSuggestion(id);
         if (window.CalCreateForm && window.CalCreateForm.openForSuggestion) {
-          window.CalCreateForm.openForSuggestion(suggestion, "");
+          window.CalCreateForm.openForSuggestion(suggestion, suggestion.suggested_date || "");
         }
       } catch (e) {
         /* ignore */
@@ -190,5 +236,6 @@
 
   window.SuggestedTalks = {
     refresh: refreshList,
+    setSelectedDate: setSelectedDate,
   };
 })();

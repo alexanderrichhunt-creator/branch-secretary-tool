@@ -38,9 +38,13 @@
         <span class="badge text-bg-secondary cal-suggested-count">{{ suggested_talks|length }}</span>
       </div>
       <div class="panel-body">
-        <p class="small muted mb-3">Working list of speakers and topics to schedule later.</p>
+        <p class="small muted mb-3">Suggested speakers and topics for a specific sacrament date.</p>
 
         <form id="suggested-talk-add-form" class="cal-suggested-add-form mb-3">
+          <div class="mb-2">
+            <label class="form-label big-label" for="suggested_date">Sacrament date</label>
+            <input class="form-control" type="date" id="suggested_date" name="suggested_date" value="{{ schedule_date }}" required />
+          </div>
           <div class="mb-2">
             <label class="form-label big-label" for="suggested_member_filter">Speaker (optional)</label>
             <input
@@ -68,14 +72,23 @@
             <textarea class="form-control" id="suggested_notes" name="notes" rows="2" placeholder="Reminders, council notes, etc."></textarea>
           </div>
           <div class="cal-suggested-form-error alert alert-warning py-2 px-3 small d-none" role="alert"></div>
-          <button class="btn btn-outline-primary w-100" type="submit">Add to suggested list</button>
+          <button class="btn btn-outline-primary w-100" type="submit">Add suggested speaker</button>
         </form>
+
+        <div class="d-flex flex-wrap align-items-end gap-2 mb-2">
+          <div class="flex-grow-1">
+            <label class="form-label small mb-1" for="suggested_date_filter">Show suggestions for</label>
+            <input class="form-control form-control-sm" type="date" id="suggested_date_filter" value="" />
+          </div>
+          <button class="btn btn-outline-secondary btn-sm" type="button" id="suggested_date_filter_clear">All dates</button>
+        </div>
 
         <div id="suggested-talk-list" class="cal-suggested-list">
           {% if suggested_talks %}
             {% for st in suggested_talks %}
               <div class="cal-suggested-item" data-suggestion-id="{{ st.id }}">
                 <div class="cal-suggested-item-main">
+                  <div class="cal-suggested-date small fw-semibold text-primary">{{ st.suggested_date.strftime("%a, %b %d, %Y") }}</div>
                   <div class="cal-suggested-speaker fw-semibold">{{ st.speaker_label() }}</div>
                   {% if st.topic %}
                     <div class="cal-suggested-topic small">{{ st.topic }}</div>
@@ -111,6 +124,10 @@
       <div class="modal-body">
         <form id="suggested-talk-edit-form">
           <input type="hidden" id="suggested_edit_id" name="suggestion_id" value="" />
+          <div class="mb-3">
+            <label class="form-label big-label" for="suggested_edit_date">Sacrament date</label>
+            <input class="form-control" type="date" id="suggested_edit_date" name="suggested_date" required />
+          </div>
           <div class="mb-3">
             <label class="form-label big-label" for="suggested_edit_member_filter">Speaker (optional)</label>
             <input
@@ -451,6 +468,9 @@
       },
       dateClick: function(info) {
         openCreateForDay(info.date, info.date, true, info.dateStr);
+        if (window.SuggestedTalks && window.SuggestedTalks.setSelectedDate) {
+          window.SuggestedTalks.setSelectedDate(info.dateStr);
+        }
       },
       select: function(info) {
         openCreateForDay(info.start, info.end, info.allDay, info.startStr);

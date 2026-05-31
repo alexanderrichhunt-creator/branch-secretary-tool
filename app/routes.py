@@ -122,6 +122,8 @@ def _suggested_talk_speaker_label(st: SuggestedTalk) -> str:
 def _suggested_talk_payload(st: SuggestedTalk) -> dict:
     return {
         "id": st.id,
+        "suggested_date": st.suggested_date.isoformat() if st.suggested_date else "",
+        "suggested_date_display": st.suggested_date.strftime("%a, %b %d, %Y") if st.suggested_date else "",
         "member_id": st.member_id,
         "speaker_text": st.speaker_text or "",
         "speaker_label": _suggested_talk_speaker_label(st),
@@ -139,13 +141,30 @@ def _parse_suggested_talk_submission():
         speaker_text = None
     topic = (request.form.get("topic") or "").strip()
     notes = (request.form.get("notes") or "").strip() or None
-    return member_id, speaker_text, topic, notes
+    suggested_date = None
+    suggested_date_raw = (request.form.get("suggested_date") or "").strip()
+    if suggested_date_raw:
+        try:
+            suggested_date = datetime.strptime(suggested_date_raw, "%Y-%m-%d").date()
+        except ValueError:
+            suggested_date = None
+    return member_id, speaker_text, topic, notes, suggested_date
 
 
-def _validate_suggested_talk_fields(member_id, speaker_text, topic) -> str | None:
+def _validate_suggested_talk_fields(member_id, speaker_text, topic, suggested_date) -> str | None:
+    if not suggested_date:
+        return "Choose a sacrament date."
     if not member_id and not speaker_text and not topic:
         return "Add a speaker and/or topic."
     return None
+
+
+def _suggested_talk_order():
+    return (
+        SuggestedTalk.suggested_date.asc(),
+        SuggestedTalk.sort_order.asc(),
+        SuggestedTalk.created_at.asc(),
+    )
 
 
 def _week_talks(talk_date: date, exclude_talk_id: int | None = None) -> list[Talk]:
@@ -985,9 +1004,7 @@ def delete_event(event_id: int):
 def calendar():
     from .event_utils import WEEKDAY_CODES
 
-    suggested_talks = (
-        SuggestedTalk.query.order_by(SuggestedTalk.sort_order.asc(), SuggestedTalk.created_at.asc()).all()
-    )
+    suggested_talks = SuggestedTalk.query.order_by(*_suggested_talk_order()).all()
 
     return render_template(
         "calendar.html",
@@ -1001,9 +1018,15 @@ def calendar():
 @main_bp.get("/api/suggested-talks")
 @login_required
 def api_suggested_talks():
-    items = (
-        SuggestedTalk.query.order_by(SuggestedTalk.sort_order.asc(), SuggestedTalk.created_at.asc()).all()
-    )
+    query = SuggestedTalk.query
+    date_raw = (request.args.get("date") or "").strip()
+    if date_raw:
+        try:
+            filter_date = datetime.strptime(date_raw, "%Y-%m-%d").date()
+            query = query.filter(SuggestedTalk.suggested_date == filter_date)
+        except ValueError:
+            pass
+    items = query.order_by(*_suggested_talk_order()).all()
     return jsonify({"suggestions": [_suggested_talk_payload(st) for st in items]})
 
 
@@ -1017,12 +1040,13 @@ def api_suggested_talk(suggestion_id: int):
 @main_bp.post("/api/suggested-talks")
 @login_required
 def api_create_suggested_talk():
-    member_id, speaker_text, topic, notes = _parse_suggested_talk_submission()
-    error = _validate_suggested_talk_fields(member_id, speaker_text, topic)
+    member_id, speaker_text, topic, notes, suggested_date = _parse_suggested_talk_submission()
+    error = _validate_suggested_talk_fields(member_id, speaker_text, topic, suggested_date)
     if error:
         return jsonify({"error": error}), 400
 
     st = SuggestedTalk(
+        suggested_date=suggested_date,
         member_id=member_id,
         speaker_text=speaker_text,
         topic=topic,
@@ -1037,11 +1061,12 @@ def api_create_suggested_talk():
 @login_required
 def api_edit_suggested_talk(suggestion_id: int):
     st = SuggestedTalk.query.get_or_404(suggestion_id)
-    member_id, speaker_text, topic, notes = _parse_suggested_talk_submission()
-    error = _validate_suggested_talk_fields(member_id, speaker_text, topic)
+    member_id, speaker_text, topic, notes, suggested_date = _parse_suggested_talk_submission()
+    error = _validate_suggested_talk_fields(member_id, speaker_text, topic, suggested_date)
     if error:
         return jsonify({"error": error}), 400
 
+    st.suggested_date = suggested_date
     st.member_id = member_id
     st.speaker_text = speaker_text
     st.topic = topic

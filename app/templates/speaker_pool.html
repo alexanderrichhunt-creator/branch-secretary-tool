@@ -13,29 +13,35 @@
 
 <div class="row g-3">
   <div class="col-12 col-xl-8">
-    <section class="panel mb-3">
-      <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-        <span>Adults</span>
-        <span class="small muted">{{ speaker_pool_adult | length }} regular attendee{% if speaker_pool_adult | length != 1 %}s{% endif %}</span>
+    <div class="row g-3">
+      <div class="col-12 col-lg-6">
+        <section class="panel h-100">
+          <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span>Adults</span>
+            <span class="small muted">{{ speaker_pool_adult | length }} regular attendee{% if speaker_pool_adult | length != 1 %}s{% endif %}</span>
+          </div>
+          <div class="panel-body">
+            {% with speaker_pool=speaker_pool_adult, show_schedule=true, schedule_date=schedule_date, pool_empty_message='No adult regular attendees yet. Mark adults as regular attendees on the Members page.' %}
+              {% include 'partials/speaker_pool_table.html' %}
+            {% endwith %}
+          </div>
+        </section>
       </div>
-      <div class="panel-body">
-        {% with speaker_pool=speaker_pool_adult, show_schedule=true, schedule_date=schedule_date, pool_empty_message='No adult regular attendees yet. Mark adults as regular attendees on the Members page.' %}
-          {% include 'partials/speaker_pool_table.html' %}
-        {% endwith %}
-      </div>
-    </section>
 
-    <section class="panel">
-      <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-        <span>Youth</span>
-        <span class="small muted">{{ speaker_pool_youth | length }} regular attendee{% if speaker_pool_youth | length != 1 %}s{% endif %}</span>
+      <div class="col-12 col-lg-6">
+        <section class="panel h-100">
+          <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span>Youth</span>
+            <span class="small muted">{{ speaker_pool_youth | length }} regular attendee{% if speaker_pool_youth | length != 1 %}s{% endif %}</span>
+          </div>
+          <div class="panel-body">
+            {% with speaker_pool=speaker_pool_youth, show_schedule=true, schedule_date=schedule_date, pool_empty_message='No youth regular attendees yet. Set group to Youth on the Members page when marking regular attendees.' %}
+              {% include 'partials/speaker_pool_table.html' %}
+            {% endwith %}
+          </div>
+        </section>
       </div>
-      <div class="panel-body">
-        {% with speaker_pool=speaker_pool_youth, show_schedule=true, schedule_date=schedule_date, pool_empty_message='No youth regular attendees yet. Set group to Youth on the Members page when marking regular attendees.' %}
-          {% include 'partials/speaker_pool_table.html' %}
-        {% endwith %}
-      </div>
-    </section>
+    </div>
   </div>
 
   <div class="col-12 col-xl-4">

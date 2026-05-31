@@ -94,11 +94,17 @@ def _apply_schema_patches():
                     "ALTER TABLE member ADD COLUMN IF NOT EXISTS is_regular_attendee BOOLEAN NOT NULL DEFAULT FALSE"
                 )
             )
+            conn.execute(
+                text("ALTER TABLE suggested_talk ADD COLUMN IF NOT EXISTS suggested_date DATE")
+            )
         elif dialect == "sqlite":
             _sqlite_patch_talk_interview_schema(conn, engine, inspect)
             _sqlite_patch_event_schema(conn, engine, inspect)
             _sqlite_patch_bulletin_defaults_schema(conn, engine, inspect)
             _sqlite_patch_member_schema(conn, engine, inspect)
+            _sqlite_patch_suggested_talk_schema(conn, engine, inspect)
+
+    _backfill_suggested_talk_dates()
 
 
 def _sqlite_patch_talk_interview_schema(conn, engine, sa_inspect):
@@ -188,6 +194,30 @@ def _sqlite_patch_member_schema(conn, engine, sa_inspect):
         conn.execute(
             text("ALTER TABLE member ADD COLUMN is_regular_attendee BOOLEAN NOT NULL DEFAULT 0")
         )
+
+
+def _sqlite_patch_suggested_talk_schema(conn, engine, sa_inspect):
+    from sqlalchemy import text
+
+    insp = sa_inspect(engine)
+    if "suggested_talk" not in insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("suggested_talk")}
+    if "suggested_date" not in cols:
+        conn.execute(text("ALTER TABLE suggested_talk ADD COLUMN suggested_date DATE"))
+
+
+def _backfill_suggested_talk_dates():
+    from .bulletin import default_sacrament_sunday
+    from .models import SuggestedTalk
+
+    default_date = default_sacrament_sunday()
+    rows = SuggestedTalk.query.filter(SuggestedTalk.suggested_date.is_(None)).all()
+    if not rows:
+        return
+    for row in rows:
+        row.suggested_date = default_date
+    db.session.commit()
 
 
 def _talk_speaker_label(talk) -> str:

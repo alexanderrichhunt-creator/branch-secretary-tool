@@ -51,9 +51,10 @@ class Talk(db.Model):
 
 
 class SuggestedTalk(db.Model):
-    """Working list of talk ideas/speakers not yet assigned to a sacrament date."""
+    """Working list of talk ideas/speakers tied to a sacrament date."""
 
     id = db.Column(db.Integer, primary_key=True)
+    suggested_date = db.Column(db.Date, nullable=False, index=True)
     member_id = db.Column(db.Integer, db.ForeignKey("member.id"), nullable=True, index=True)
     speaker_text = db.Column(db.String(256), nullable=True)
     topic = db.Column(db.String(256), nullable=False, default="")
