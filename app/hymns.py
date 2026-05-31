@@ -9,6 +9,8 @@ _HYMNS_PATH = _DATA_DIR / "hymns.json"
 _CHILDREN_HYMNS_PATH = _DATA_DIR / "children_hymns.json"
 _CHILDREN_LYRICS_PATH = _DATA_DIR / "children_hymn_lyrics.json"
 
+from .children_lyrics import BUILTIN_CHILDREN_LYRICS
+
 HYMN_BOOK_HYMNS = "hymns"
 HYMN_BOOK_CHILDREN = "children"
 
@@ -78,13 +80,17 @@ def hymn_book_label(book: str) -> str:
 
 
 def _load_children_lyrics() -> dict[str, str]:
+    lyrics = {str(k): v for k, v in BUILTIN_CHILDREN_LYRICS.items()}
     if not _CHILDREN_LYRICS_PATH.exists():
-        return {}
-    with _CHILDREN_LYRICS_PATH.open(encoding="utf-8") as f:
-        data = json.load(f)
-    if not isinstance(data, dict):
-        return {}
-    return {str(k): str(v) for k, v in data.items()}
+        return lyrics
+    try:
+        with _CHILDREN_LYRICS_PATH.open(encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            lyrics.update({str(k): str(v) for k, v in data.items()})
+    except (OSError, json.JSONDecodeError):
+        pass
+    return lyrics
 
 
 def parse_hymn_number(num_raw: str | None) -> int | None:

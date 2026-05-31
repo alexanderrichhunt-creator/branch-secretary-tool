@@ -305,10 +305,10 @@ def export_docx(data: dict) -> bytes:
     from docx import Document
     from docx.enum.section import WD_ORIENT
     from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
-    from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK, WD_LINE_SPACING
+    from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
     from docx.oxml import OxmlElement
     from docx.oxml.ns import qn
-    from docx.shared import Inches, Pt, RGBColor
+    from docx.shared import Inches, Pt
 
     def set_landscape(section) -> None:
         section.orientation = WD_ORIENT.LANDSCAPE
@@ -357,48 +357,38 @@ def export_docx(data: dict) -> bytes:
             node.set(qn("w:w"), str(val))
             node.set(qn("w:type"), "dxa")
 
-    def set_row_exact_height(row, height_emu) -> None:
-        tr = row._tr
-        tr_pr = tr.get_or_add_trPr()
-        tr_height = tr_pr.find(qn("w:trHeight"))
-        if tr_height is None:
-            tr_height = OxmlElement("w:trHeight")
-            tr_pr.append(tr_height)
-        tr_height.set(qn("w:val"), str(emu_to_twips(height_emu)))
-        tr_height.set(qn("w:hRule"), "exact")
-        if tr_pr.find(qn("w:cantSplit")) is None:
-            tr_pr.append(OxmlElement("w:cantSplit"))
+    def set_row_page_break_before(row) -> None:
+        tr_pr = row._tr.get_or_add_trPr()
+        if tr_pr.find(qn("w:pageBreakBefore")) is None:
+            tr_pr.append(OxmlElement("w:pageBreakBefore"))
 
     doc = Document()
     section = doc.sections[0]
     set_landscape(section)
-    margin = Inches(0.4)
+    margin = Inches(0.45)
     section.top_margin = margin
     section.bottom_margin = margin
     section.left_margin = margin
     section.right_margin = margin
 
     content_width = section.page_width - section.left_margin - section.right_margin
-    content_height = section.page_height - section.top_margin - section.bottom_margin
     panel_width = content_width // 2
     body_font = "Times New Roman"
     program_size = Pt(11)
-    lyric_size = Pt(8)
+    lyric_size = Pt(7.5)
     cover_title_size = Pt(18)
     cover_sub_size = Pt(13)
+
+    opening = dict(data.get("opening_hymn") or {})
+    closing = dict(data.get("closing_hymn") or {})
+    for hymn in (opening, closing):
+        if hymn.get("number") and not (hymn.get("lyrics") or "").strip():
+            hymn["lyrics"] = hymn_lyrics(hymn.get("number"), hymn.get("book") or HYMN_BOOK_CHILDREN)
 
     def clear_cell(cell) -> None:
         cell.text = ""
 
-    def add_run(
-        paragraph,
-        text: str,
-        *,
-        bold: bool = False,
-        size: Pt | None = None,
-        center: bool = False,
-        color: RGBColor | None = None,
-    ):
+    def add_run(paragraph, text: str, *, bold: bool = False, size: Pt | None = None, center: bool = False):
         if center:
             paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = paragraph.add_run(text)
@@ -406,8 +396,6 @@ def export_docx(data: dict) -> bytes:
         run.font.name = body_font
         if size:
             run.font.size = size
-        if color:
-            run.font.color.rgb = color
         return run
 
     def add_para(
@@ -419,7 +407,7 @@ def export_docx(data: dict) -> bytes:
         size: Pt | None = program_size,
         after: float = 6,
         before: float = 0,
-        leading: float = 1.2,
+        leading: float = 1.18,
     ):
         p = cell.add_paragraph()
         pf = p.paragraph_format
@@ -427,22 +415,13 @@ def export_docx(data: dict) -> bytes:
         pf.space_after = Pt(after)
         pf.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
         pf.line_spacing = leading
-        pf.keep_together = True
         if text:
             add_run(p, text, bold=bold, center=center, size=size)
         elif center:
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         return p
 
-    def add_labeled_para(
-        cell,
-        label: str,
-        value: str,
-        *,
-        after: float = 8,
-        before: float = 0,
-        size: Pt | None = program_size,
-    ) -> None:
+    def add_labeled_para(cell, label: str, value: str, *, after: float = 8, before: float = 0) -> None:
         if not value:
             return
         p = cell.add_paragraph()
@@ -450,11 +429,10 @@ def export_docx(data: dict) -> bytes:
         pf.space_before = Pt(before)
         pf.space_after = Pt(after)
         pf.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
-        pf.line_spacing = 1.2
-        pf.keep_together = True
-        label_run = add_run(p, label + ": ", bold=True, size=size)
+        pf.line_spacing = 1.18
+        label_run = add_run(p, label + ": ", bold=True, size=program_size)
         label_run.font.name = body_font
-        add_run(p, value, size=size)
+        add_run(p, value, size=program_size)
 
     def add_multiline(
         cell,
@@ -463,7 +441,8 @@ def export_docx(data: dict) -> bytes:
         size: Pt | None = program_size,
         after_last: float = 8,
         line_after: float = 4,
-        leading: float = 1.2,
+        leading: float = 1.18,
+        center: bool = False,
     ) -> None:
         parts = [part.strip() for part in (text or "").splitlines() if part.strip()]
         for i, part in enumerate(parts):
@@ -473,7 +452,20 @@ def export_docx(data: dict) -> bytes:
                 size=size,
                 after=after_last if i == len(parts) - 1 else line_after,
                 leading=leading,
+                center=center,
             )
+
+    def add_centered_block(cell, text: str, *, size: Pt | None = program_size, after: float = 6) -> None:
+        p = cell.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        pf = p.paragraph_format
+        pf.space_before = Pt(0)
+        pf.space_after = Pt(after)
+        pf.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
+        pf.line_spacing = 1.15
+        run = p.add_run(text)
+        run.font.name = body_font
+        run.font.size = size
 
     def hymn_panel_heading(hymn: dict, label: str) -> str:
         parts = [label]
@@ -491,130 +483,120 @@ def export_docx(data: dict) -> bytes:
         clear_cell(cell)
         cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.TOP
         set_cell_margins(cell, top=80, bottom=80, start=100, end=100)
+        number = hymn.get("number")
+        book = hymn.get("book") or HYMN_BOOK_CHILDREN
+        lyrics = (hymn.get("lyrics") or "").strip() or hymn_lyrics(number, book)
         add_para(cell, hymn_panel_heading(hymn, label), bold=True, center=True, size=Pt(10), after=8, leading=1.1)
-        lyrics = (hymn.get("lyrics") or "").strip()
         if lyrics:
-            add_multiline(cell, lyrics, size=lyric_size, after_last=0, line_after=2, leading=1.08)
-        elif hymn.get("book") == HYMN_BOOK_CHILDREN and hymn.get("number"):
+            add_multiline(cell, lyrics, size=lyric_size, after_last=0, line_after=1, leading=1.05)
+        elif book == HYMN_BOOK_CHILDREN and number:
             add_para(
                 cell,
-                f"Lyrics for Children's Songbook #{hymn['number']} are not in the program file yet.",
+                f"Children's Songbook #{number} — see songbook for lyrics.",
                 center=True,
                 size=lyric_size,
                 after=0,
-                leading=1.1,
             )
         elif hymn.get("title"):
-            add_para(cell, "Sing from the hymnbook.", center=True, size=lyric_size, after=0, leading=1.1)
+            add_para(cell, "Sing from the hymnbook.", center=True, size=lyric_size, after=0)
 
     def fill_program_panel(cell) -> None:
         clear_cell(cell)
         cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.TOP
-        set_cell_margins(cell, top=120, bottom=100, start=140, end=120)
+        set_cell_margins(cell, top=110, bottom=90, start=130, end=110)
 
-        add_para(cell, "Order of Service", bold=True, center=True, size=Pt(14), after=14, before=4, leading=1.15)
+        add_para(cell, "Order of Service", bold=True, center=True, size=Pt(14), after=12, before=2, leading=1.15)
 
         if data.get("presiding"):
-            add_labeled_para(cell, "Presiding", data["presiding"], after=10)
+            add_labeled_para(cell, "Presiding", data["presiding"], after=9)
         if data.get("conducting"):
-            add_labeled_para(cell, "Conducting", data["conducting"], after=10)
+            add_labeled_para(cell, "Conducting", data["conducting"], after=9)
         if data.get("welcome_text"):
-            add_multiline(cell, data["welcome_text"], after_last=12, line_after=6, leading=1.25)
+            add_multiline(cell, data["welcome_text"], after_last=10, line_after=5, leading=1.22)
 
         if data.get("opening_hymn_line"):
-            add_labeled_para(cell, "Opening hymn", data["opening_hymn_line"], after=10, before=2)
+            add_labeled_para(cell, "Opening hymn", data["opening_hymn_line"], after=9, before=2)
         if data.get("invocation"):
-            add_labeled_para(cell, "Invocation", data["invocation"], after=12)
+            add_labeled_para(cell, "Invocation", data["invocation"], after=10)
 
         if data.get("speaker_1"):
             talk = data["speaker_1"]
             if data.get("speaker_1_topic"):
                 talk += f" — {data['speaker_1_topic']}"
-            add_labeled_para(cell, "Talk", talk, after=10, before=2)
+            add_labeled_para(cell, "Talk", talk, after=9, before=2)
         if data.get("speaker_2"):
             talk = data["speaker_2"]
             if data.get("speaker_2_topic"):
                 talk += f" — {data['speaker_2_topic']}"
-            add_labeled_para(cell, "Talk", talk, after=10)
+            add_labeled_para(cell, "Talk", talk, after=9)
         if data.get("musical_number"):
-            add_labeled_para(cell, "Musical number", data["musical_number"], after=12)
+            add_labeled_para(cell, "Musical number", data["musical_number"], after=10)
 
         if data.get("candidate_name"):
-            add_para(cell, f"Baptism of {data['candidate_name']}", bold=True, after=8, before=4, leading=1.2)
+            add_para(cell, f"Baptism of {data['candidate_name']}", bold=True, after=7, before=3)
         if data.get("baptism_by"):
-            add_labeled_para(cell, "Baptism by", data["baptism_by"], after=10)
+            add_labeled_para(cell, "Baptism by", data["baptism_by"], after=9)
 
         confirmation = resolve_confirmation_text(data.get("candidate_name"), data.get("confirmation_text"))
         if confirmation:
-            add_multiline(cell, confirmation, after_last=10, line_after=6, leading=1.25)
+            add_multiline(cell, confirmation, after_last=9, line_after=5, leading=1.22)
 
         if data.get("confirmation_by"):
-            add_labeled_para(cell, "Confirmation by", data["confirmation_by"], after=10, before=2)
+            add_labeled_para(cell, "Confirmation by", data["confirmation_by"], after=9, before=2)
 
         if data.get("closing_hymn_line"):
-            add_labeled_para(cell, "Closing hymn", data["closing_hymn_line"], after=10)
+            add_labeled_para(cell, "Closing hymn", data["closing_hymn_line"], after=9)
         if data.get("benediction"):
-            add_labeled_para(cell, "Benediction", data["benediction"], after=8)
+            add_labeled_para(cell, "Benediction", data["benediction"], after=7)
         if data.get("reception_notes"):
-            add_multiline(cell, data["reception_notes"], after_last=0, line_after=6, leading=1.2)
+            add_multiline(cell, data["reception_notes"], after_last=0, line_after=5, leading=1.18)
 
     def fill_cover_panel(cell) -> None:
         clear_cell(cell)
         cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-        set_cell_margins(cell, top=60, bottom=60, start=80, end=80)
+        set_cell_margins(cell, top=70, bottom=70, start=90, end=90)
         if _COVER_IMAGE_PATH.is_file():
             p = cell.add_paragraph()
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run()
-            run.add_picture(str(_COVER_IMAGE_PATH), width=Inches(3.25))
+            run.add_picture(str(_COVER_IMAGE_PATH), width=Inches(3.1))
             p.paragraph_format.space_after = Pt(10)
 
         add_para(cell, "Baptismal Service", bold=True, center=True, size=cover_title_size, after=8, leading=1.1)
         if data.get("candidate_name"):
-            add_para(cell, data["candidate_name"], bold=True, center=True, size=cover_sub_size, after=6, leading=1.1)
+            add_para(cell, data["candidate_name"], bold=True, center=True, size=cover_sub_size, after=8, leading=1.1)
 
-        subtitle_parts = []
+        subtitle_lines = []
         if data.get("service_date_display"):
-            line = data["service_date_display"]
-            if data.get("service_time_display"):
-                line += f"\n{data['service_time_display']}"
-            subtitle_parts.append(line)
+            subtitle_lines.append(data["service_date_display"])
+        if data.get("service_time_display"):
+            subtitle_lines.append(data["service_time_display"])
         if data.get("location"):
-            subtitle_parts.append(data["location"])
-        if subtitle_parts:
-            add_multiline(cell, "\n".join(subtitle_parts), size=Pt(11), after_last=0, line_after=4, leading=1.15)
+            subtitle_lines.append(data["location"])
+        if subtitle_lines:
+            add_centered_block(cell, "\n".join(subtitle_lines), size=Pt(11), after=0)
 
-    def add_fold_page(left_fill, right_fill) -> None:
-        table = doc.add_table(rows=1, cols=2)
-        set_table_width(table, content_width)
-        row = table.rows[0]
-        set_row_exact_height(row, content_height)
-        left = row.cells[0]
-        right = row.cells[1]
-        set_cell_width(left, panel_width)
-        set_cell_width(right, panel_width)
-        left_fill(left)
-        right_fill(right)
+    # One 2x2 table: row 1 = outside (lyrics | cover), row 2 = inside (program | lyrics).
+    # Page break before row 2 avoids extra blank pages from standalone break paragraphs.
+    table = doc.add_table(rows=2, cols=2)
+    set_table_width(table, content_width)
 
-    opening = data.get("opening_hymn") or {}
-    closing = data.get("closing_hymn") or {}
+    row_outside = table.rows[0]
+    row_inside = table.rows[1]
+    set_row_page_break_before(row_inside)
 
-    # Page 1 (outside): closing hymn lyrics | cover — print double-sided, flip on short edge.
-    add_fold_page(
-        lambda cell: fill_hymn_lyrics_panel(cell, closing, "Closing Hymn"),
-        fill_cover_panel,
-    )
+    for cell, width in (
+        (row_outside.cells[0], panel_width),
+        (row_outside.cells[1], panel_width),
+        (row_inside.cells[0], panel_width),
+        (row_inside.cells[1], panel_width),
+    ):
+        set_cell_width(cell, width)
 
-    pb = doc.add_paragraph()
-    pb.paragraph_format.space_before = Pt(0)
-    pb.paragraph_format.space_after = Pt(0)
-    pb.add_run().add_break(WD_BREAK.PAGE)
-
-    # Page 2 (inside): program | opening hymn lyrics — locked to one landscape page.
-    add_fold_page(
-        fill_program_panel,
-        lambda cell: fill_hymn_lyrics_panel(cell, opening, "Opening Hymn"),
-    )
+    fill_hymn_lyrics_panel(row_outside.cells[0], closing, "Closing Hymn")
+    fill_cover_panel(row_outside.cells[1])
+    fill_program_panel(row_inside.cells[0])
+    fill_hymn_lyrics_panel(row_inside.cells[1], opening, "Opening Hymn")
 
     buf = io.BytesIO()
     doc.save(buf)
