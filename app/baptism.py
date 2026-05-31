@@ -97,7 +97,10 @@ def save_branch_baptism_defaults(form) -> None:
         row = BaptismDefaults(id=1)
         db.session.add(row)
     for key in SAVABLE_BAPTISM_KEYS:
-        setattr(row, key, (form.get(key) or "").strip())
+        value = (form.get(key) or "").strip()
+        if key == "confirmation_text":
+            value = confirmation_text_to_template(value, form.get("candidate_name"))
+        setattr(row, key, value)
     row.updated_at = datetime.utcnow()
     db.session.commit()
 
@@ -120,12 +123,40 @@ def resolved_hymn_title(defaults: dict, num_key: str, title_key: str, book_key: 
     )
 
 
+def confirmation_text_to_template(text: str | None, candidate: str | None = None) -> str:
+    """Normalize saved confirmation remarks to a template with [candidate]."""
+    text = (text or "").strip()
+    if not text:
+        return DEFAULT_BAPTISM["confirmation_text"]
+    if "[candidate]" in text:
+        return text
+    candidate = (candidate or "").strip()
+    if candidate and candidate in text:
+        return text.replace(candidate, "[candidate]")
+    if "receive the gift of the Holy Ghost" in text and "Following the baptism" in text:
+        return DEFAULT_BAPTISM["confirmation_text"]
+    return text
+
+
+def resolve_confirmation_text(candidate: str | None, template: str | None) -> str:
+    text = confirmation_text_to_template(template, candidate)
+    candidate = (candidate or "").strip()
+    if not candidate:
+        return text
+    if "[candidate]" in text:
+        return text.replace("[candidate]", candidate)
+    if candidate.lower() in text.lower():
+        return text
+    return text
+
+
 def _hymn_export_fields(form, prefix: str) -> dict:
     num_raw = (form.get(f"{prefix}_hymn_num") or "").strip()
     book = normalize_hymn_book(form.get(f"{prefix}_hymn_book"))
     title = effective_hymn_title(num_raw, form.get(f"{prefix}_hymn_title"), book)
     number = parse_hymn_number(num_raw)
     label = hymn_book_label(book) if book == HYMN_BOOK_CHILDREN else None
+    lyrics = hymn_lyrics(number, book)
     return {
         "num_raw": num_raw,
         "number": number,
@@ -171,9 +202,8 @@ def baptism_from_form(form) -> dict:
     closing = _hymn_export_fields(form, "closing")
 
     candidate = (form.get("candidate_name") or "").strip()
-    confirmation_text = (form.get("confirmation_text") or "").strip()
-    if candidate and "[candidate]" in confirmation_text:
-        confirmation_text = confirmation_text.replace("[candidate]", candidate)
+    confirmation_template = confirmation_text_to_template(form.get("confirmation_text"), candidate)
+    confirmation_text = resolve_confirmation_text(candidate, confirmation_template)
 
     return {
         "service_date": service_date,
@@ -252,8 +282,9 @@ def build_baptism_text(data: dict) -> str:
         lines.append(f"Baptism performed by {data['baptism_by']}")
 
     lines.append("")
-    if data.get("confirmation_text"):
-        lines.append(data["confirmation_text"])
+    confirmation = resolve_confirmation_text(data.get("candidate_name"), data.get("confirmation_text"))
+    if confirmation:
+        lines.append(confirmation)
     if data.get("confirmation_by"):
         lines.append(f"Confirmation by {data['confirmation_by']}")
 
@@ -274,22 +305,48 @@ def export_docx(data: dict) -> bytes:
     from docx import Document
     from docx.enum.section import WD_ORIENT
     from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
     from docx.shared import Inches, Pt, RGBColor
+
+    def set_landscape(section) -> None:
+        section.orientation = WD_ORIENT.LANDSCAPE
+        section.page_width, section.page_height = section.page_height, section.page_width
+
+    def set_table_width(table, width_emu) -> None:
+        table.autofit = False
+        tbl = table._tbl
+        tbl_pr = tbl.tblPr
+        if tbl_pr is None:
+            tbl_pr = OxmlElement("w:tblPr")
+            tbl.insert(0, tbl_pr)
+        tbl_w = OxmlElement("w:tblW")
+        tbl_w.set(qn("w:w"), str(int(width_emu / 635)))
+        tbl_w.set(qn("w:type"), "dxa")
+        tbl_pr.append(tbl_w)
+
+    def set_cell_width(cell, width_emu) -> None:
+        tc = cell._tc
+        tc_pr = tc.get_or_add_tcPr()
+        tc_w = OxmlElement("w:tcW")
+        tc_w.set(qn("w:w"), str(int(width_emu / 635)))
+        tc_w.set(qn("w:type"), "dxa")
+        tc_pr.append(tc_w)
 
     doc = Document()
     section = doc.sections[0]
-    section.orientation = WD_ORIENT.LANDSCAPE
-    section.page_width, section.page_height = section.page_height, section.page_width
+    set_landscape(section)
     margin = Inches(0.35)
     section.top_margin = margin
     section.bottom_margin = margin
     section.left_margin = margin
     section.right_margin = margin
 
-    panel_width = (section.page_width - section.left_margin - section.right_margin) / 2
+    content_width = section.page_width - section.left_margin - section.right_margin
+    panel_width = content_width // 2
     body_font = "Times New Roman"
     program_size = Pt(10.5)
-    lyric_size = Pt(9.5)
+    lyric_size = Pt(9)
     cover_title_size = Pt(18)
     cover_sub_size = Pt(12)
 
@@ -324,7 +381,7 @@ def export_docx(data: dict) -> bytes:
         center: bool = False,
         size: Pt | None = program_size,
         after: float = 3,
-        leading: float = 1.15,
+        leading: float = 1.12,
     ):
         p = cell.add_paragraph()
         pf = p.paragraph_format
@@ -346,7 +403,7 @@ def export_docx(data: dict) -> bytes:
         pf.space_before = Pt(0)
         pf.space_after = Pt(after)
         pf.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
-        pf.line_spacing = 1.15
+        pf.line_spacing = 1.12
         label_run = add_run(p, label + ": ", bold=True, size=program_size)
         label_run.font.name = body_font
         add_run(p, value, size=program_size)
@@ -374,14 +431,16 @@ def export_docx(data: dict) -> bytes:
         lyrics = (hymn.get("lyrics") or "").strip()
         if lyrics:
             add_multiline(cell, lyrics, size=lyric_size, after_last=2)
-        elif hymn.get("title"):
+        elif hymn.get("book") == HYMN_BOOK_CHILDREN and hymn.get("number"):
             add_para(
                 cell,
-                "Sing from the hymnbook.",
+                f"Lyrics for Children's Songbook #{hymn['number']} are not in the program file yet.",
                 center=True,
                 size=lyric_size,
                 after=0,
             )
+        elif hymn.get("title"):
+            add_para(cell, "Sing from the hymnbook.", center=True, size=lyric_size, after=0)
         else:
             add_para(cell, "", after=0)
 
@@ -419,8 +478,9 @@ def export_docx(data: dict) -> bytes:
         if data.get("baptism_by"):
             add_labeled_para(cell, "Baptism by", data["baptism_by"])
 
-        if data.get("confirmation_text"):
-            add_multiline(cell, data["confirmation_text"], after_last=3)
+        confirmation = resolve_confirmation_text(data.get("candidate_name"), data.get("confirmation_text"))
+        if confirmation:
+            add_multiline(cell, confirmation, after_last=3)
         if data.get("confirmation_by"):
             add_labeled_para(cell, "Confirmation by", data["confirmation_by"])
 
@@ -437,7 +497,7 @@ def export_docx(data: dict) -> bytes:
             p = cell.add_paragraph()
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run()
-            run.add_picture(str(_COVER_IMAGE_PATH), width=Inches(3.8))
+            run.add_picture(str(_COVER_IMAGE_PATH), width=Inches(3.6))
             p.paragraph_format.space_after = Pt(8)
 
         add_para(cell, "Baptismal Service", bold=True, center=True, size=cover_title_size, after=6)
@@ -457,50 +517,30 @@ def export_docx(data: dict) -> bytes:
 
     def add_fold_page(left_fill, right_fill) -> None:
         table = doc.add_table(rows=1, cols=2)
-        table.autofit = False
+        set_table_width(table, content_width)
         left = table.rows[0].cells[0]
         right = table.rows[0].cells[1]
-        left.width = panel_width
-        right.width = panel_width
+        set_cell_width(left, panel_width)
+        set_cell_width(right, panel_width)
         left_fill(left)
         right_fill(right)
 
     opening = data.get("opening_hymn") or {}
     closing = data.get("closing_hymn") or {}
 
-    # Page 1 (outside): back cover | front cover — print double-sided, flip on short edge.
+    # Page 1 (outside): closing hymn lyrics | cover — print double-sided, flip on short edge.
     add_fold_page(
         lambda cell: fill_hymn_lyrics_panel(cell, closing, "Closing Hymn"),
         fill_cover_panel,
     )
 
-    note = doc.add_paragraph()
-    note.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    note_run = add_run(
-        note,
-        "Print both pages double-sided (flip on short edge), then fold in half like a booklet.",
-        size=Pt(8),
-        color=RGBColor(0x66, 0x66, 0x66),
-    )
-    note_run.italic = True
-    note.paragraph_format.space_before = Pt(2)
-    note.paragraph_format.space_after = Pt(0)
-
     doc.add_page_break()
 
-    page2_section = doc.add_section()
-    page2_section.orientation = WD_ORIENT.LANDSCAPE
-    page2_section.page_width, page2_section.page_height = (
-        doc.sections[0].page_height,
-        doc.sections[0].page_width,
+    # Page 2 (inside): program | opening hymn lyrics — same landscape section as page 1.
+    add_fold_page(
+        fill_program_panel,
+        lambda cell: fill_hymn_lyrics_panel(cell, opening, "Opening Hymn"),
     )
-    page2_section.top_margin = margin
-    page2_section.bottom_margin = margin
-    page2_section.left_margin = margin
-    page2_section.right_margin = margin
-
-    # Page 2 (inside): program | opening hymn lyrics
-    add_fold_page(fill_program_panel, lambda cell: fill_hymn_lyrics_panel(cell, opening, "Opening Hymn"))
 
     buf = io.BytesIO()
     doc.save(buf)

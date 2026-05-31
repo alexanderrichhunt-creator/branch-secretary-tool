@@ -3,9 +3,42 @@
   const preview = document.getElementById("baptism-preview");
   if (!form || !preview) return;
 
+  const confirmationEl = document.getElementById("confirmation_text");
+  const candidateEl = document.getElementById("candidate_name");
+  const templateEl = document.getElementById("baptism-confirmation-template");
+
+  const DEFAULT_CONFIRMATION_TEMPLATE =
+    "Following the baptism, [candidate] will be confirmed a member of The Church of Jesus Christ " +
+    "of Latter-day Saints and receive the gift of the Holy Ghost.";
+
+  let confirmationTemplate = DEFAULT_CONFIRMATION_TEMPLATE;
+
+  if (templateEl) {
+    try {
+      confirmationTemplate = JSON.parse(templateEl.textContent || '""') || DEFAULT_CONFIRMATION_TEMPLATE;
+    } catch (e) {
+      confirmationTemplate = DEFAULT_CONFIRMATION_TEMPLATE;
+    }
+  }
+
   function val(id) {
     const el = document.getElementById(id);
     return el ? el.value.trim() : "";
+  }
+
+  function resolveConfirmationText(candidate, template) {
+    template = (template || DEFAULT_CONFIRMATION_TEMPLATE).trim();
+    if (!candidate) return template;
+    if (template.indexOf("[candidate]") >= 0) {
+      return template.replace(/\[candidate\]/g, candidate);
+    }
+    return template;
+  }
+
+  function syncConfirmationField() {
+    if (!confirmationEl) return;
+    const candidate = val("candidate_name");
+    confirmationEl.value = resolveConfirmationText(candidate, confirmationTemplate);
   }
 
   function hymnLine(prefix) {
@@ -78,9 +111,7 @@
     if (val("baptism_by")) lines.push("Baptism performed by " + val("baptism_by"));
 
     lines.push("");
-    let confirmation = val("confirmation_text");
-    const candidate = val("candidate_name");
-    if (candidate) confirmation = confirmation.replace(/\[candidate\]/g, candidate);
+    const confirmation = confirmationEl ? confirmationEl.value.trim() : "";
     if (confirmation) lines.push(confirmation);
     if (val("confirmation_by")) lines.push("Confirmation by " + val("confirmation_by"));
 
@@ -96,8 +127,7 @@
     preview.textContent = lines.join("\n").trim() + "\n";
   }
 
-  async function lookupHymn(input, options) {
-    options = options || {};
+  async function lookupHymn(input) {
     const targetId = input.getAttribute("data-title-target");
     const bookTargetId = input.getAttribute("data-book-target");
     const target = targetId ? document.getElementById(targetId) : null;
@@ -108,7 +138,7 @@
       return;
     }
     if (!numRaw) {
-      if (options.clearWhenEmpty) target.value = "";
+      target.value = "";
       updatePreview();
       return;
     }
@@ -129,6 +159,17 @@
     updatePreview();
   }
 
+  if (candidateEl) {
+    candidateEl.addEventListener("input", function () {
+      syncConfirmationField();
+      updatePreview();
+    });
+    candidateEl.addEventListener("change", function () {
+      syncConfirmationField();
+      updatePreview();
+    });
+  }
+
   document.querySelectorAll(".hymn-book-select").forEach(function (select) {
     select.addEventListener("change", function () {
       const prefix = select.getAttribute("data-prefix");
@@ -147,12 +188,21 @@
   });
 
   form.querySelectorAll("input, textarea, select").forEach(function (el) {
+    if (el === confirmationEl) return;
     el.addEventListener("input", updatePreview);
     el.addEventListener("change", updatePreview);
   });
 
+  if (confirmationEl) {
+    confirmationEl.addEventListener("input", function () {
+      confirmationTemplate = confirmationEl.value;
+      updatePreview();
+    });
+  }
+
   document.querySelectorAll(".hymn-num-input").forEach(function (input) {
     lookupHymn(input);
   });
+  syncConfirmationField();
   updatePreview();
 })();

@@ -77,7 +77,6 @@ def hymn_book_label(book: str) -> str:
     return "Hymns"
 
 
-@lru_cache(maxsize=1)
 def _load_children_lyrics() -> dict[str, str]:
     if not _CHILDREN_LYRICS_PATH.exists():
         return {}

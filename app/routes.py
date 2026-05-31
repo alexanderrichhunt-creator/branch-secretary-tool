@@ -1265,7 +1265,7 @@ def api_bulletin_speakers():
 @main_bp.get("/api/hymn/<int:number>")
 @login_required
 def api_hymn(number: int):
-    from .hymns import hymn_line, hymn_title, normalize_hymn_book
+    from .hymns import hymn_line, hymn_lyrics, hymn_title, normalize_hymn_book
 
     book = normalize_hymn_book(request.args.get("book"))
     return jsonify(
@@ -1274,6 +1274,7 @@ def api_hymn(number: int):
             "book": book,
             "title": hymn_title(number, book),
             "line": hymn_line(number, book),
+            "lyrics": hymn_lyrics(number, book),
         }
     )
 
@@ -1281,7 +1282,13 @@ def api_hymn(number: int):
 @main_bp.get("/baptism")
 @login_required
 def baptism_builder():
-    from .baptism import get_branch_baptism_defaults, has_saved_baptism_defaults, resolved_hymn_title
+    from .baptism import (
+        confirmation_text_to_template,
+        get_branch_baptism_defaults,
+        has_saved_baptism_defaults,
+        resolve_confirmation_text,
+        resolved_hymn_title,
+    )
 
     defaults = get_branch_baptism_defaults()
     defaults["opening_hymn_title"] = resolved_hymn_title(
@@ -1289,6 +1296,14 @@ def baptism_builder():
     )
     defaults["closing_hymn_title"] = resolved_hymn_title(
         defaults, "closing_hymn_num", "closing_hymn_title", "closing_hymn_book"
+    )
+    defaults["confirmation_template"] = confirmation_text_to_template(
+        defaults.get("confirmation_text"),
+        defaults.get("candidate_name"),
+    )
+    defaults["confirmation_text"] = resolve_confirmation_text(
+        defaults.get("candidate_name"),
+        defaults["confirmation_template"],
     )
     return render_template(
         "baptism.html",

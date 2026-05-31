@@ -108,7 +108,7 @@
           <div class="mb-3">
             <label class="form-label" for="confirmation_text">Confirmation remarks</label>
             <textarea class="form-control" id="confirmation_text" name="confirmation_text" rows="3">{{ defaults.confirmation_text }}</textarea>
-            <div class="form-text">Use [candidate] to insert the candidate's name automatically.</div>
+            <div class="form-text">The candidate's name is inserted automatically into this text.</div>
           </div>
           <div class="mb-0">
             <label class="form-label" for="reception_notes">Reception / refreshments <span class="text-muted fw-normal">(optional)</span></label>
@@ -137,5 +137,6 @@
 {% endblock %}
 
 {% block scripts %}
+<script type="application/json" id="baptism-confirmation-template">{{ defaults.confirmation_template | tojson }}</script>
 <script src="{{ url_for('static', filename='baptism.js') }}"></script>
 {% endblock %}
