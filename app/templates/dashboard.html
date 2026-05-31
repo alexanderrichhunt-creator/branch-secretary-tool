@@ -121,31 +121,6 @@
   <div class="col-12 col-lg-4 order-1 order-lg-2">
     <div class="panel dashboard-schedule-card mb-3">
       <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-        <span>Speaker pool</span>
-        <a class="btn btn-link btn-sm p-0" href="{{ url_for('main.speaker_pool') }}">Assign talks</a>
-      </div>
-      <div class="panel-body">
-        {% set pool_preview = speaker_pool[:6] %}
-        {% if pool_preview %}
-          <div class="speaker-pool-compact">
-            {% for row in pool_preview %}
-              <div class="speaker-pool-compact-row speaker-pool-row-{{ row.status }}">
-                <div class="fw-semibold">{{ member_label(row.member) }}</div>
-                <div class="small muted">{{ row.last_talk_summary }}</div>
-              </div>
-            {% endfor %}
-          </div>
-          {% if speaker_pool | length > 6 %}
-            <div class="small muted mt-2">{{ speaker_pool | length - 6 }} more in the full pool.</div>
-          {% endif %}
-        {% else %}
-          <div class="muted small">Mark regular attendees on the <a href="{{ url_for('main.members', regular='1') }}">Members</a> page to build your speaker pool.</div>
-        {% endif %}
-      </div>
-    </div>
-
-    <div class="panel dashboard-schedule-card mb-3">
-      <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <span>Upcoming interviews</span>
         <a class="btn btn-link btn-sm p-0" href="{{ url_for('main.interviews') }}">All interviews</a>
       </div>

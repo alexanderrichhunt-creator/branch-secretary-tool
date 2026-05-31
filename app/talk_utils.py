@@ -126,6 +126,18 @@ def build_speaker_pool(*, regular_only: bool = True) -> list[dict]:
     return pool
 
 
+def split_speaker_pool_by_group(pool: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Split a speaker pool into adult and youth lists (preserves sort order)."""
+    youth: list[dict] = []
+    adult: list[dict] = []
+    for row in pool:
+        if (row.get("group_label") or "").strip().lower() == "youth":
+            youth.append(row)
+        else:
+            adult.append(row)
+    return adult, youth
+
+
 def members_for_talk_select() -> tuple[list[dict], list[Member]]:
     """Speaker pool rows first, then members not marked as regular attendees."""
     pool = build_speaker_pool(regular_only=True)

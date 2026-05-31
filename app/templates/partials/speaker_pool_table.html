@@ -56,7 +56,11 @@
     </div>
   {% else %}
     <div class="muted small py-2">
-      No regular attendees yet. On the <a href="{{ url_for('main.members', regular='1') }}">Members</a> page, mark people who usually attend as regular attendees to build your speaker pool.
+      {% if pool_empty_message %}
+        {{ pool_empty_message }}
+      {% else %}
+        No regular attendees yet. On the <a href="{{ url_for('main.members', regular='1') }}">Members</a> page, mark people who usually attend as regular attendees to build your speaker pool.
+      {% endif %}
     </div>
   {% endif %}
 </div>

@@ -10,7 +10,7 @@ from flask_login import current_user, login_required
 
 from . import db
 from .models import Event, Interview, Member, SuggestedTalk, Talk, User, parse_us_date
-from .talk_utils import build_speaker_pool, member_talk_recency, members_for_talk_select
+from .talk_utils import build_speaker_pool, member_talk_recency, members_for_talk_select, split_speaker_pool_by_group
 
 
 def _talk_member_select_context(*, exclude_talk_id: int | None = None, **extra):
@@ -605,9 +605,13 @@ def add_member():
 @login_required
 def speaker_pool():
     today = date.today()
+    pool = build_speaker_pool(regular_only=True)
+    speaker_pool_adult, speaker_pool_youth = split_speaker_pool_by_group(pool)
     return render_template(
         "speaker_pool.html",
         schedule_date=_speaker_pool_schedule_date(today),
+        speaker_pool_adult=speaker_pool_adult,
+        speaker_pool_youth=speaker_pool_youth,
         **_talk_member_select_context(),
     )
 
