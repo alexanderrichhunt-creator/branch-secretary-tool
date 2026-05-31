@@ -12,51 +12,47 @@
   </div>
 </div>
 
-<div class="row g-3 speaker-pool-page-layout align-items-start">
-  <div class="col-12 col-lg-8 speaker-pool-page-main">
-    <div class="row g-3">
-      <div class="col-12 col-lg-6">
-        <section class="panel h-100">
-          <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <span>Adults</span>
-            <span class="small muted">{{ speaker_pool_adult | length }} regular attendee{% if speaker_pool_adult | length != 1 %}s{% endif %}</span>
-          </div>
-          <div class="panel-body panel-body-scroll">
-            {% with speaker_pool=speaker_pool_adult, show_schedule=true, schedule_date=schedule_date, assign_in_modal=true, pool_empty_message='No adult regular attendees yet. Mark adults as regular attendees on the Members page.' %}
-              {% include 'partials/speaker_pool_table.html' %}
-            {% endwith %}
-          </div>
-        </section>
-      </div>
-
-      <div class="col-12 col-lg-6">
-        <section class="panel h-100">
-          <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <span>Youth</span>
-            <span class="small muted">{{ speaker_pool_youth | length }} regular attendee{% if speaker_pool_youth | length != 1 %}s{% endif %}</span>
-          </div>
-          <div class="panel-body panel-body-scroll">
-            {% with speaker_pool=speaker_pool_youth, show_schedule=true, schedule_date=schedule_date, assign_in_modal=true, pool_empty_message='No youth regular attendees yet. Set group to Youth on the Members page when marking regular attendees.' %}
-              {% include 'partials/speaker_pool_table.html' %}
-            {% endwith %}
-          </div>
-        </section>
-      </div>
+<div class="speaker-pool-page-layout">
+  <section class="panel mb-3">
+    <div class="panel-header">How to read this</div>
+    <div class="panel-body small">
+      <ul class="speaker-pool-legend mb-0 ps-3">
+        <li><strong>Never spoke</strong> — no talk on record; usually your best place to start.</li>
+        <li><strong>Available</strong> — last spoke more than 6 months ago.</li>
+        <li><strong>Consider waiting</strong> — last spoke 3–6 months ago.</li>
+        <li><strong>Spoke recently</strong> — last spoke within about 3 months.</li>
+      </ul>
     </div>
-  </div>
+  </section>
 
-  <div class="col-12 col-lg-4 speaker-pool-page-sidebar">
-    <section class="panel">
-      <div class="panel-header">How to read this</div>
-      <div class="panel-body small panel-body-scroll">
-        <ul class="mb-0 ps-3">
-          <li class="mb-2"><strong>Never spoke</strong> — no talk on record; usually your best place to start.</li>
-          <li class="mb-2"><strong>Available</strong> — last spoke more than 6 months ago.</li>
-          <li class="mb-2"><strong>Consider waiting</strong> — last spoke 3–6 months ago.</li>
-          <li><strong>Spoke recently</strong> — last spoke within about 3 months.</li>
-        </ul>
-      </div>
-    </section>
+  <div class="row g-3 align-items-start">
+    <div class="col-12 col-lg-6">
+      <section class="panel h-100">
+        <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <span>Adults</span>
+          <span class="small muted">{{ speaker_pool_adult | length }} regular attendee{% if speaker_pool_adult | length != 1 %}s{% endif %}</span>
+        </div>
+        <div class="panel-body panel-body-scroll">
+          {% with speaker_pool=speaker_pool_adult, show_schedule=true, schedule_date=schedule_date, assign_in_modal=true, pool_empty_message='No adult regular attendees yet. Mark adults as regular attendees on the Members page.' %}
+            {% include 'partials/speaker_pool_table.html' %}
+          {% endwith %}
+        </div>
+      </section>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <section class="panel h-100">
+        <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <span>Youth</span>
+          <span class="small muted">{{ speaker_pool_youth | length }} regular attendee{% if speaker_pool_youth | length != 1 %}s{% endif %}</span>
+        </div>
+        <div class="panel-body panel-body-scroll">
+          {% with speaker_pool=speaker_pool_youth, show_schedule=true, schedule_date=schedule_date, assign_in_modal=true, pool_empty_message='No youth regular attendees yet. Set group to Youth on the Members page when marking regular attendees.' %}
+            {% include 'partials/speaker_pool_table.html' %}
+          {% endwith %}
+        </div>
+      </section>
+    </div>
   </div>
 </div>
 
