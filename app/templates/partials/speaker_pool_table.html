@@ -1,6 +1,42 @@
 {# Speaker pool table — regular attendees sorted by talk availability. #}
 <div class="speaker-pool-table-wrap">
   {% if speaker_pool %}
+    {% if compact %}
+      <div class="speaker-pool-compact-list">
+        {% for row in speaker_pool %}
+          <div class="speaker-pool-compact-row speaker-pool-row-{{ row.status }} d-flex justify-content-between align-items-start gap-2">
+            <div class="min-w-0">
+              <div class="fw-semibold small">{{ member_label(row.member) }}</div>
+              <div class="small muted">{{ row.last_talk_summary }}</div>
+              {% if row.status == 'never' %}
+                <span class="speaker-pool-badge speaker-pool-badge-never">Never spoke</span>
+              {% elif row.status == 'available' %}
+                <span class="speaker-pool-badge speaker-pool-badge-available">Available</span>
+              {% elif row.status == 'consider' %}
+                <span class="speaker-pool-badge speaker-pool-badge-consider">Consider waiting</span>
+              {% else %}
+                <span class="speaker-pool-badge speaker-pool-badge-recent">Spoke recently</span>
+              {% endif %}
+            </div>
+            {% if show_schedule %}
+              {% if assign_in_modal %}
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-primary flex-shrink-0 pool-assign-talk-btn"
+                  data-member-id="{{ row.member_id }}"
+                  data-talk-date="{{ schedule_date or '' }}"
+                >Assign</button>
+              {% else %}
+                <a
+                  class="btn btn-sm btn-outline-primary flex-shrink-0"
+                  href="{{ url_for('main.talks', prefill_member=row.member_id, prefill_date=schedule_date) if schedule_date else url_for('main.talks', prefill_member=row.member_id) }}"
+                >Assign</a>
+              {% endif %}
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
     <div class="table-responsive">
       <table class="table table-sm align-middle speaker-pool-table mb-0">
         <thead>
@@ -63,6 +99,7 @@
         </tbody>
       </table>
     </div>
+    {% endif %}
   {% else %}
     <div class="muted small py-2">
       {% if pool_empty_message %}
