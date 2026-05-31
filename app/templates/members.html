@@ -82,7 +82,7 @@
     <div class="panel">
       <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <span>Member list{% if regular_only %} · regular attendees{% endif %}</span>
-        <span class="small muted" id="regular-attendee-count">{{ regular_count }} regular</span>
+        <span class="small muted">{{ members | length }} shown · <span id="regular-attendee-count">{{ regular_count }} regular</span></span>
       </div>
       <div class="panel-body">
         <div class="d-flex flex-wrap align-items-center gap-2 mb-3">

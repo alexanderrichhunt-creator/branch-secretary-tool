@@ -424,7 +424,7 @@ def members():
         query = query.filter(Member.is_regular_attendee.is_(True))
     if q:
         query = query.filter(Member.full_name.ilike(f"%{q}%"))
-    members = query.order_by(Member.full_name.asc()).limit(200).all()
+    members = query.order_by(Member.full_name.asc()).all()
     regular_count = Member.query.filter(Member.is_regular_attendee.is_(True)).count()
     return render_template(
         "members.html",
