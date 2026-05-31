@@ -46,6 +46,29 @@ DEFAULT_EVENT_STYLE = {
     "border": "#475569",
 }
 
+CALENDAR_ITEM_STYLES = {
+    "talk": {
+        "label": "Talks",
+        "color": "#2563eb",
+        "border": "#1d4ed8",
+    },
+    "fast_testimony": {
+        "label": "Fast & Testimony",
+        "color": "#be185d",
+        "border": "#9f1239",
+    },
+    "interview": {
+        "label": "Interviews",
+        "color": "#16a34a",
+        "border": "#15803d",
+    },
+    "general": {
+        "label": "General events",
+        "color": DEFAULT_EVENT_STYLE["color"],
+        "border": DEFAULT_EVENT_STYLE["border"],
+    },
+}
+
 
 def normalize_event_category(raw: str | None) -> str | None:
     slug = (raw or "").strip().lower()
@@ -64,6 +87,15 @@ def event_category_label(slug: str | None) -> str:
 
 def event_category_colors(slug: str | None) -> tuple[str, str]:
     meta = event_category_meta(slug)
+    return meta["color"], meta["border"]
+
+
+def calendar_item_style(kind: str) -> dict:
+    return CALENDAR_ITEM_STYLES.get(kind, CALENDAR_ITEM_STYLES["general"])
+
+
+def calendar_item_colors(kind: str) -> tuple[str, str]:
+    meta = calendar_item_style(kind)
     return meta["color"], meta["border"]
 
 

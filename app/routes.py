@@ -884,6 +884,7 @@ def calendar():
 def api_events():
     from .event_utils import (
         WEEKDAY_CODES,
+        calendar_item_colors,
         event_category_colors,
         event_category_label,
         iter_event_occurrences,
@@ -914,9 +915,9 @@ def api_events():
 
         is_ft = is_fast_testimony_talk(t)
         full_title = _talk_calendar_title(t)
+        talk_kind = "fast_testimony" if is_ft else "talk"
         kind_label = "Fast & Testimony Meeting" if is_ft else "Sacrament talk"
-        bg = "#7c3aed" if is_ft else "#2563eb"
-        border = "#6d28d9" if is_ft else "#1d4ed8"
+        bg, border = calendar_item_colors(talk_kind)
         topic = (t.topic or "").strip()
         events.append(
             {
@@ -941,6 +942,7 @@ def api_events():
         subject = _interview_subject_name(i)
         title_line = f"Interview: {subject} — {i.purpose}"
         end = i.starts_at + timedelta(minutes=i.duration_minutes)
+        interview_bg, interview_border = calendar_item_colors("interview")
         events.append(
             {
                 "id": f"interview-{i.id}",
@@ -948,12 +950,12 @@ def api_events():
                 "start": i.starts_at.isoformat(),
                 "end": end.isoformat(),
                 "allDay": False,
-                "backgroundColor": "#16a34a",
-                "borderColor": "#15803d",
+                "backgroundColor": interview_bg,
+                "borderColor": interview_border,
                 "extendedProps": {
                     "kind": "interview",
                     "kindLabel": "Interview",
-                    "accentColor": "#16a34a",
+                    "accentColor": interview_bg,
                     "editUrl": url_for("main.edit_interview", interview_id=i.id),
                     "fullTitle": title_line,
                     "interviewSubject": subject,

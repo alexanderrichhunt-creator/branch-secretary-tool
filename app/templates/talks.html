@@ -22,7 +22,7 @@
           <div class="talk-assigned-fields">
             <div class="mb-3">
               <label class="form-label big-label" for="member_id">Speaker (from members list)</label>
-              <input class="form-control form-control-lg mb-2" id="member_filter" placeholder="Type a name to filter..." autocomplete="off" />
+              <input class="form-control form-control-lg mb-2" id="member_filter" data-member-filter-target="member_id" placeholder="Type a name to filter..." autocomplete="off" />
               <select class="form-select form-select-lg" id="member_id" name="member_id">
                 <option value="">— None selected — (use free text below)</option>
                 {% for m in members %}
@@ -90,34 +90,8 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='member-select-filter.js') }}"></script>
 <script>
-  (function () {
-    const input = document.getElementById('member_filter');
-    const select = document.getElementById('member_id');
-    if (!input || !select) return;
-
-    const options = Array.from(select.options);
-    const keepFirst = options[0];
-    const otherOpts = options.slice(1);
-
-    function applyFilter() {
-      const q = (input.value || '').trim().toLowerCase();
-
-      // Always keep the placeholder as the first option.
-      select.innerHTML = '';
-      select.appendChild(keepFirst);
-
-      for (const opt of otherOpts) {
-        const text = (opt.textContent || '').toLowerCase();
-        if (!q || text.includes(q)) {
-          select.appendChild(opt);
-        }
-      }
-    }
-
-    input.addEventListener('input', applyFilter);
-  })();
-
   (function () {
     var params = new URLSearchParams(window.location.search);
     var d = params.get('prefill_date');

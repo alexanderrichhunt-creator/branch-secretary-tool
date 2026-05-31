@@ -13,10 +13,10 @@
 </div>
 
 <div class="d-flex flex-wrap gap-2 mb-3 cal-legend">
-  <span class="badge cal-legend-item" style="background:#2563eb;">Talks</span>
-  <span class="badge cal-legend-item" style="background:#7c3aed;">Fast &amp; Testimony</span>
-  <span class="badge cal-legend-item" style="background:#16a34a;">Interviews</span>
-  <span class="badge cal-legend-item" style="background:#64748b;">General events</span>
+  {% for key in ['talk', 'fast_testimony', 'interview', 'general'] %}
+    {% set meta = CALENDAR_ITEM_STYLES[key] %}
+    <span class="badge cal-legend-item" style="background:{{ meta.color }};">{{ meta.label }}</span>
+  {% endfor %}
   {% for slug, meta in EVENT_CATEGORIES.items() %}
     <span class="badge cal-legend-item" style="background:{{ meta.color }};">{{ meta.label }}</span>
   {% endfor %}
@@ -191,7 +191,15 @@
                 </div>
               </div>
               <div class="mb-3">
-                <label class="form-label big-label" for="cal_member_id">Member (optional)</label>
+                <label class="form-label big-label" for="cal_member_filter">Member (optional)</label>
+                <input
+                  class="form-control form-control-lg mb-2 member-filter-input"
+                  type="text"
+                  id="cal_member_filter"
+                  data-member-filter-target="cal_member_id"
+                  placeholder="Type a name to search..."
+                  autocomplete="off"
+                />
                 <select class="form-select form-select-lg" id="cal_member_id" name="member_id">
                   <option value="">(none)</option>
                   {% for m in members %}
@@ -221,7 +229,15 @@
               </div>
               <div class="talk-assigned-fields">
                 <div class="mb-3">
-                  <label class="form-label big-label" for="cal_talk_member_id">Speaker (optional)</label>
+                  <label class="form-label big-label" for="cal_talk_member_filter">Speaker (optional)</label>
+                  <input
+                    class="form-control form-control-lg mb-2 member-filter-input"
+                    type="text"
+                    id="cal_talk_member_filter"
+                    data-member-filter-target="cal_talk_member_id"
+                    placeholder="Type a name to search..."
+                    autocomplete="off"
+                  />
                   <select class="form-select form-select-lg" id="cal_talk_member_id" name="member_id">
                     <option value="">— Member —</option>
                     {% for m in members %}
@@ -260,6 +276,7 @@
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script src="{{ url_for('static', filename='calendar-form.js') }}"></script>
 <script src="{{ url_for('static', filename='calendar-detail.js') }}"></script>
+<script src="{{ url_for('static', filename='member-select-filter.js') }}"></script>
 <script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
 <script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
 <script src="{{ url_for('static', filename='talk-form.js') }}"></script>
@@ -276,14 +293,26 @@
       window.CalCreateForm.openFromCalendar(start, end, allDay, dateStr);
     }
 
+    const calendarTimeFormat = {
+      hour: "numeric",
+      minute: "2-digit",
+      meridiem: "short",
+    };
+
     const cal = new FullCalendar.Calendar(el, {
-      initialView: 'dayGridMonth',
-      height: 'auto',
+      initialView: "dayGridMonth",
+      height: "auto",
       selectable: true,
       selectMirror: true,
       unselectAuto: true,
       navLinks: true,
-      dayMaxEvents: true,
+      dayMaxEvents: 3,
+      expandRows: true,
+      slotEventOverlap: false,
+      eventTimeFormat: calendarTimeFormat,
+      slotLabelFormat: calendarTimeFormat,
+      listDayFormat: { weekday: "long", month: "long", day: "numeric" },
+      listDaySideFormat: calendarTimeFormat,
       headerToolbar: {
         left: 'prev,next today',
         center: 'title',

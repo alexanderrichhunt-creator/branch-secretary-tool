@@ -66,13 +66,16 @@
     });
     const talkForm = document.getElementById("calTalkForm");
     if (talkForm) {
-      talkForm.querySelectorAll('input[type="text"]').forEach(function (el) {
+      talkForm.querySelectorAll('input[type="text"]:not(.member-filter-input)').forEach(function (el) {
         el.value = "";
       });
-      const member = talkForm.querySelector('[name="member_id"]');
-      if (member) member.value = "";
+      const talkMember = talkForm.querySelector('[name="member_id"]');
+      if (talkMember) talkMember.value = "";
       const assigned = talkForm.querySelector("#cal_talk_kind_assigned");
       if (assigned) assigned.checked = true;
+    }
+    if (window.MemberSelectFilter) {
+      window.MemberSelectFilter.resetAll();
     }
   }
 

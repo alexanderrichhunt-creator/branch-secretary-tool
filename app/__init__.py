@@ -47,9 +47,10 @@ def create_app():
     app.jinja_env.globals["member_label"] = _member_label
     app.jinja_env.globals["talk_speaker_label"] = _talk_speaker_label
     app.jinja_env.globals["interview_who_label"] = _interview_who_label
-    from .event_utils import EVENT_CATEGORIES, event_category_label
+    from .event_utils import EVENT_CATEGORIES, CALENDAR_ITEM_STYLES, event_category_label
 
     app.jinja_env.globals["EVENT_CATEGORIES"] = EVENT_CATEGORIES
+    app.jinja_env.globals["CALENDAR_ITEM_STYLES"] = CALENDAR_ITEM_STYLES
     app.jinja_env.globals["event_category_label"] = event_category_label
     return app
 
