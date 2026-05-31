@@ -22,9 +22,131 @@
   {% endfor %}
 </div>
 
-<div class="card shadow-sm">
-  <div class="card-body p-2 p-md-3">
-    <div id="calendar"></div>
+<div class="row g-3 align-items-start">
+  <div class="col-12 col-xl-8">
+    <div class="card shadow-sm">
+      <div class="card-body p-2 p-md-3">
+        <div id="calendar"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-4">
+    <div class="card shadow-sm cal-suggested-panel">
+      <div class="card-body">
+        <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
+          <div>
+            <h2 class="h5 fw-bold mb-1">Suggested talks</h2>
+            <div class="small muted">Working list of speakers and topics to schedule later.</div>
+          </div>
+          <span class="badge text-bg-secondary cal-suggested-count">{{ suggested_talks|length }}</span>
+        </div>
+
+        <form id="suggested-talk-add-form" class="cal-suggested-add-form mb-3">
+          <div class="mb-2">
+            <label class="form-label big-label" for="suggested_member_filter">Speaker (optional)</label>
+            <input
+              class="form-control mb-2 member-filter-input"
+              type="text"
+              id="suggested_member_filter"
+              data-member-filter-target="suggested_member_id"
+              placeholder="Type a name to search..."
+              autocomplete="off"
+            />
+            <select class="form-select" id="suggested_member_id" name="member_id">
+              <option value="">— Member —</option>
+              {% for m in members %}
+                <option value="{{ m.id }}">{{ m.full_name }}</option>
+              {% endfor %}
+            </select>
+            <input class="form-control mt-2" type="text" name="speaker_text" placeholder="Or type a name (visitor, etc.)" autocomplete="off" />
+          </div>
+          <div class="mb-2">
+            <label class="form-label big-label" for="suggested_topic">Topic (optional)</label>
+            <input class="form-control" type="text" id="suggested_topic" name="topic" placeholder="Talk topic or theme" />
+          </div>
+          <div class="mb-2">
+            <label class="form-label big-label" for="suggested_notes">Notes (optional)</label>
+            <textarea class="form-control" id="suggested_notes" name="notes" rows="2" placeholder="Reminders, council notes, etc."></textarea>
+          </div>
+          <div class="cal-suggested-form-error alert alert-warning py-2 px-3 small d-none" role="alert"></div>
+          <button class="btn btn-outline-primary w-100" type="submit">Add to suggested list</button>
+        </form>
+
+        <div id="suggested-talk-list" class="cal-suggested-list">
+          {% if suggested_talks %}
+            {% for st in suggested_talks %}
+              <div class="cal-suggested-item" data-suggestion-id="{{ st.id }}">
+                <div class="cal-suggested-item-main">
+                  <div class="cal-suggested-speaker fw-semibold">{{ st.speaker_label() }}</div>
+                  {% if st.topic %}
+                    <div class="cal-suggested-topic small">{{ st.topic }}</div>
+                  {% endif %}
+                  {% if st.notes %}
+                    <div class="cal-suggested-notes small muted">{{ st.notes }}</div>
+                  {% endif %}
+                </div>
+                <div class="cal-suggested-item-actions">
+                  <button type="button" class="btn btn-sm btn-primary cal-suggested-schedule-btn">Schedule</button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary cal-suggested-edit-btn">Edit</button>
+                  <button type="button" class="btn btn-sm btn-outline-danger cal-suggested-delete-btn">Remove</button>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="cal-suggested-empty muted small">No suggestions yet. Add speakers or topics above.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Suggested talk edit -->
+<div class="modal fade" id="suggestedTalkEditModal" tabindex="-1" aria-labelledby="suggestedTalkEditModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5 fw-bold" id="suggestedTalkEditModalLabel">Edit suggested talk</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="suggested-talk-edit-form">
+          <input type="hidden" id="suggested_edit_id" name="suggestion_id" value="" />
+          <div class="mb-3">
+            <label class="form-label big-label" for="suggested_edit_member_filter">Speaker (optional)</label>
+            <input
+              class="form-control mb-2 member-filter-input"
+              type="text"
+              id="suggested_edit_member_filter"
+              data-member-filter-target="suggested_edit_member_id"
+              placeholder="Type a name to search..."
+              autocomplete="off"
+            />
+            <select class="form-select" id="suggested_edit_member_id" name="member_id">
+              <option value="">— Member —</option>
+              {% for m in members %}
+                <option value="{{ m.id }}">{{ m.full_name }}</option>
+              {% endfor %}
+            </select>
+            <input class="form-control mt-2" type="text" id="suggested_edit_speaker_text" name="speaker_text" placeholder="Or type a name" autocomplete="off" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label big-label" for="suggested_edit_topic">Topic (optional)</label>
+            <input class="form-control" type="text" id="suggested_edit_topic" name="topic" />
+          </div>
+          <div class="mb-0">
+            <label class="form-label big-label" for="suggested_edit_notes">Notes (optional)</label>
+            <textarea class="form-control" id="suggested_edit_notes" name="notes" rows="2"></textarea>
+          </div>
+          <div class="cal-suggested-edit-error alert alert-warning py-2 px-3 small d-none mt-3" role="alert"></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="suggestedTalkEditSaveBtn">Save changes</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -222,6 +344,7 @@
           <div class="tab-pane fade" id="cal-pane-talk" role="tabpanel">
             <form method="post" action="{{ url_for('main.add_talk') }}" id="calTalkForm" class="talk-add-form cal-create-form">
               <input type="hidden" name="return_to" value="calendar" />
+              <input type="hidden" name="suggested_talk_id" id="cal_suggested_talk_id" value="" />
               {% set id_prefix = 'cal_' %}{% set is_fast_testimony = false %}{% include 'partials/talk_kind_selector.html' %}
               <div class="mb-3">
                 <label class="form-label big-label" for="cal_talk_date">Sacrament date</label>
@@ -245,7 +368,7 @@
                     {% endfor %}
                   </select>
                   <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
-                  <input class="form-control form-control-lg mt-2" type="text" name="speaker_text" placeholder="Or type name (visitor, etc.)" autocomplete="off" />
+                  <input class="form-control form-control-lg mt-2" type="text" id="cal_talk_speaker_text" name="speaker_text" placeholder="Or type name (visitor, etc.)" autocomplete="off" />
                 </div>
                 <div class="mb-3">
                   <label class="form-label big-label" for="cal_talk_topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
@@ -277,6 +400,7 @@
 <script src="{{ url_for('static', filename='calendar-form.js') }}"></script>
 <script src="{{ url_for('static', filename='calendar-detail.js') }}"></script>
 <script src="{{ url_for('static', filename='member-select-filter.js') }}"></script>
+<script src="{{ url_for('static', filename='suggested-talks.js') }}"></script>
 <script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
 <script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
 <script src="{{ url_for('static', filename='talk-form.js') }}"></script>

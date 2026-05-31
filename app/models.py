@@ -49,6 +49,28 @@ class Talk(db.Model):
     member = db.relationship("Member", back_populates="talks")
 
 
+class SuggestedTalk(db.Model):
+    """Working list of talk ideas/speakers not yet assigned to a sacrament date."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    member_id = db.Column(db.Integer, db.ForeignKey("member.id"), nullable=True, index=True)
+    speaker_text = db.Column(db.String(256), nullable=True)
+    topic = db.Column(db.String(256), nullable=False, default="")
+    notes = db.Column(db.Text, nullable=True)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    member = db.relationship("Member", backref=db.backref("suggested_talks", cascade="all, delete-orphan"))
+
+    def speaker_label(self) -> str:
+        if self.member_id and self.member is not None:
+            return self.member.full_name
+        text = (self.speaker_text or "").strip()
+        if text:
+            return text
+        return "—"
+
+
 class Interview(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     starts_at = db.Column(db.DateTime, nullable=False, index=True)

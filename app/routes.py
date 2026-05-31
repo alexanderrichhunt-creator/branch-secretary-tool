@@ -9,7 +9,7 @@ from flask import Blueprint, flash, jsonify, redirect, render_template, request,
 from flask_login import current_user, login_required
 
 from . import db
-from .models import Event, Interview, Member, Talk, User, parse_us_date
+from .models import Event, Interview, Member, SuggestedTalk, Talk, User, parse_us_date
 
 
 def _short_calendar_title(text: str, max_len: int = 40) -> str:
@@ -94,6 +94,39 @@ def _talk_calendar_title(t: Talk) -> str:
     if topic:
         return f"Talk: {speaker} — {topic}"
     return f"Talk: {speaker}"
+
+
+def _suggested_talk_speaker_label(st: SuggestedTalk) -> str:
+    return st.speaker_label()
+
+
+def _suggested_talk_payload(st: SuggestedTalk) -> dict:
+    return {
+        "id": st.id,
+        "member_id": st.member_id,
+        "speaker_text": st.speaker_text or "",
+        "speaker_label": _suggested_talk_speaker_label(st),
+        "topic": st.topic or "",
+        "notes": st.notes or "",
+        "created_at": st.created_at.isoformat() if st.created_at else "",
+    }
+
+
+def _parse_suggested_talk_submission():
+    member_raw = (request.form.get("member_id") or "").strip()
+    member_id = int(member_raw) if member_raw and int(member_raw) > 0 else None
+    speaker_text = (request.form.get("speaker_text") or "").strip() or None
+    if member_id:
+        speaker_text = None
+    topic = (request.form.get("topic") or "").strip()
+    notes = (request.form.get("notes") or "").strip() or None
+    return member_id, speaker_text, topic, notes
+
+
+def _validate_suggested_talk_fields(member_id, speaker_text, topic) -> str | None:
+    if not member_id and not speaker_text and not topic:
+        return "Add a speaker and/or topic."
+    return None
 
 
 def _week_talks(talk_date: date, exclude_talk_id: int | None = None) -> list[Talk]:
@@ -451,6 +484,7 @@ def reset_members():
     # Bulk deletes (fast) in child->parent order.
     Talk.query.delete()
     Interview.query.delete()
+    SuggestedTalk.query.delete()
     Member.query.delete()
     db.session.commit()
 
@@ -589,6 +623,17 @@ def add_talk():
     )
     db.session.add(t)
     db.session.commit()
+
+    suggested_id_raw = (request.form.get("suggested_talk_id") or "").strip()
+    if suggested_id_raw:
+        try:
+            suggested = SuggestedTalk.query.get(int(suggested_id_raw))
+            if suggested:
+                db.session.delete(suggested)
+                db.session.commit()
+        except ValueError:
+            pass
+
     flash("Fast and Testimony Meeting saved." if is_fast_testimony_talk(t) else "Talk saved.", "success")
     return _redirect_after_talk_action()
 
@@ -871,12 +916,78 @@ def calendar():
     members = Member.query.order_by(Member.full_name.asc()).all()
     from .event_utils import WEEKDAY_CODES
 
+    suggested_talks = (
+        SuggestedTalk.query.order_by(SuggestedTalk.sort_order.asc(), SuggestedTalk.created_at.asc()).all()
+    )
+
     return render_template(
         "calendar.html",
         members=members,
         weekday_codes=WEEKDAY_CODES,
         member_talk_recency=_member_talk_recency(),
+        suggested_talks=suggested_talks,
     )
+
+
+@main_bp.get("/api/suggested-talks")
+@login_required
+def api_suggested_talks():
+    items = (
+        SuggestedTalk.query.order_by(SuggestedTalk.sort_order.asc(), SuggestedTalk.created_at.asc()).all()
+    )
+    return jsonify({"suggestions": [_suggested_talk_payload(st) for st in items]})
+
+
+@main_bp.get("/api/suggested-talks/<int:suggestion_id>")
+@login_required
+def api_suggested_talk(suggestion_id: int):
+    st = SuggestedTalk.query.get_or_404(suggestion_id)
+    return jsonify(_suggested_talk_payload(st))
+
+
+@main_bp.post("/api/suggested-talks")
+@login_required
+def api_create_suggested_talk():
+    member_id, speaker_text, topic, notes = _parse_suggested_talk_submission()
+    error = _validate_suggested_talk_fields(member_id, speaker_text, topic)
+    if error:
+        return jsonify({"error": error}), 400
+
+    st = SuggestedTalk(
+        member_id=member_id,
+        speaker_text=speaker_text,
+        topic=topic,
+        notes=notes,
+    )
+    db.session.add(st)
+    db.session.commit()
+    return jsonify({"suggestion": _suggested_talk_payload(st)})
+
+
+@main_bp.post("/api/suggested-talks/<int:suggestion_id>/edit")
+@login_required
+def api_edit_suggested_talk(suggestion_id: int):
+    st = SuggestedTalk.query.get_or_404(suggestion_id)
+    member_id, speaker_text, topic, notes = _parse_suggested_talk_submission()
+    error = _validate_suggested_talk_fields(member_id, speaker_text, topic)
+    if error:
+        return jsonify({"error": error}), 400
+
+    st.member_id = member_id
+    st.speaker_text = speaker_text
+    st.topic = topic
+    st.notes = notes
+    db.session.commit()
+    return jsonify({"suggestion": _suggested_talk_payload(st)})
+
+
+@main_bp.post("/api/suggested-talks/<int:suggestion_id>/delete")
+@login_required
+def api_delete_suggested_talk(suggestion_id: int):
+    st = SuggestedTalk.query.get_or_404(suggestion_id)
+    db.session.delete(st)
+    db.session.commit()
+    return jsonify({"ok": True})
 
 
 @main_bp.get("/api/events")

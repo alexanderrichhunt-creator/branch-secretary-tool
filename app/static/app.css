@@ -229,6 +229,76 @@ body {
   font-weight: 600;
 }
 
+.cal-suggested-panel {
+  position: sticky;
+  top: 1rem;
+}
+
+.cal-suggested-panel .card-body {
+  max-height: min(78vh, 42rem);
+  overflow: auto;
+}
+
+.cal-suggested-count {
+  font-size: 0.85rem;
+}
+
+.cal-suggested-add-form {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+}
+
+.cal-suggested-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding-top: 0.75rem;
+}
+
+.cal-suggested-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.cal-suggested-item-main {
+  min-width: 0;
+}
+
+.cal-suggested-topic {
+  margin-top: 0.15rem;
+}
+
+.cal-suggested-notes {
+  margin-top: 0.25rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cal-suggested-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.cal-suggested-empty {
+  padding: 0.5rem 0;
+}
+
+@media (max-width: 1199.98px) {
+  .cal-suggested-panel {
+    position: static;
+  }
+
+  .cal-suggested-panel .card-body {
+    max-height: none;
+  }
+}
+
 .dashboard-interviews-card .card-body {
   display: flex;
   flex-direction: column;

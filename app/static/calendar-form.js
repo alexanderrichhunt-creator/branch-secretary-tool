@@ -77,6 +77,41 @@
     if (window.MemberSelectFilter) {
       window.MemberSelectFilter.resetAll();
     }
+    const suggestedTalkId = document.getElementById("cal_suggested_talk_id");
+    if (suggestedTalkId) suggestedTalkId.value = "";
+  }
+
+  function activateCreateTab(tabId) {
+    const tabBtn = document.getElementById(tabId);
+    if (tabBtn && window.bootstrap) {
+      bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+    }
+  }
+
+  function fillTalkFromSuggestion(suggestion) {
+    const form = document.getElementById("calTalkForm");
+    if (!form || !suggestion) return;
+
+    const idField = document.getElementById("cal_suggested_talk_id");
+    if (idField) idField.value = suggestion.id ? String(suggestion.id) : "";
+
+    const member = form.querySelector('[name="member_id"]');
+    if (member) {
+      member.value = suggestion.member_id ? String(suggestion.member_id) : "";
+      member.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    const speakerText = document.getElementById("cal_talk_speaker_text");
+    if (speakerText) speakerText.value = suggestion.speaker_text || "";
+
+    const topic = document.getElementById("cal_talk_topic");
+    if (topic) topic.value = suggestion.topic || "";
+
+    const notes = document.getElementById("cal_talk_notes");
+    if (notes) notes.value = suggestion.notes || "";
+
+    const assigned = form.querySelector("#cal_talk_kind_assigned");
+    if (assigned) assigned.checked = true;
   }
 
   function dispatchTalkDateChange() {
@@ -173,6 +208,18 @@
       });
     },
 
+    openForSuggestion: function (suggestion, dateStr) {
+      const start = dateStr ? dateFromParts(dateStr) : new Date();
+      this.open({
+        start: start,
+        end: start,
+        allDay: true,
+        dateStr: dateStr || "",
+        tab: "cal-tab-talk",
+        suggestion: suggestion,
+      });
+    },
+
     open: function (opts) {
       if (!this.modal) return;
       const allDay = !!opts.allDay;
@@ -218,6 +265,13 @@
         'input[name="recurrence_byweekday"][value="' + weekdayCode(titleDate) + '"]'
       );
       if (dayBox) dayBox.checked = true;
+
+      if (opts.suggestion) {
+        fillTalkFromSuggestion(opts.suggestion);
+      }
+      if (opts.tab) {
+        activateCreateTab(opts.tab);
+      }
 
       dispatchTalkDateChange();
       this.modal.show();
