@@ -555,10 +555,21 @@ def set_member_regular_attendee(member_id: int):
     else:
         member.is_regular_attendee = not member.is_regular_attendee
     db.session.commit()
-    flash(
-        f"{member.full_name} {'added to' if member.is_regular_attendee else 'removed from'} regular attendees.",
-        "success",
+    message = (
+        f"{member.full_name} {'added to' if member.is_regular_attendee else 'removed from'} regular attendees."
     )
+    if request.accept_mimetypes.best_match(["application/json", "text/html"]) == "application/json":
+        regular_count = Member.query.filter(Member.is_regular_attendee.is_(True)).count()
+        return jsonify(
+            {
+                "ok": True,
+                "member_id": member.id,
+                "is_regular_attendee": member.is_regular_attendee,
+                "regular_count": regular_count,
+                "message": message,
+            }
+        )
+    flash(message, "success")
     return redirect(request.referrer or url_for("main.members"))
 
 
