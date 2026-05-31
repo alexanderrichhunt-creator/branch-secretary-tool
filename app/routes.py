@@ -657,6 +657,8 @@ def _redirect_after_talk_action():
         return redirect(url_for("main.dashboard"))
     if return_to == "calendar":
         return redirect(url_for("main.calendar"))
+    if return_to == "speaker_pool":
+        return redirect(url_for("main.speaker_pool"))
     return redirect(url_for("main.talks"))
 
 

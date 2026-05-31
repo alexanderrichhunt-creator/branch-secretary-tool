@@ -6,13 +6,14 @@
     <p class="page-subtitle">Adults and youth in separate lists, sorted by who is available to speak. Green means good to schedule; red means they spoke recently.</p>
   </div>
   <div class="page-actions">
-    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.talks') }}">Log a talk</a>
+    <button class="btn btn-primary btn-sm" type="button" id="poolOpenAssignBtn" data-bs-toggle="modal" data-bs-target="#poolAssignTalkModal">Assign talk</button>
+    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.talks') }}">All talks</a>
     <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.members', regular='1') }}">Manage regular attendees</a>
   </div>
 </div>
 
-<div class="row g-3">
-  <div class="col-12 col-xl-8">
+<div class="row g-3 speaker-pool-page-layout align-items-start">
+  <div class="col-12 col-lg-8 speaker-pool-page-main">
     <div class="row g-3">
       <div class="col-12 col-lg-6">
         <section class="panel h-100">
@@ -20,8 +21,8 @@
             <span>Adults</span>
             <span class="small muted">{{ speaker_pool_adult | length }} regular attendee{% if speaker_pool_adult | length != 1 %}s{% endif %}</span>
           </div>
-          <div class="panel-body">
-            {% with speaker_pool=speaker_pool_adult, show_schedule=true, schedule_date=schedule_date, pool_empty_message='No adult regular attendees yet. Mark adults as regular attendees on the Members page.' %}
+          <div class="panel-body panel-body-scroll">
+            {% with speaker_pool=speaker_pool_adult, show_schedule=true, schedule_date=schedule_date, assign_in_modal=true, pool_empty_message='No adult regular attendees yet. Mark adults as regular attendees on the Members page.' %}
               {% include 'partials/speaker_pool_table.html' %}
             {% endwith %}
           </div>
@@ -34,8 +35,8 @@
             <span>Youth</span>
             <span class="small muted">{{ speaker_pool_youth | length }} regular attendee{% if speaker_pool_youth | length != 1 %}s{% endif %}</span>
           </div>
-          <div class="panel-body">
-            {% with speaker_pool=speaker_pool_youth, show_schedule=true, schedule_date=schedule_date, pool_empty_message='No youth regular attendees yet. Set group to Youth on the Members page when marking regular attendees.' %}
+          <div class="panel-body panel-body-scroll">
+            {% with speaker_pool=speaker_pool_youth, show_schedule=true, schedule_date=schedule_date, assign_in_modal=true, pool_empty_message='No youth regular attendees yet. Set group to Youth on the Members page when marking regular attendees.' %}
               {% include 'partials/speaker_pool_table.html' %}
             {% endwith %}
           </div>
@@ -44,10 +45,10 @@
     </div>
   </div>
 
-  <div class="col-12 col-xl-4">
-    <section class="panel mb-3">
+  <div class="col-12 col-lg-4 speaker-pool-page-sidebar">
+    <section class="panel">
       <div class="panel-header">How to read this</div>
-      <div class="panel-body small">
+      <div class="panel-body small panel-body-scroll">
         <ul class="mb-0 ps-3">
           <li class="mb-2"><strong>Never spoke</strong> — no talk on record; usually your best place to start.</li>
           <li class="mb-2"><strong>Available</strong> — last spoke more than 6 months ago.</li>
@@ -56,11 +57,19 @@
         </ul>
       </div>
     </section>
+  </div>
+</div>
 
-    <section class="panel">
-      <div class="panel-header">Quick assign</div>
-      <div class="panel-body">
-        <form method="post" action="{{ url_for('main.add_talk') }}" class="talk-add-form">
+<div class="modal fade" id="poolAssignTalkModal" tabindex="-1" aria-labelledby="poolAssignTalkModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5 fw-bold" id="poolAssignTalkModalLabel">Assign talk</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form method="post" action="{{ url_for('main.add_talk') }}" class="talk-add-form" id="pool-assign-form">
+          <input type="hidden" name="return_to" value="speaker_pool" />
           {% set id_prefix = 'pool_' %}{% set is_fast_testimony = false %}{% include 'partials/talk_kind_selector.html' %}
           <div class="mb-3">
             <label class="form-label" for="pool_talk_date">Sacrament date</label>
@@ -90,7 +99,7 @@
           <button class="btn btn-primary btn-sm" type="submit">Save talk assignment</button>
         </form>
       </div>
-    </section>
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -100,4 +109,31 @@
 <script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
 <script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
 <script src="{{ url_for('static', filename='talk-form.js') }}"></script>
+<script>
+  (function () {
+    var modalEl = document.getElementById("poolAssignTalkModal");
+    var modal = modalEl && window.bootstrap ? bootstrap.Modal.getOrCreateInstance(modalEl) : null;
+
+    function openAssignModal(memberId, talkDate) {
+      if (talkDate) {
+        var dateInput = document.getElementById("pool_talk_date");
+        if (dateInput) dateInput.value = talkDate;
+      }
+      if (memberId) {
+        var memberSelect = document.getElementById("pool_member_id");
+        if (memberSelect) {
+          memberSelect.value = String(memberId);
+          memberSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }
+      if (modal) modal.show();
+    }
+
+    document.addEventListener("click", function (event) {
+      var btn = event.target.closest(".pool-assign-talk-btn");
+      if (!btn) return;
+      openAssignModal(btn.getAttribute("data-member-id"), btn.getAttribute("data-talk-date") || "");
+    });
+  })();
+</script>
 {% endblock %}

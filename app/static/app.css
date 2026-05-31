@@ -70,6 +70,26 @@ body {
   gap: 0.5rem;
 }
 
+.panel-body-scroll {
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+@media (min-width: 992px) {
+  .talks-page-sidebar,
+  .speaker-pool-page-sidebar {
+    position: sticky;
+    top: 0.75rem;
+  }
+
+  .talks-page-main .panel-body-scroll,
+  .talks-page-sidebar .panel-body-scroll,
+  .speaker-pool-page-main .panel-body-scroll,
+  .speaker-pool-page-sidebar .panel-body-scroll {
+    max-height: calc(100vh - 10.5rem);
+  }
+}
+
 .panel {
   background: var(--app-surface);
   border: 1px solid var(--app-border);

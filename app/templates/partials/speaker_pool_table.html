@@ -43,10 +43,19 @@
               </td>
               {% if show_schedule %}
                 <td class="text-end text-nowrap">
-                  <a
-                    class="btn btn-sm btn-outline-primary"
-                    href="{{ url_for('main.talks', prefill_member=row.member_id, prefill_date=schedule_date) if schedule_date else url_for('main.talks', prefill_member=row.member_id) }}"
-                  >Assign talk</a>
+                  {% if assign_in_modal %}
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary pool-assign-talk-btn"
+                      data-member-id="{{ row.member_id }}"
+                      data-talk-date="{{ schedule_date or '' }}"
+                    >Assign talk</button>
+                  {% else %}
+                    <a
+                      class="btn btn-sm btn-outline-primary"
+                      href="{{ url_for('main.talks', prefill_member=row.member_id, prefill_date=schedule_date) if schedule_date else url_for('main.talks', prefill_member=row.member_id) }}"
+                    >Assign talk</a>
+                  {% endif %}
                 </td>
               {% endif %}
             </tr>

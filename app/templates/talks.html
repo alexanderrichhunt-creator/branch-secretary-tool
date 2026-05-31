@@ -12,11 +12,11 @@
   </div>
 </div>
 
-<div class="row g-3 align-items-start">
-  <div class="col-12 col-xl-8">
+<div class="row g-3 talks-page-layout align-items-start">
+  <div class="col-12 col-lg-8 order-2 order-lg-1 talks-page-main">
     <div class="panel">
       <div class="panel-header">Recent talks</div>
-      <div class="panel-body p-0">
+      <div class="panel-body p-0 panel-body-scroll">
         <div class="table-responsive">
           <table class="table table-sm align-middle mb-0">
             <thead>
@@ -48,13 +48,13 @@
     </div>
   </div>
 
-  <div class="col-12 col-xl-4">
+  <div class="col-12 col-lg-4 order-1 order-lg-2 talks-page-sidebar">
     <section class="panel">
       <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <span>Speaker pool</span>
         <a class="btn btn-link btn-sm p-0" href="{{ url_for('main.speaker_pool') }}">Full pool</a>
       </div>
-      <div class="panel-body">
+      <div class="panel-body panel-body-scroll">
         {% with show_schedule=true, schedule_date=schedule_date %}
           {% include 'partials/speaker_pool_table.html' %}
         {% endwith %}
