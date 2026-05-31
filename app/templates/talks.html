@@ -3,9 +3,10 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">Talks</h1>
-    <p class="page-subtitle">Pick speakers from your regular-attendee pool and log who spoke.</p>
+    <p class="page-subtitle">Log sacrament talks and see who spoke recently.</p>
   </div>
   <div class="page-actions">
+    <button class="btn btn-primary btn-sm" type="button" id="talksOpenAddBtn" data-bs-toggle="modal" data-bs-target="#talksAddTalkModal">Add talk</button>
     <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.speaker_pool') }}">Speaker pool</a>
     <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.calendar') }}">Calendar</a>
   </div>
@@ -13,90 +14,47 @@
 
 <div class="row g-3 align-items-start">
   <div class="col-12 col-xl-8">
-    <div class="row g-3">
-      <div class="col-12 col-lg-5">
-        <div class="panel" id="add-talk-panel">
-          <div class="panel-header">Add a talk</div>
-          <div class="panel-body">
-            <form method="post" action="{{ url_for('main.add_talk') }}" class="talk-add-form">
-              {% set id_prefix = '' %}{% set is_fast_testimony = false %}{% include 'partials/talk_kind_selector.html' %}
-              <div class="mb-3">
-                <label class="form-label" for="talk_date">Date</label>
-                <input class="form-control" type="date" id="talk_date" name="talk_date" value="{{ schedule_date }}" required />
-              </div>
-              <div class="talk-assigned-fields">
-                <div class="mb-3">
-                  <label class="form-label" for="member_filter">Speaker (speaker pool first)</label>
-                  <input class="form-control mb-2" id="member_filter" data-member-filter-target="member_id" placeholder="Type a name to filter..." autocomplete="off" />
-                  {% with select_id='member_id', select_class='form-select-lg', placeholder='— Choose speaker —' %}
-                    {% include 'partials/member_speaker_select.html' %}
-                  {% endwith %}
-                  <div class="speaker-recency-alert alert mt-2 d-none" role="alert" aria-live="polite"></div>
-                  <div class="form-text">Regular attendees appear first, sorted by who is available to speak.</div>
-                </div>
-                <div class="mb-3">
-                  <label class="form-label" for="speaker_text">Speaker (free text)</label>
-                  <input class="form-control" type="text" id="speaker_text" name="speaker_text" placeholder="Visitor, stake rep, youth speaker…" autocomplete="off" />
-                </div>
-                <div class="mb-3">
-                  <label class="form-label" for="topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
-                  <input class="form-control" id="topic" name="topic" placeholder="Faith, service, testimony…" />
-                </div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label" for="notes">Notes <span class="text-muted fw-normal">(optional)</span></label>
-                <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
-              </div>
-              <button class="btn btn-primary btn-sm" type="submit">Save talk</button>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-12 col-lg-7">
-        <div class="panel">
-          <div class="panel-header">Recent talks</div>
-          <div class="panel-body p-0">
-            <div class="table-responsive">
-              <table class="table table-sm align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Speaker</th>
-                    <th>Topic</th>
-                    <th class="text-end">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for t in talks %}
-                    <tr>
-                      <td class="text-nowrap">{{ t.talk_date.strftime("%b %d, %Y") }}</td>
-                      <td class="fw-semibold">{{ talk_speaker_label(t) }}</td>
-                      <td>{% if t.topic %}{{ t.topic }}{% else %}<span class="muted">—</span>{% endif %}</td>
-                      <td class="text-end text-nowrap">
-                        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
-                        <form class="d-inline" method="post" action="{{ url_for('main.delete_talk', talk_id=t.id) }}" onsubmit="return confirm('Delete this talk?');">
-                          <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
-                        </form>
-                      </td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
+    <div class="panel">
+      <div class="panel-header">Recent talks</div>
+      <div class="panel-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Speaker</th>
+                <th>Topic</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in talks %}
+                <tr>
+                  <td class="text-nowrap">{{ t.talk_date.strftime("%b %d, %Y") }}</td>
+                  <td class="fw-semibold">{{ talk_speaker_label(t) }}</td>
+                  <td>{% if t.topic %}{{ t.topic }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                  <td class="text-end text-nowrap">
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
+                    <form class="d-inline" method="post" action="{{ url_for('main.delete_talk', talk_id=t.id) }}" onsubmit="return confirm('Delete this talk?');">
+                      <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   </div>
 
   <div class="col-12 col-xl-4">
-    <section class="panel talks-pool-sidebar">
+    <section class="panel">
       <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
         <span>Speaker pool</span>
         <a class="btn btn-link btn-sm p-0" href="{{ url_for('main.speaker_pool') }}">Full pool</a>
       </div>
-      <div class="panel-body speaker-pool-scroll">
+      <div class="panel-body">
         {% with show_schedule=true, schedule_date=schedule_date %}
           {% include 'partials/speaker_pool_table.html' %}
         {% endwith %}
@@ -104,30 +62,90 @@
     </section>
   </div>
 </div>
+
+<div class="modal fade" id="talksAddTalkModal" tabindex="-1" aria-labelledby="talksAddTalkModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5 fw-bold" id="talksAddTalkModalLabel">Add talk</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form method="post" action="{{ url_for('main.add_talk') }}" class="talk-add-form" id="talks-add-form">
+          {% set id_prefix = 'talks_' %}{% set is_fast_testimony = false %}{% include 'partials/talk_kind_selector.html' %}
+          <div class="mb-3">
+            <label class="form-label" for="talks_talk_date">Date</label>
+            <input class="form-control" type="date" id="talks_talk_date" name="talk_date" value="{{ schedule_date }}" required />
+          </div>
+          <div class="talk-assigned-fields">
+            <div class="mb-3">
+              <label class="form-label" for="talks_member_filter">Speaker</label>
+              <input class="form-control mb-2 member-filter-input" type="text" id="talks_member_filter" data-member-filter-target="talks_member_id" placeholder="Type a name to search..." autocomplete="off" />
+              {% with select_id='talks_member_id', select_class='form-select-lg', placeholder='— Choose speaker —' %}
+                {% include 'partials/member_speaker_select.html' %}
+              {% endwith %}
+              <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
+              <div class="form-text">Regular attendees appear first, sorted by who is available to speak.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="talks_speaker_text">Speaker (free text)</label>
+              <input class="form-control" type="text" id="talks_speaker_text" name="speaker_text" placeholder="Visitor, stake rep, youth speaker…" autocomplete="off" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="talks_topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
+              <input class="form-control" type="text" id="talks_topic" name="topic" placeholder="Faith, service, testimony…" />
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="talks_notes">Notes <span class="text-muted fw-normal">(optional)</span></label>
+            <textarea class="form-control" id="talks_notes" name="notes" rows="2"></textarea>
+          </div>
+          <button class="btn btn-primary btn-sm" type="submit">Save talk</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='member-select-filter.js') }}"></script>
-<script>
-  (function () {
-    var params = new URLSearchParams(window.location.search);
-    var d = params.get("prefill_date");
-    var member = params.get("prefill_member");
-    if (d) {
-      var tel = document.getElementById("talk_date");
-      if (tel) tel.value = d;
-    }
-    if (member) {
-      var sel = document.getElementById("member_id");
-      if (sel) sel.value = member;
-    }
-    if (d || member) {
-      var panel = document.getElementById("add-talk-panel");
-      if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  })();
-</script>
 <script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
 <script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
 <script src="{{ url_for('static', filename='talk-form.js') }}"></script>
+<script>
+  (function () {
+    var modalEl = document.getElementById("talksAddTalkModal");
+    var modal = modalEl && window.bootstrap ? bootstrap.Modal.getOrCreateInstance(modalEl) : null;
+    var params = new URLSearchParams(window.location.search);
+    var prefillDate = params.get("prefill_date");
+    var prefillMember = params.get("prefill_member");
+
+    function openAddTalkModal() {
+      if (modal) modal.show();
+    }
+
+    function applyPrefill() {
+      if (prefillDate) {
+        var dateInput = document.getElementById("talks_talk_date");
+        if (dateInput) dateInput.value = prefillDate;
+      }
+      if (prefillMember) {
+        var memberSelect = document.getElementById("talks_member_id");
+        if (memberSelect) {
+          memberSelect.value = prefillMember;
+          memberSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }
+    }
+
+    if (prefillDate || prefillMember) {
+      applyPrefill();
+      openAddTalkModal();
+      if (window.history.replaceState) {
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    }
+  })();
+</script>
 {% endblock %}
