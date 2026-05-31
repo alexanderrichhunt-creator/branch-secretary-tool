@@ -375,8 +375,10 @@ def export_docx(data: dict) -> bytes:
     panel_width = content_width // 2
     body_font = "Times New Roman"
     program_size = Pt(11)
-    lyric_size = Pt(11)
-    lyric_heading_size = Pt(12)
+    lyric_size = Pt(14)
+    lyric_heading_size = Pt(15)
+    lyric_leading = 1.4
+    lyric_line_after = 6
     cover_title_size = Pt(18)
     cover_sub_size = Pt(13)
 
@@ -487,9 +489,25 @@ def export_docx(data: dict) -> bytes:
         number = hymn.get("number")
         book = hymn.get("book") or HYMN_BOOK_CHILDREN
         lyrics = (hymn.get("lyrics") or "").strip() or hymn_lyrics(number, book)
-        add_para(cell, hymn_panel_heading(hymn, label), bold=True, center=True, size=lyric_heading_size, after=10, leading=1.12)
+        add_para(
+            cell,
+            hymn_panel_heading(hymn, label),
+            bold=True,
+            center=True,
+            size=lyric_heading_size,
+            after=14,
+            leading=1.25,
+        )
         if lyrics:
-            add_multiline(cell, lyrics, size=lyric_size, after_last=0, line_after=2, leading=1.12, center=True)
+            add_multiline(
+                cell,
+                lyrics,
+                size=lyric_size,
+                after_last=0,
+                line_after=lyric_line_after,
+                leading=lyric_leading,
+                center=True,
+            )
         elif book == HYMN_BOOK_CHILDREN and number:
             add_para(
                 cell,
