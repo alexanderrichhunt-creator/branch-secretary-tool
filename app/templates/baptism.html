@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Baptism program</h1>
+    <p class="page-subtitle">Build a baptismal service program. Hymns can use the Children's Songbook or Hymns.</p>
+    {% if has_saved_defaults %}
+      <p class="page-note text-success">Branch defaults saved — they load automatically.</p>
+    {% endif %}
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.dashboard') }}">Dashboard</a>
+  </div>
+</div>
+
+<form id="baptism-form" method="post" action="{{ url_for('main.baptism_export', fmt='docx') }}">
+  <div class="row g-3">
+    <div class="col-12 col-lg-6">
+      <div class="panel mb-3">
+        <div class="panel-header">Service details</div>
+        <div class="panel-body">
+          <div class="row g-2 mb-3">
+            <div class="col-sm-6">
+              <label class="form-label" for="service_date">Date</label>
+              <input class="form-control" type="date" id="service_date" name="service_date" value="{{ defaults.service_date }}" />
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label" for="service_time">Time</label>
+              <input class="form-control" type="time" id="service_time" name="service_time" value="{{ defaults.service_time }}" />
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="location">Location</label>
+            <input class="form-control" id="location" name="location" value="{{ defaults.location }}" placeholder="Chapel, stake center, etc." />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="presiding">Presiding</label>
+            <input class="form-control" id="presiding" name="presiding" value="{{ defaults.presiding }}" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="conducting">Conducting</label>
+            <input class="form-control" id="conducting" name="conducting" value="{{ defaults.conducting }}" />
+          </div>
+          <div class="mb-0">
+            <label class="form-label" for="welcome_text">Welcome / opening remarks</label>
+            <textarea class="form-control" id="welcome_text" name="welcome_text" rows="2">{{ defaults.welcome_text }}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel mb-3">
+        <div class="panel-header">Music &amp; prayers</div>
+        <div class="panel-body">
+          {% set prefix = 'opening' %}{% set defaults_ref = defaults %}{% include 'partials/hymn_book_fields.html' %}
+          <div class="mb-3">
+            <label class="form-label" for="invocation">Invocation</label>
+            <input class="form-control" id="invocation" name="invocation" value="{{ defaults.invocation }}" />
+          </div>
+          {% set prefix = 'closing' %}{% include 'partials/hymn_book_fields.html' %}
+          <div class="mb-0">
+            <label class="form-label" for="benediction">Benediction</label>
+            <input class="form-control" id="benediction" name="benediction" value="{{ defaults.benediction }}" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="panel mb-3">
+        <div class="panel-header">Program</div>
+        <div class="panel-body">
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label" for="speaker_1">Speaker</label>
+              <input class="form-control" id="speaker_1" name="speaker_1" value="{{ defaults.speaker_1 }}" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="speaker_1_topic">Topic</label>
+              <input class="form-control" id="speaker_1_topic" name="speaker_1_topic" value="{{ defaults.speaker_1_topic }}" />
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label" for="speaker_2">Speaker <span class="text-muted fw-normal">(optional)</span></label>
+              <input class="form-control" id="speaker_2" name="speaker_2" value="{{ defaults.speaker_2 }}" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="speaker_2_topic">Topic</label>
+              <input class="form-control" id="speaker_2_topic" name="speaker_2_topic" value="{{ defaults.speaker_2_topic }}" />
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="musical_number">Musical number <span class="text-muted fw-normal">(optional)</span></label>
+            <input class="form-control" id="musical_number" name="musical_number" value="{{ defaults.musical_number }}" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="candidate_name">Candidate</label>
+            <input class="form-control" id="candidate_name" name="candidate_name" value="{{ defaults.candidate_name }}" placeholder="Full name" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="baptism_by">Baptism performed by</label>
+            <input class="form-control" id="baptism_by" name="baptism_by" value="{{ defaults.baptism_by }}" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="confirmation_by">Confirmation by</label>
+            <input class="form-control" id="confirmation_by" name="confirmation_by" value="{{ defaults.confirmation_by }}" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="confirmation_text">Confirmation remarks</label>
+            <textarea class="form-control" id="confirmation_text" name="confirmation_text" rows="3">{{ defaults.confirmation_text }}</textarea>
+            <div class="form-text">Use [candidate] to insert the candidate's name automatically.</div>
+          </div>
+          <div class="mb-0">
+            <label class="form-label" for="reception_notes">Reception / refreshments <span class="text-muted fw-normal">(optional)</span></label>
+            <textarea class="form-control" id="reception_notes" name="reception_notes" rows="2">{{ defaults.reception_notes }}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel program-preview-panel">
+        <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <span>Preview</span>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-primary btn-sm" formaction="{{ url_for('main.baptism_export', fmt='docx') }}" formtarget="_blank">Download Word</button>
+            <button type="submit" class="btn btn-outline-secondary btn-sm" formaction="{{ url_for('main.baptism_export', fmt='txt') }}" formtarget="_blank">Download text</button>
+            <button type="submit" class="btn btn-success btn-sm" formaction="{{ url_for('main.baptism_save_defaults') }}">Save defaults</button>
+          </div>
+        </div>
+        <div class="panel-body p-0">
+          <div id="baptism-preview" class="program-preview"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='baptism.js') }}"></script>
+{% endblock %}

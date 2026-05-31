@@ -1,0 +1,36 @@
+<div class="hymn-field-group mb-3">
+  <div class="form-label">{{ 'Opening hymn' if prefix == 'opening' else 'Closing hymn' }}</div>
+  <div class="row g-2">
+    <div class="col-md-4">
+      <label class="form-label small text-muted" for="{{ prefix }}_hymn_book">Songbook</label>
+      <select class="form-select form-select-sm hymn-book-select" id="{{ prefix }}_hymn_book" name="{{ prefix }}_hymn_book" data-prefix="{{ prefix }}">
+        <option value="children" {% if defaults_ref[prefix ~ '_hymn_book'] == 'children' %}selected{% endif %}>Children's Songbook</option>
+        <option value="hymns" {% if defaults_ref[prefix ~ '_hymn_book'] == 'hymns' %}selected{% endif %}>Hymns</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small text-muted" for="{{ prefix }}_hymn_num"># <span class="fw-normal">(optional)</span></label>
+      <input
+        class="form-control form-control-sm hymn-num-input"
+        type="text"
+        inputmode="numeric"
+        id="{{ prefix }}_hymn_num"
+        name="{{ prefix }}_hymn_num"
+        value="{{ defaults_ref[prefix ~ '_hymn_num'] }}"
+        data-title-target="{{ prefix }}_hymn_title"
+        data-book-target="{{ prefix }}_hymn_book"
+      />
+    </div>
+    <div class="col-md-5">
+      <label class="form-label small text-muted" for="{{ prefix }}_hymn_title">Title</label>
+      <input
+        class="form-control form-control-sm hymn-title-display"
+        type="text"
+        id="{{ prefix }}_hymn_title"
+        name="{{ prefix }}_hymn_title"
+        value="{{ defaults_ref[prefix ~ '_hymn_title'] }}"
+        placeholder="Song title"
+      />
+    </div>
+  </div>
+</div>

@@ -297,6 +297,34 @@ def _build_upcoming_schedule_items(limit: int = 12) -> list[dict]:
             }
         )
 
+    from .bulletin import is_fast_testimony_talk
+
+    upcoming_talks = (
+        Talk.query.filter(Talk.talk_date >= now.date())
+        .order_by(Talk.talk_date.asc(), Talk.id.asc())
+        .limit(limit * 2)
+        .all()
+    )
+    for talk in upcoming_talks:
+        talk_start = datetime.combine(talk.talk_date, datetime.min.time())
+        speaker = _talk_speaker_name(talk)
+        subtitle = (talk.topic or "").strip() or "Sacrament meeting"
+        if is_fast_testimony_talk(talk):
+            title = "Fast & Testimony Meeting"
+            subtitle = "Sacrament meeting"
+        else:
+            title = f"Talk: {speaker}"
+        items.append(
+            {
+                "kind": "talk",
+                "starts_at": talk_start,
+                "all_day": True,
+                "title": title,
+                "subtitle": subtitle,
+                "edit_url": url_for("main.edit_talk", talk_id=talk.id),
+            }
+        )
+
     for event in Event.query.order_by(Event.starts_at.asc()).all():
         for occ_start, _occ_end in iter_event_occurrences(event, now, horizon):
             if occ_start < now:
@@ -1211,9 +1239,79 @@ def api_bulletin_speakers():
 @main_bp.get("/api/hymn/<int:number>")
 @login_required
 def api_hymn(number: int):
-    from .hymns import hymn_line, hymn_title
+    from .hymns import hymn_line, hymn_title, normalize_hymn_book
 
-    return jsonify({"number": number, "title": hymn_title(number), "line": hymn_line(number)})
+    book = normalize_hymn_book(request.args.get("book"))
+    return jsonify(
+        {
+            "number": number,
+            "book": book,
+            "title": hymn_title(number, book),
+            "line": hymn_line(number, book),
+        }
+    )
+
+
+@main_bp.get("/baptism")
+@login_required
+def baptism_builder():
+    from .baptism import get_branch_baptism_defaults, has_saved_baptism_defaults, resolved_hymn_title
+
+    defaults = get_branch_baptism_defaults()
+    defaults["opening_hymn_title"] = resolved_hymn_title(
+        defaults, "opening_hymn_num", "opening_hymn_title", "opening_hymn_book"
+    )
+    defaults["closing_hymn_title"] = resolved_hymn_title(
+        defaults, "closing_hymn_num", "closing_hymn_title", "closing_hymn_book"
+    )
+    return render_template(
+        "baptism.html",
+        defaults=defaults,
+        has_saved_defaults=has_saved_baptism_defaults(),
+    )
+
+
+@main_bp.post("/baptism/save-defaults")
+@login_required
+def baptism_save_defaults():
+    from .baptism import save_branch_baptism_defaults
+
+    save_branch_baptism_defaults(request.form)
+    flash("Baptism program defaults saved.", "success")
+    return redirect(url_for("main.baptism_builder"))
+
+
+@main_bp.post("/baptism/export/<fmt>")
+@login_required
+def baptism_export(fmt: str):
+    from .baptism import baptism_from_form, build_baptism_text, export_docx
+
+    data = baptism_from_form(request.form)
+    suffix = (data.get("service_date_display") or "program").replace(",", "").replace(" ", "-")
+
+    try:
+        if fmt == "docx":
+            payload = export_docx(data)
+            return send_file(
+                io.BytesIO(payload),
+                as_attachment=True,
+                download_name=f"baptism-program-{suffix}.docx",
+                mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+        if fmt == "txt":
+            text = build_baptism_text(data)
+            return send_file(
+                io.BytesIO(text.encode("utf-8")),
+                as_attachment=True,
+                download_name=f"baptism-program-{suffix}.txt",
+                mimetype="text/plain; charset=utf-8",
+            )
+    except Exception as exc:
+        flash(f"Could not create {fmt.upper()} file: {exc}", "danger")
+        return redirect(url_for("main.baptism_builder"))
+
+    flash("Unknown export format.", "warning")
+    return redirect(url_for("main.baptism_builder"))
 
 
 @main_bp.post("/bulletin/export/<fmt>")

@@ -129,6 +129,34 @@ class BulletinDefaults(db.Model):
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 
+class BaptismDefaults(db.Model):
+    """Single-row branch defaults for the baptism program builder (id=1)."""
+
+    __tablename__ = "baptism_defaults"
+
+    id = db.Column(db.Integer, primary_key=True)
+    presiding = db.Column(db.String(512), nullable=False, default="")
+    conducting = db.Column(db.String(512), nullable=False, default="")
+    welcome_text = db.Column(db.Text, nullable=False, default="")
+    location = db.Column(db.String(256), nullable=False, default="")
+    opening_hymn_num = db.Column(db.String(8), nullable=False, default="2")
+    opening_hymn_title = db.Column(db.String(256), nullable=False, default="")
+    opening_hymn_book = db.Column(db.String(16), nullable=False, default="children")
+    invocation = db.Column(db.String(256), nullable=False, default="(by invitation)")
+    speaker_1 = db.Column(db.String(256), nullable=False, default="")
+    speaker_1_topic = db.Column(db.String(256), nullable=False, default="")
+    speaker_2 = db.Column(db.String(256), nullable=False, default="")
+    speaker_2_topic = db.Column(db.String(256), nullable=False, default="")
+    musical_number = db.Column(db.String(256), nullable=False, default="")
+    confirmation_text = db.Column(db.Text, nullable=False, default="")
+    closing_hymn_num = db.Column(db.String(8), nullable=False, default="120")
+    closing_hymn_title = db.Column(db.String(256), nullable=False, default="")
+    closing_hymn_book = db.Column(db.String(16), nullable=False, default="children")
+    benediction = db.Column(db.String(256), nullable=False, default="(by invitation)")
+    reception_notes = db.Column(db.Text, nullable=False, default="")
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
 def parse_us_date(value: str | None) -> date | None:
     if not value:
         return None

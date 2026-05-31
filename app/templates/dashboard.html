@@ -1,54 +1,47 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+<div class="page-header">
   <div>
-    <h1 class="h2 fw-bold mb-1">Dashboard</h1>
-    <div class="muted">Today: {{ today.strftime("%b %d, %Y") }}</div>
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-subtitle">Today is {{ today.strftime("%A, %B %d, %Y") }}</p>
   </div>
-  <div class="d-flex gap-2">
-    <a class="btn btn-primary btn-lg" href="{{ url_for('main.talks') }}">Add a talk</a>
-    <a class="btn btn-success btn-lg" href="{{ url_for('main.interviews') }}">Add an interview</a>
+  <div class="page-actions">
+    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.talks') }}">Add talk</a>
+    <a class="btn btn-outline-success btn-sm" href="{{ url_for('main.interviews') }}">Add interview</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.calendar') }}">Calendar</a>
   </div>
 </div>
 
 <div class="row g-3 dashboard-main">
   <div class="col-12 col-lg-8 order-2 order-lg-1">
-    <section>
-      <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
-        <div>
-          <h2 class="h4 fw-bold mb-1">Sacrament talks</h2>
-          <div class="muted small">
-            {{ cutoff.strftime("%b %d, %Y") }} through {{ today.strftime("%b %d, %Y") }} · newest first
-          </div>
-        </div>
-        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.talks') }}">Full talks page</a>
+    <section class="panel mb-3">
+      <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span>Sacrament talks</span>
+        <a class="btn btn-link btn-sm p-0" href="{{ url_for('main.talks') }}">Full list</a>
       </div>
-
-      {% set week = current_talk_week %}
-      {% set talk_count = week.regular_talk_count %}
-      <div class="card shadow-sm mb-3 dashboard-current-week">
-        <div class="card-body py-3">
-          <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
-            <div>
-              <div class="small text-uppercase fw-bold text-primary">This sacrament Sunday</div>
-              <div class="dashboard-sacrament-date dashboard-sacrament-date-main">{{ week.sacrament_date.strftime("%A, %b %d, %Y") }}</div>
-              <div class="small muted">Week of {{ week.week_start.strftime("%b %d") }} – {{ week.week_end.strftime("%b %d, %Y") }}</div>
-            </div>
-          </div>
+      <div class="panel-body">
+        {% set week = current_talk_week %}
+        {% set talk_count = week.regular_talk_count %}
+        <div class="mb-3 pb-3 border-bottom">
+          <div class="small text-uppercase fw-semibold text-primary mb-1">This sacrament Sunday</div>
+          <div class="fw-semibold">{{ week.sacrament_date.strftime("%A, %b %d, %Y") }}</div>
+          <div class="small muted">Week of {{ week.week_start.strftime("%b %d") }} – {{ week.week_end.strftime("%b %d, %Y") }}</div>
 
           {% if week.talks %}
-            <ul class="list-unstyled mb-0 dashboard-current-talks">
+            <div class="data-list mt-3">
               {% for t in week.talks %}
-                <li class="dashboard-current-talk-item">
-                  <span class="dashboard-talk-date">{{ t.talk_date.strftime("%a %b %d") }}</span>
-                  <span class="dashboard-talk-speaker">{{ talk_speaker_label(t) }}</span>
-                  <span class="dashboard-talk-topic muted">{% if t.topic %}{{ t.topic }}{% endif %}</span>
+                <div class="data-list-item">
+                  <div class="data-list-meta">{{ t.talk_date.strftime("%a %b %d") }}</div>
+                  <div>
+                    <div class="data-list-title">{{ talk_speaker_label(t) }}</div>
+                    {% if t.topic %}<div class="data-list-sub">{{ t.topic }}</div>{% endif %}
+                  </div>
                   <a class="small" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
-                </li>
+                </div>
               {% endfor %}
-            </ul>
+            </div>
           {% else %}
-            <div class="muted small mb-2">No talks logged for this week yet.</div>
+            <div class="muted small mt-2">No talks logged for this week yet.</div>
           {% endif %}
 
           {% if not week.has_fast_testimony and talk_count < max_talks_per_week %}
@@ -62,97 +55,97 @@
             >Add talk</button>
           {% endif %}
         </div>
-      </div>
 
-      <div class="card shadow-sm dashboard-talks-history">
-        <div class="card-body p-3">
-          {% if talk_sunday_groups %}
-            <div class="dashboard-talks-table-wrap">
-              {% set ns = namespace(month='') %}
-              {% for group in talk_sunday_groups %}
-                {% if group.month_label != ns.month %}
-                  {% set ns.month = group.month_label %}
-                  <div class="talk-month-header">{{ group.month_label }}</div>
-                {% endif %}
+        {% if talk_sunday_groups %}
+          <div class="small text-uppercase fw-semibold text-muted mb-2">Recent Sundays</div>
+          <div class="dashboard-talks-table-wrap">
+            {% set ns = namespace(month='') %}
+            {% for group in talk_sunday_groups %}
+              {% if group.month_label != ns.month %}
+                {% set ns.month = group.month_label %}
+                <div class="talk-month-header">{{ group.month_label }}</div>
+              {% endif %}
 
-                {% set group_count = group.regular_talk_count %}
-                <div class="dashboard-sunday-group{% if group.talks|length == 0 %} dashboard-sunday-group-empty{% endif %}">
-                  <div class="dashboard-sunday-header">
-                    <div>
-                      <div class="dashboard-sacrament-date">{{ group.sacrament_date.strftime("%A, %b %d, %Y") }}</div>
-                      {% if group.talks|length == 0 %}
-                        <div class="small muted">No talks logged</div>
-                      {% endif %}
-                    </div>
-                    {% if not group.has_fast_testimony and group_count < max_talks_per_week %}
-                      <button
-                        type="button"
-                        class="btn btn-sm btn-outline-primary dashboard-sunday-add-btn"
-                        data-bs-toggle="modal"
-                        data-bs-target="#dashboardAddTalkModal"
-                        data-add-talk-date="{{ group.sacrament_date.isoformat() }}"
-                        data-add-talk-label="Add talk — {{ group.sacrament_date.strftime('%b %d, %Y') }}"
-                      >Add</button>
+              {% set group_count = group.regular_talk_count %}
+              <div class="dashboard-sunday-group{% if group.talks|length == 0 %} dashboard-sunday-group-empty{% endif %}">
+                <div class="dashboard-sunday-header">
+                  <div>
+                    <div class="fw-semibold">{{ group.sacrament_date.strftime("%A, %b %d, %Y") }}</div>
+                    {% if group.talks|length == 0 %}
+                      <div class="small muted">No talks logged</div>
                     {% endif %}
                   </div>
-
-                  {% if group.talks %}
-                    <ul class="list-unstyled mb-0 dashboard-sunday-talks">
-                      {% for t in group.talks %}
-                        <li class="dashboard-sunday-talk-item">
-                          <span class="dashboard-talk-speaker">{{ talk_speaker_label(t) }}</span>
-                          <span class="text-secondary">{% if t.topic %}{{ t.topic }}{% else %}<span class="muted">—</span>{% endif %}</span>
-                          {% if group.talks|length > 1 and t.talk_date != group.sacrament_date %}
-                            <span class="dashboard-talk-date">{{ t.talk_date.strftime("%a %b %d") }}</span>
-                          {% endif %}
-                          <a class="small" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
-                        </li>
-                      {% endfor %}
-                    </ul>
+                  {% if not group.has_fast_testimony and group_count < max_talks_per_week %}
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary dashboard-sunday-add-btn"
+                      data-bs-toggle="modal"
+                      data-bs-target="#dashboardAddTalkModal"
+                      data-add-talk-date="{{ group.sacrament_date.isoformat() }}"
+                      data-add-talk-label="Add talk — {{ group.sacrament_date.strftime('%b %d, %Y') }}"
+                    >Add</button>
                   {% endif %}
                 </div>
-              {% endfor %}
-            </div>
-          {% else %}
-            <div class="muted">No other sacrament Sundays in the last 6 months.</div>
-          {% endif %}
-        </div>
+
+                {% if group.talks %}
+                  <div class="data-list mt-2">
+                    {% for t in group.talks %}
+                      <div class="data-list-item">
+                        <div class="data-list-meta">
+                          {% if group.talks|length > 1 and t.talk_date != group.sacrament_date %}
+                            {{ t.talk_date.strftime("%a %b %d") }}
+                          {% else %}
+                            &nbsp;
+                          {% endif %}
+                        </div>
+                        <div>
+                          <div class="data-list-title">{{ talk_speaker_label(t) }}</div>
+                          {% if t.topic %}<div class="data-list-sub">{{ t.topic }}</div>{% endif %}
+                        </div>
+                        <a class="small" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="muted small">No other sacrament Sundays in the last 6 months.</div>
+        {% endif %}
       </div>
     </section>
   </div>
 
   <div class="col-12 col-lg-4 order-1 order-lg-2">
-    <div class="card shadow-sm h-100 dashboard-interviews-card">
-      <div class="card-body">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-          <h2 class="h4 fw-bold mb-0">Upcoming schedule</h2>
-          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.calendar') }}">Add</a>
-        </div>
+    <div class="panel dashboard-schedule-card h-100">
+      <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span>Upcoming schedule</span>
+        <a class="btn btn-link btn-sm p-0" href="{{ url_for('main.calendar') }}">Calendar</a>
+      </div>
+      <div class="panel-body">
         {% if upcoming_items %}
-          <div class="list-group list-group-flush dashboard-interview-list">
+          <div class="dashboard-schedule-list">
             {% for item in upcoming_items %}
-              <div class="list-group-item px-0 dashboard-schedule-item dashboard-schedule-{{ item.kind }}{% if item.category %} dashboard-schedule-cat-{{ item.category }}{% endif %}">
-                <div class="fw-bold">
+              <div class="dashboard-schedule-row dashboard-schedule-{{ item.kind }}{% if item.category %} dashboard-schedule-cat-{{ item.category }}{% endif %}">
+                <div class="dashboard-schedule-when">
                   {% if item.all_day %}
-                    {{ item.starts_at.strftime("%a %b %d, %Y") }} · All day
+                    {{ item.starts_at.strftime("%a %b %d") }} · All day
                   {% else %}
-                    {{ item.starts_at.strftime("%a %b %d, %Y %I:%M %p") }}
+                    {{ item.starts_at.strftime("%a %b %d · %I:%M %p") }}
                   {% endif %}
                 </div>
-                <div class="small dashboard-schedule-title">{{ item.title }}</div>
-                <div class="small muted">{{ item.subtitle }}</div>
+                <div class="dashboard-schedule-title">{{ item.title }}</div>
+                {% if item.subtitle %}
+                  <div class="small muted">{{ item.subtitle }}</div>
+                {% endif %}
                 <a class="small" href="{{ item.edit_url }}">Edit</a>
               </div>
             {% endfor %}
           </div>
         {% else %}
-          <div class="muted">No upcoming interviews or events logged yet.</div>
+          <div class="muted small">No upcoming talks, interviews, or events.</div>
         {% endif %}
-        <div class="mt-3 d-flex flex-wrap gap-2">
-          <a class="btn btn-outline-success btn-sm" href="{{ url_for('main.interviews') }}">Interviews</a>
-          <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.events') }}">Events</a>
-          <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.calendar') }}">Calendar</a>
-        </div>
       </div>
     </div>
   </div>
@@ -170,12 +163,13 @@
           <input type="hidden" name="return_to" value="dashboard" />
           {% set id_prefix = 'dashboard_' %}{% set is_fast_testimony = false %}{% include 'partials/talk_kind_selector.html' %}
           <div class="mb-3">
-            <label class="form-label big-label" for="dashboard_add_talk_date">Talk date</label>
+            <label class="form-label" for="dashboard_add_talk_date">Talk date</label>
             <input class="form-control" type="date" id="dashboard_add_talk_date" name="talk_date" required />
           </div>
           <div class="talk-assigned-fields">
             <div class="mb-3">
-              <label class="form-label big-label" for="dashboard_add_member_id">Speaker</label>
+              <label class="form-label" for="dashboard_add_member_filter">Speaker</label>
+              <input class="form-control mb-2 member-filter-input" type="text" id="dashboard_add_member_filter" data-member-filter-target="dashboard_add_member_id" placeholder="Type a name to search..." autocomplete="off" />
               <select class="form-select" id="dashboard_add_member_id" name="member_id">
                 <option value="">— Member —</option>
                 {% for m in members %}
@@ -186,11 +180,11 @@
               <input class="form-control mt-2" type="text" name="speaker_text" placeholder="Or type name (visitor, etc.)" autocomplete="off" />
             </div>
             <div class="mb-3">
-              <label class="form-label big-label" for="dashboard_add_topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
+              <label class="form-label" for="dashboard_add_topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
               <input class="form-control" type="text" id="dashboard_add_topic" name="topic" placeholder="Topic" />
             </div>
           </div>
-          <button class="btn btn-primary" type="submit">Save talk</button>
+          <button class="btn btn-primary btn-sm" type="submit">Save talk</button>
         </form>
       </div>
     </div>
@@ -199,6 +193,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='member-select-filter.js') }}"></script>
 <script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
 <script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
 <script src="{{ url_for('static', filename='talk-form.js') }}"></script>

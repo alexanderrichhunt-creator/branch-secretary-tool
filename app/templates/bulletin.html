@@ -1,16 +1,18 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+<div class="page-header">
   <div>
-    <h1 class="h2 fw-bold mb-1">Branch Bulletin Builder</h1>
-    <div class="muted">Build a sacrament meeting bulletin from your template. Speakers load from talks on the calendar.</div>
+    <h1 class="page-title">Branch bulletin</h1>
+    <p class="page-subtitle">Build a sacrament meeting bulletin. Speakers load from talks on the calendar.</p>
     {% if has_saved_defaults %}
-      <div class="small text-success mt-1">Branch defaults are saved and load automatically each week.</div>
+      <p class="page-note text-success">Branch defaults saved — they load automatically each week.</p>
     {% else %}
-      <div class="small muted mt-1">Fill in your usual info once, then click <strong>Save branch defaults</strong>.</div>
+      <p class="page-note">Fill in your usual info once, then click <strong>Save branch defaults</strong>.</p>
     {% endif %}
   </div>
-  <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.dashboard') }}">Dashboard</a>
+  <div class="page-actions">
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.dashboard') }}">Dashboard</a>
+  </div>
 </div>
 
 <form id="bulletin-form" method="post" action="{{ url_for('main.bulletin_export', fmt='docx') }}">
