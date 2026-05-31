@@ -3,21 +3,55 @@
     if (!filterInput || !selectEl || selectEl.dataset.memberFilterBound) return;
     selectEl.dataset.memberFilterBound = "1";
 
-    const options = Array.from(selectEl.options);
-    const keepFirst = options[0];
-    const otherOpts = options.slice(1);
+    const structure = [];
+    let firstOption = null;
 
-    function applyFilter() {
-      const q = (filterInput.value || "").trim().toLowerCase();
+    for (const node of selectEl.children) {
+      if (node.tagName === "OPTION" && !firstOption) {
+        firstOption = node.cloneNode(true);
+        continue;
+      }
+      if (node.tagName === "OPTION") {
+        structure.push({ type: "option", option: node.cloneNode(true) });
+      } else if (node.tagName === "OPTGROUP") {
+        structure.push({
+          type: "group",
+          label: node.label,
+          options: Array.from(node.options).map(function (opt) {
+            return opt.cloneNode(true);
+          }),
+        });
+      }
+    }
+
+    function renderFiltered(query) {
       const selected = selectEl.value;
-
+      const q = (query || "").trim().toLowerCase();
       selectEl.innerHTML = "";
-      selectEl.appendChild(keepFirst);
+      if (firstOption) {
+        selectEl.appendChild(firstOption.cloneNode(true));
+      }
 
-      for (const opt of otherOpts) {
-        const text = (opt.textContent || "").toLowerCase();
-        if (!q || text.includes(q)) {
-          selectEl.appendChild(opt);
+      for (const item of structure) {
+        if (item.type === "option") {
+          const text = (item.option.textContent || "").toLowerCase();
+          if (!q || text.includes(q)) {
+            selectEl.appendChild(item.option.cloneNode(true));
+          }
+        } else if (item.type === "group") {
+          const group = document.createElement("optgroup");
+          group.label = item.label;
+          let added = 0;
+          for (const opt of item.options) {
+            const text = (opt.textContent || "").toLowerCase();
+            if (!q || text.includes(q)) {
+              group.appendChild(opt.cloneNode(true));
+              added += 1;
+            }
+          }
+          if (added) {
+            selectEl.appendChild(group);
+          }
         }
       }
 
@@ -26,8 +60,12 @@
       }
     }
 
-    filterInput.addEventListener("input", applyFilter);
-    selectEl._memberFilterApply = applyFilter;
+    filterInput.addEventListener("input", function () {
+      renderFiltered(filterInput.value);
+    });
+    selectEl._memberFilterApply = function () {
+      renderFiltered(filterInput.value);
+    };
   }
 
   function init() {

@@ -14,13 +14,11 @@
       {% set id_prefix = '' %}{% include 'partials/talk_kind_selector.html' %}
       <div class="talk-assigned-fields">
         <div class="mb-3">
-          <label class="form-label big-label" for="member_id">Speaker (from members list)</label>
-          <select class="form-select form-select-lg" id="member_id" name="member_id">
-            <option value="" {% if not talk.member_id %}selected{% endif %}>— None — (use free text below)</option>
-            {% for m in members %}
-              <option value="{{ m.id }}" {% if m.id == talk.member_id %}selected{% endif %}>{{ m.full_name }}</option>
-            {% endfor %}
-          </select>
+          <label class="form-label big-label" for="member_filter">Speaker (speaker pool first)</label>
+          <input class="form-control form-control-lg mb-2" id="member_filter" data-member-filter-target="member_id" placeholder="Type a name to filter..." autocomplete="off" />
+          {% with select_id='member_id', select_class='form-select-lg', selected_member_id=selected_member_id, placeholder='— None — (use free text below)' %}
+            {% include 'partials/member_speaker_select.html' %}
+          {% endwith %}
           <div class="speaker-recency-alert alert mt-2 d-none" role="alert" aria-live="polite"></div>
         </div>
         <div class="mb-3">
@@ -55,6 +53,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='member-select-filter.js') }}"></script>
 <script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
 <script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
 <script src="{{ url_for('static', filename='talk-form.js') }}"></script>

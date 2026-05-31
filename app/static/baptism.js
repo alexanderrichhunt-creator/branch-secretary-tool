@@ -8,10 +8,6 @@
     return el ? el.value.trim() : "";
   }
 
-  function bookLabel(book) {
-    return book === "children" ? "Children's Songbook" : "";
-  }
-
   function hymnLine(prefix) {
     const numRaw = val(prefix + "_hymn_num");
     const title = val(prefix + "_hymn_title");
@@ -100,13 +96,19 @@
     preview.textContent = lines.join("\n").trim() + "\n";
   }
 
-  async function lookupHymn(input) {
+  async function lookupHymn(input, options) {
+    options = options || {};
     const targetId = input.getAttribute("data-title-target");
     const bookTargetId = input.getAttribute("data-book-target");
     const target = targetId ? document.getElementById(targetId) : null;
     const bookEl = bookTargetId ? document.getElementById(bookTargetId) : null;
     const numRaw = (input.value || "").trim();
-    if (!target || !numRaw || (target.value || "").trim()) {
+    if (!target) {
+      updatePreview();
+      return;
+    }
+    if (!numRaw) {
+      if (options.clearWhenEmpty) target.value = "";
       updatePreview();
       return;
     }
@@ -120,7 +122,7 @@
       const res = await fetch("/api/hymn/" + n + "?book=" + encodeURIComponent(book));
       if (!res.ok) return;
       const data = await res.json();
-      if (!(target.value || "").trim()) target.value = data.title || "";
+      target.value = data.title || "";
     } catch (e) {
       /* ignore */
     }
@@ -149,6 +151,8 @@
     el.addEventListener("change", updatePreview);
   });
 
-  document.querySelectorAll(".hymn-num-input").forEach(lookupHymn);
+  document.querySelectorAll(".hymn-num-input").forEach(function (input) {
+    lookupHymn(input);
+  });
   updatePreview();
 })();

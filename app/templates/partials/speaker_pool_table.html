@@ -1,0 +1,62 @@
+{# Speaker pool table — regular attendees sorted by talk availability. #}
+<div class="speaker-pool-table-wrap">
+  {% if speaker_pool %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle speaker-pool-table mb-0">
+        <thead>
+          <tr>
+            <th>Speaker</th>
+            <th class="text-nowrap">Last talk</th>
+            <th class="text-nowrap">Status</th>
+            {% if show_schedule %}
+              <th class="text-end text-nowrap">Schedule</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in speaker_pool %}
+            <tr class="speaker-pool-row speaker-pool-row-{{ row.status }}">
+              <td>
+                <div class="fw-semibold">{{ member_label(row.member) }}</div>
+                {% if row.group_label %}
+                  <div class="small muted">{{ row.group_label }}</div>
+                {% endif %}
+              </td>
+              <td class="text-nowrap small">
+                {% if row.last_talk_display %}
+                  {{ row.last_talk_display }}
+                {% else %}
+                  <span class="muted">—</span>
+                {% endif %}
+                <div class="muted">{{ row.last_talk_summary }}</div>
+              </td>
+              <td class="text-nowrap">
+                {% if row.status == 'never' %}
+                  <span class="speaker-pool-badge speaker-pool-badge-never">Never spoke</span>
+                {% elif row.status == 'available' %}
+                  <span class="speaker-pool-badge speaker-pool-badge-available">Available</span>
+                {% elif row.status == 'consider' %}
+                  <span class="speaker-pool-badge speaker-pool-badge-consider">Consider waiting</span>
+                {% else %}
+                  <span class="speaker-pool-badge speaker-pool-badge-recent">Spoke recently</span>
+                {% endif %}
+              </td>
+              {% if show_schedule %}
+                <td class="text-end text-nowrap">
+                  <a
+                    class="btn btn-sm btn-outline-primary"
+                    href="{{ url_for('main.talks', prefill_member=row.member_id, prefill_date=schedule_date) if schedule_date else url_for('main.talks', prefill_member=row.member_id) }}"
+                  >Assign talk</a>
+                </td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="muted small py-2">
+      No regular attendees yet. On the <a href="{{ url_for('main.members', regular='1') }}">Members</a> page, mark people who usually attend as regular attendees to build your speaker pool.
+    </div>
+  {% endif %}
+</div>

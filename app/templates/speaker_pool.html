@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Speaker pool</h1>
+    <p class="page-subtitle">Regular attendees sorted by who is available to speak. Green means good to schedule; red means they spoke recently.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.talks') }}">Log a talk</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.members', regular='1') }}">Manage regular attendees</a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-xl-8">
+    <section class="panel">
+      <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span>Who can speak</span>
+        <span class="small muted">{{ speaker_pool | length }} regular attendee{% if speaker_pool | length != 1 %}s{% endif %}</span>
+      </div>
+      <div class="panel-body">
+        {% with show_schedule=true, schedule_date=schedule_date %}
+          {% include 'partials/speaker_pool_table.html' %}
+        {% endwith %}
+      </div>
+    </section>
+  </div>
+
+  <div class="col-12 col-xl-4">
+    <section class="panel mb-3">
+      <div class="panel-header">How to read this</div>
+      <div class="panel-body small">
+        <ul class="mb-0 ps-3">
+          <li class="mb-2"><strong>Never spoke</strong> — no talk on record; usually your best place to start.</li>
+          <li class="mb-2"><strong>Available</strong> — last spoke more than 6 months ago.</li>
+          <li class="mb-2"><strong>Consider waiting</strong> — last spoke 3–6 months ago.</li>
+          <li><strong>Spoke recently</strong> — last spoke within about 3 months.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">Quick assign</div>
+      <div class="panel-body">
+        <form method="post" action="{{ url_for('main.add_talk') }}" class="talk-add-form">
+          {% set id_prefix = 'pool_' %}{% set is_fast_testimony = false %}{% include 'partials/talk_kind_selector.html' %}
+          <div class="mb-3">
+            <label class="form-label" for="pool_talk_date">Sacrament date</label>
+            <input class="form-control" type="date" id="pool_talk_date" name="talk_date" value="{{ schedule_date }}" required />
+          </div>
+          <div class="talk-assigned-fields">
+            <div class="mb-3">
+              <label class="form-label" for="pool_member_filter">Speaker</label>
+              <input
+                class="form-control mb-2 member-filter-input"
+                type="text"
+                id="pool_member_filter"
+                data-member-filter-target="pool_member_id"
+                placeholder="Type a name to search..."
+                autocomplete="off"
+              />
+              {% with select_id='pool_member_id', select_class='', placeholder='— Choose from speaker pool —' %}
+                {% include 'partials/member_speaker_select.html' %}
+              {% endwith %}
+              <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="pool_topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
+              <input class="form-control" type="text" id="pool_topic" name="topic" placeholder="Topic" />
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" type="submit">Save talk assignment</button>
+        </form>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='member-select-filter.js') }}"></script>
+<script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
+<script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
+<script src="{{ url_for('static', filename='talk-form.js') }}"></script>
+{% endblock %}

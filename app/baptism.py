@@ -1,21 +1,21 @@
 from __future__ import annotations
 
 import io
-import re
 from datetime import date, datetime
+from pathlib import Path
 
-from .hymns import HYMN_BOOK_CHILDREN, HYMN_BOOK_HYMNS, hymn_book_label, hymn_display, hymn_title
+from .hymns import (
+    HYMN_BOOK_CHILDREN,
+    HYMN_BOOK_HYMNS,
+    hymn_book_label,
+    hymn_display,
+    hymn_lyrics,
+    hymn_title,
+    normalize_hymn_book,
+    parse_hymn_number,
+)
 
-URL_PATTERN = re.compile(r"https?://[^\s<>\"']+")
-
-
-def _split_trailing_url_punctuation(url: str) -> tuple[str, str]:
-    trailing = ""
-    while url and url[-1] in ".,);":
-        trailing = url[-1] + trailing
-        url = url[:-1]
-    return url, trailing
-
+_COVER_IMAGE_PATH = Path(__file__).resolve().parent / "static" / "images" / "baptism_cover.jpg"
 
 DEFAULT_BAPTISM = {
     "service_date": "",
@@ -102,17 +102,38 @@ def save_branch_baptism_defaults(form) -> None:
     db.session.commit()
 
 
-def resolved_hymn_title(defaults: dict, num_key: str, title_key: str, book_key: str) -> str:
-    saved = (defaults.get(title_key) or "").strip()
-    if saved:
-        return saved
-    num_raw = (defaults.get(num_key) or "").strip()
-    try:
-        number = int(num_raw.lstrip("#"))
-    except ValueError:
+def effective_hymn_title(num_raw: str | None, title_raw: str | None, book_raw: str | None) -> str:
+    title = (title_raw or "").strip()
+    if title:
+        return title
+    number = parse_hymn_number(num_raw)
+    if not number:
         return ""
-    book = (defaults.get(book_key) or HYMN_BOOK_HYMNS).strip()
-    return hymn_title(number, book)
+    return hymn_title(number, normalize_hymn_book(book_raw))
+
+
+def resolved_hymn_title(defaults: dict, num_key: str, title_key: str, book_key: str) -> str:
+    return effective_hymn_title(
+        defaults.get(num_key),
+        defaults.get(title_key),
+        defaults.get(book_key),
+    )
+
+
+def _hymn_export_fields(form, prefix: str) -> dict:
+    num_raw = (form.get(f"{prefix}_hymn_num") or "").strip()
+    book = normalize_hymn_book(form.get(f"{prefix}_hymn_book"))
+    title = effective_hymn_title(num_raw, form.get(f"{prefix}_hymn_title"), book)
+    number = parse_hymn_number(num_raw)
+    label = hymn_book_label(book) if book == HYMN_BOOK_CHILDREN else None
+    return {
+        "num_raw": num_raw,
+        "number": number,
+        "book": book,
+        "title": title,
+        "line": hymn_display(num_raw, title, book_label=label),
+        "lyrics": hymn_lyrics(number, book),
+    }
 
 
 def _format_service_date(d: date | str | None) -> str:
@@ -137,19 +158,7 @@ def _format_service_time(raw: str | None) -> str:
         return raw
 
 
-def _hymn_line_from_form(form, num_key: str, title_key: str, book_key: str) -> str:
-    from .hymns import normalize_hymn_book
-
-    num = (form.get(num_key) or "").strip()
-    title = (form.get(title_key) or "").strip()
-    book = normalize_hymn_book(form.get(book_key))
-    label = hymn_book_label(book) if book == HYMN_BOOK_CHILDREN else None
-    return hymn_display(num, title, book_label=label)
-
-
 def baptism_from_form(form) -> dict:
-    from .hymns import normalize_hymn_book
-
     service_date_raw = (form.get("service_date") or "").strip()
     service_date = None
     if service_date_raw:
@@ -158,10 +167,8 @@ def baptism_from_form(form) -> dict:
         except ValueError:
             service_date = None
 
-    opening_book = normalize_hymn_book(form.get("opening_hymn_book"))
-    closing_book = normalize_hymn_book(form.get("closing_hymn_book"))
-    opening_label = hymn_book_label(opening_book) if opening_book == HYMN_BOOK_CHILDREN else None
-    closing_label = hymn_book_label(closing_book) if closing_book == HYMN_BOOK_CHILDREN else None
+    opening = _hymn_export_fields(form, "opening")
+    closing = _hymn_export_fields(form, "closing")
 
     candidate = (form.get("candidate_name") or "").strip()
     confirmation_text = (form.get("confirmation_text") or "").strip()
@@ -176,11 +183,8 @@ def baptism_from_form(form) -> dict:
         "presiding": (form.get("presiding") or "").strip(),
         "conducting": (form.get("conducting") or "").strip(),
         "welcome_text": (form.get("welcome_text") or "").strip(),
-        "opening_hymn_line": hymn_display(
-            (form.get("opening_hymn_num") or "").strip(),
-            (form.get("opening_hymn_title") or "").strip(),
-            book_label=opening_label,
-        ),
+        "opening_hymn_line": opening["line"],
+        "opening_hymn": opening,
         "invocation": (form.get("invocation") or "").strip(),
         "speaker_1": (form.get("speaker_1") or "").strip(),
         "speaker_1_topic": (form.get("speaker_1_topic") or "").strip(),
@@ -191,11 +195,8 @@ def baptism_from_form(form) -> dict:
         "baptism_by": (form.get("baptism_by") or "").strip(),
         "confirmation_by": (form.get("confirmation_by") or "").strip(),
         "confirmation_text": confirmation_text,
-        "closing_hymn_line": hymn_display(
-            (form.get("closing_hymn_num") or "").strip(),
-            (form.get("closing_hymn_title") or "").strip(),
-            book_label=closing_label,
-        ),
+        "closing_hymn_line": closing["line"],
+        "closing_hymn": closing,
         "benediction": (form.get("benediction") or "").strip(),
         "reception_notes": (form.get("reception_notes") or "").strip(),
     }
@@ -271,105 +272,235 @@ def build_baptism_text(data: dict) -> str:
 
 def export_docx(data: dict) -> bytes:
     from docx import Document
+    from docx.enum.section import WD_ORIENT
     from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
-    from docx.shared import Inches, Pt
+    from docx.shared import Inches, Pt, RGBColor
 
     doc = Document()
     section = doc.sections[0]
-    section.top_margin = Inches(0.65)
-    section.bottom_margin = Inches(0.65)
-    section.left_margin = Inches(0.75)
-    section.right_margin = Inches(0.75)
+    section.orientation = WD_ORIENT.LANDSCAPE
+    section.page_width, section.page_height = section.page_height, section.page_width
+    margin = Inches(0.35)
+    section.top_margin = margin
+    section.bottom_margin = margin
+    section.left_margin = margin
+    section.right_margin = margin
 
-    body_size = 11
-    body_after = 4
-    section_after = 8
-    leading = 1.22
+    panel_width = (section.page_width - section.left_margin - section.right_margin) / 2
+    body_font = "Times New Roman"
+    program_size = Pt(10.5)
+    lyric_size = Pt(9.5)
+    cover_title_size = Pt(18)
+    cover_sub_size = Pt(12)
 
-    def set_para_spacing(pf, *, after: float = body_after, leading_val: float = leading) -> None:
+    def clear_cell(cell) -> None:
+        cell.text = ""
+
+    def add_run(
+        paragraph,
+        text: str,
+        *,
+        bold: bool = False,
+        size: Pt | None = None,
+        center: bool = False,
+        color: RGBColor | None = None,
+    ):
+        if center:
+            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = paragraph.add_run(text)
+        run.bold = bold
+        run.font.name = body_font
+        if size:
+            run.font.size = size
+        if color:
+            run.font.color.rgb = color
+        return run
+
+    def add_para(
+        cell,
+        text: str = "",
+        *,
+        bold: bool = False,
+        center: bool = False,
+        size: Pt | None = program_size,
+        after: float = 3,
+        leading: float = 1.15,
+    ):
+        p = cell.add_paragraph()
+        pf = p.paragraph_format
         pf.space_before = Pt(0)
         pf.space_after = Pt(after)
         pf.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
-        pf.line_spacing = leading_val
-
-    def add_line(text: str, *, bold: bool = False, center: bool = False, after: float = body_after) -> None:
-        p = doc.add_paragraph()
-        set_para_spacing(p.paragraph_format, after=after, leading_val=leading)
-        if center:
+        pf.line_spacing = leading
+        if text:
+            add_run(p, text, bold=bold, center=center, size=size)
+        elif center:
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = p.add_run(text)
-        run.bold = bold
-        run.font.name = "Times New Roman"
-        run.font.size = Pt(body_size)
+        return p
 
-    def add_labeled_line(label: str, value: str, *, separator: str = ": ", after: float = body_after) -> None:
+    def add_labeled_para(cell, label: str, value: str, *, after: float = 3) -> None:
         if not value:
             return
-        p = doc.add_paragraph()
-        set_para_spacing(p.paragraph_format, after=after, leading_val=leading)
-        label_run = p.add_run(label + separator)
-        label_run.bold = True
-        label_run.font.name = "Times New Roman"
-        label_run.font.size = Pt(body_size)
-        value_run = p.add_run(value)
-        value_run.font.name = "Times New Roman"
-        value_run.font.size = Pt(body_size)
+        p = cell.add_paragraph()
+        pf = p.paragraph_format
+        pf.space_before = Pt(0)
+        pf.space_after = Pt(after)
+        pf.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
+        pf.line_spacing = 1.15
+        label_run = add_run(p, label + ": ", bold=True, size=program_size)
+        label_run.font.name = body_font
+        add_run(p, value, size=program_size)
 
-    def add_multiline(text: str, *, after_last: float = section_after) -> None:
+    def add_multiline(cell, text: str, *, size: Pt | None = program_size, after_last: float = 4) -> None:
         parts = [part.strip() for part in (text or "").splitlines() if part.strip()]
         for i, part in enumerate(parts):
-            add_line(part, after=after_last if i == len(parts) - 1 else body_after)
+            add_para(cell, part, size=size, after=after_last if i == len(parts) - 1 else 2)
 
-    add_line("Baptismal Service", bold=True, center=True, after=3)
+    def hymn_panel_heading(hymn: dict, label: str) -> str:
+        parts = [label]
+        if hymn.get("number"):
+            parts.append(f"#{hymn['number']}")
+        if hymn.get("title"):
+            parts.append(hymn["title"])
+        if hymn.get("book") == HYMN_BOOK_CHILDREN:
+            parts.append("(Children's Songbook)")
+        elif hymn.get("book") == HYMN_BOOK_HYMNS and hymn.get("title"):
+            parts.append("(Hymns)")
+        return "  ".join(parts)
 
-    subtitle_parts = []
-    if data.get("service_date_display"):
-        subtitle = data["service_date_display"]
-        if data.get("service_time_display"):
-            subtitle += f" at {data['service_time_display']}"
-        subtitle_parts.append(subtitle)
-    if data.get("location"):
-        subtitle_parts.append(data["location"])
-    if subtitle_parts:
-        add_line("\n".join(subtitle_parts), bold=True, center=True, after=12)
+    def fill_hymn_lyrics_panel(cell, hymn: dict, label: str) -> None:
+        clear_cell(cell)
+        add_para(cell, hymn_panel_heading(hymn, label), bold=True, center=True, size=Pt(11), after=6)
+        lyrics = (hymn.get("lyrics") or "").strip()
+        if lyrics:
+            add_multiline(cell, lyrics, size=lyric_size, after_last=2)
+        elif hymn.get("title"):
+            add_para(
+                cell,
+                "Sing from the hymnbook.",
+                center=True,
+                size=lyric_size,
+                after=0,
+            )
+        else:
+            add_para(cell, "", after=0)
 
-    add_labeled_line("Presiding", data.get("presiding") or "", after=body_after)
-    add_labeled_line("Conducting", data.get("conducting") or "", after=section_after)
+    def fill_program_panel(cell) -> None:
+        clear_cell(cell)
+        add_para(cell, "Order of Service", bold=True, center=True, size=Pt(13), after=8)
 
-    if data.get("welcome_text"):
-        add_multiline(data["welcome_text"], after_last=section_after)
+        if data.get("presiding"):
+            add_labeled_para(cell, "Presiding", data["presiding"])
+        if data.get("conducting"):
+            add_labeled_para(cell, "Conducting", data["conducting"])
+        if data.get("welcome_text"):
+            add_multiline(cell, data["welcome_text"], after_last=4)
 
-    add_labeled_line("Opening Hymn", data.get("opening_hymn_line") or "", after=body_after)
-    add_labeled_line("Invocation", data.get("invocation") or "", after=section_after)
+        if data.get("opening_hymn_line"):
+            add_labeled_para(cell, "Opening hymn", data["opening_hymn_line"])
+        if data.get("invocation"):
+            add_labeled_para(cell, "Invocation", data["invocation"])
 
-    if data.get("speaker_1"):
-        talk = data["speaker_1"]
-        if data.get("speaker_1_topic"):
-            talk += f" — {data['speaker_1_topic']}"
-        add_labeled_line("Talk", talk, after=body_after)
-    if data.get("speaker_2"):
-        talk = data["speaker_2"]
-        if data.get("speaker_2_topic"):
-            talk += f" — {data['speaker_2_topic']}"
-        add_labeled_line("Talk", talk, after=body_after)
-    if data.get("musical_number"):
-        add_labeled_line("Musical number", data["musical_number"], after=section_after)
+        if data.get("speaker_1"):
+            talk = data["speaker_1"]
+            if data.get("speaker_1_topic"):
+                talk += f" — {data['speaker_1_topic']}"
+            add_labeled_para(cell, "Talk", talk)
+        if data.get("speaker_2"):
+            talk = data["speaker_2"]
+            if data.get("speaker_2_topic"):
+                talk += f" — {data['speaker_2_topic']}"
+            add_labeled_para(cell, "Talk", talk)
+        if data.get("musical_number"):
+            add_labeled_para(cell, "Musical number", data["musical_number"])
 
-    if data.get("candidate_name"):
-        add_line(f"Baptism of {data['candidate_name']}", bold=True, after=body_after)
-    if data.get("baptism_by"):
-        add_labeled_line("Baptism performed by", data["baptism_by"], separator=" ", after=section_after)
+        if data.get("candidate_name"):
+            add_para(cell, f"Baptism of {data['candidate_name']}", bold=True, after=3)
+        if data.get("baptism_by"):
+            add_labeled_para(cell, "Baptism by", data["baptism_by"])
 
-    if data.get("confirmation_text"):
-        add_multiline(data["confirmation_text"], after_last=body_after)
-    if data.get("confirmation_by"):
-        add_labeled_line("Confirmation by", data["confirmation_by"], separator=" ", after=section_after)
+        if data.get("confirmation_text"):
+            add_multiline(cell, data["confirmation_text"], after_last=3)
+        if data.get("confirmation_by"):
+            add_labeled_para(cell, "Confirmation by", data["confirmation_by"])
 
-    add_labeled_line("Closing Hymn", data.get("closing_hymn_line") or "", after=body_after)
-    add_labeled_line("Benediction", data.get("benediction") or "", after=section_after)
+        if data.get("closing_hymn_line"):
+            add_labeled_para(cell, "Closing hymn", data["closing_hymn_line"])
+        if data.get("benediction"):
+            add_labeled_para(cell, "Benediction", data["benediction"])
+        if data.get("reception_notes"):
+            add_multiline(cell, data["reception_notes"], after_last=2)
 
-    if data.get("reception_notes"):
-        add_multiline(data["reception_notes"], after_last=body_after)
+    def fill_cover_panel(cell) -> None:
+        clear_cell(cell)
+        if _COVER_IMAGE_PATH.is_file():
+            p = cell.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = p.add_run()
+            run.add_picture(str(_COVER_IMAGE_PATH), width=Inches(3.8))
+            p.paragraph_format.space_after = Pt(8)
+
+        add_para(cell, "Baptismal Service", bold=True, center=True, size=cover_title_size, after=6)
+        if data.get("candidate_name"):
+            add_para(cell, data["candidate_name"], bold=True, center=True, size=cover_sub_size, after=4)
+
+        subtitle_parts = []
+        if data.get("service_date_display"):
+            line = data["service_date_display"]
+            if data.get("service_time_display"):
+                line += f"\n{data['service_time_display']}"
+            subtitle_parts.append(line)
+        if data.get("location"):
+            subtitle_parts.append(data["location"])
+        if subtitle_parts:
+            add_multiline(cell, "\n".join(subtitle_parts), size=Pt(11), after_last=0)
+
+    def add_fold_page(left_fill, right_fill) -> None:
+        table = doc.add_table(rows=1, cols=2)
+        table.autofit = False
+        left = table.rows[0].cells[0]
+        right = table.rows[0].cells[1]
+        left.width = panel_width
+        right.width = panel_width
+        left_fill(left)
+        right_fill(right)
+
+    opening = data.get("opening_hymn") or {}
+    closing = data.get("closing_hymn") or {}
+
+    # Page 1 (outside): back cover | front cover — print double-sided, flip on short edge.
+    add_fold_page(
+        lambda cell: fill_hymn_lyrics_panel(cell, closing, "Closing Hymn"),
+        fill_cover_panel,
+    )
+
+    note = doc.add_paragraph()
+    note.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    note_run = add_run(
+        note,
+        "Print both pages double-sided (flip on short edge), then fold in half like a booklet.",
+        size=Pt(8),
+        color=RGBColor(0x66, 0x66, 0x66),
+    )
+    note_run.italic = True
+    note.paragraph_format.space_before = Pt(2)
+    note.paragraph_format.space_after = Pt(0)
+
+    doc.add_page_break()
+
+    page2_section = doc.add_section()
+    page2_section.orientation = WD_ORIENT.LANDSCAPE
+    page2_section.page_width, page2_section.page_height = (
+        doc.sections[0].page_height,
+        doc.sections[0].page_width,
+    )
+    page2_section.top_margin = margin
+    page2_section.bottom_margin = margin
+    page2_section.left_margin = margin
+    page2_section.right_margin = margin
+
+    # Page 2 (inside): program | opening hymn lyrics
+    add_fold_page(fill_program_panel, lambda cell: fill_hymn_lyrics_panel(cell, opening, "Opening Hymn"))
 
     buf = io.BytesIO()
     doc.save(buf)

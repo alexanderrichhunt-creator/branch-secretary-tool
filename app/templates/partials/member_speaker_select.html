@@ -1,0 +1,28 @@
+{# Member dropdown for talk assignment — regular attendees first, sorted by availability. #}
+<select
+  class="form-select {{ select_class }}"
+  id="{{ select_id }}"
+  name="{{ name | default('member_id') }}"
+>
+  <option value="">{{ placeholder | default('— Choose speaker —') }}</option>
+  {% if speaker_pool %}
+    <optgroup label="Regular attendees (speaker pool)">
+      {% for row in speaker_pool %}
+        <option
+          value="{{ row.member_id }}"
+          {% if selected_member_id is defined and selected_member_id | string == row.member_id | string %}selected{% endif %}
+        >{{ member_label(row.member) }} · {{ row.last_talk_summary }}</option>
+      {% endfor %}
+    </optgroup>
+  {% endif %}
+  {% if other_members %}
+    <optgroup label="Other members">
+      {% for m in other_members %}
+        <option
+          value="{{ m.id }}"
+          {% if selected_member_id is defined and selected_member_id | string == m.id | string %}selected{% endif %}
+        >{{ member_label(m) }}</option>
+      {% endfor %}
+    </optgroup>
+  {% endif %}
+</select>

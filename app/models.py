@@ -30,6 +30,7 @@ class Member(db.Model):
     gender = db.Column(db.String(16), nullable=True)
     birthdate = db.Column(db.Date, nullable=True)
     group_label = db.Column(db.String(64), nullable=True)  # e.g., Youth / Adult
+    is_regular_attendee = db.Column(db.Boolean, nullable=False, default=False, index=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     talks = db.relationship("Talk", back_populates="member", cascade="all, delete-orphan")

@@ -359,12 +359,9 @@
                     placeholder="Type a name to search..."
                     autocomplete="off"
                   />
-                  <select class="form-select form-select-lg" id="cal_talk_member_id" name="member_id">
-                    <option value="">— Member —</option>
-                    {% for m in members %}
-                      <option value="{{ m.id }}">{{ m.full_name }}</option>
-                    {% endfor %}
-                  </select>
+                  {% with select_id='cal_talk_member_id', select_class='form-select-lg', placeholder='— Member —' %}
+                    {% include 'partials/member_speaker_select.html' %}
+                  {% endwith %}
                   <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
                   <input class="form-control form-control-lg mt-2" type="text" id="cal_talk_speaker_text" name="speaker_text" placeholder="Or type name (visitor, etc.)" autocomplete="off" />
                 </div>

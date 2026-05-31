@@ -89,10 +89,16 @@ def _apply_schema_patches():
                         f"ALTER TABLE bulletin_defaults ADD COLUMN IF NOT EXISTS {col} VARCHAR(256) DEFAULT ''"
                     )
                 )
+            conn.execute(
+                text(
+                    "ALTER TABLE member ADD COLUMN IF NOT EXISTS is_regular_attendee BOOLEAN NOT NULL DEFAULT FALSE"
+                )
+            )
         elif dialect == "sqlite":
             _sqlite_patch_talk_interview_schema(conn, engine, inspect)
             _sqlite_patch_event_schema(conn, engine, inspect)
             _sqlite_patch_bulletin_defaults_schema(conn, engine, inspect)
+            _sqlite_patch_member_schema(conn, engine, inspect)
 
 
 def _sqlite_patch_talk_interview_schema(conn, engine, sa_inspect):
@@ -169,6 +175,19 @@ def _sqlite_patch_bulletin_defaults_schema(conn, engine, sa_inspect):
         cols = {c["name"] for c in sa_inspect(engine).get_columns("bulletin_defaults")}
         if col not in cols:
             conn.execute(text(f"ALTER TABLE bulletin_defaults ADD COLUMN {col} VARCHAR(256) DEFAULT ''"))
+
+
+def _sqlite_patch_member_schema(conn, engine, sa_inspect):
+    from sqlalchemy import text
+
+    insp = sa_inspect(engine)
+    if "member" not in insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("member")}
+    if "is_regular_attendee" not in cols:
+        conn.execute(
+            text("ALTER TABLE member ADD COLUMN is_regular_attendee BOOLEAN NOT NULL DEFAULT 0")
+        )
 
 
 def _talk_speaker_label(talk) -> str:

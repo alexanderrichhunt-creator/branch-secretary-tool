@@ -1,60 +1,63 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+<div class="page-header">
   <div>
-    <h1 class="h2 fw-bold mb-1">Members</h1>
-    <div class="muted">Search, add members, and import from CSV.</div>
+    <h1 class="page-title">Members</h1>
+    <p class="page-subtitle">Mark regular attendees to build your speaker pool for sacrament talks.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.speaker_pool') }}">Speaker pool</a>
   </div>
 </div>
 
 <div class="row g-3">
   <div class="col-12 col-lg-5">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <div class="alert alert-info">
-          <div class="fw-bold mb-1">Import from your `directory.csv`</div>
-          <div class="small">
-            Upload the file you mentioned (usually in Downloads). This will create new members and fill in missing gender/birthdate/category.
-          </div>
-          <form class="mt-3" method="post" action="{{ url_for('main.import_members_csv') }}" enctype="multipart/form-data">
-            <input class="form-control form-control-lg mb-2" type="file" name="file" accept=".csv,text/csv" required />
-            <button class="btn btn-outline-primary btn-lg" type="submit">Import CSV</button>
-          </form>
-        </div>
+    <div class="panel mb-3">
+      <div class="panel-header">Import</div>
+      <div class="panel-body">
+        <p class="small muted mb-3">Upload a ward directory CSV to create members or fill in missing birthdates.</p>
+        <form method="post" action="{{ url_for('main.import_members_csv') }}" enctype="multipart/form-data">
+          <input class="form-control mb-2" type="file" name="file" accept=".csv,text/csv" required />
+          <button class="btn btn-outline-primary btn-sm" type="submit">Import CSV</button>
+        </form>
+      </div>
+    </div>
 
-        {% if current_user.role == "admin" %}
-        <div class="alert alert-danger">
-          <div class="fw-bold mb-1">Danger zone</div>
-          <div class="small">
-            This deletes <b>all</b> members and related talks/interviews. To confirm, type <b>DELETE</b>.
+    {% if current_user.role == "admin" %}
+    <div class="panel mb-3 border-danger-subtle">
+      <div class="panel-header text-danger">Danger zone</div>
+      <div class="panel-body">
+        <p class="small muted mb-3">Deletes all members and related talks/interviews. Type <strong>DELETE</strong> to confirm.</p>
+        <form method="post" action="{{ url_for('main.reset_members') }}">
+          <div class="d-flex gap-2">
+            <input class="form-control" name="confirm" placeholder="Type DELETE" />
+            <button class="btn btn-danger btn-sm" type="submit">Delete all</button>
           </div>
-          <form class="mt-3" method="post" action="{{ url_for('main.reset_members') }}">
-            <div class="d-flex gap-2">
-              <input class="form-control form-control-lg" name="confirm" placeholder="Type DELETE" />
-              <button class="btn btn-danger btn-lg" type="submit">Delete all members</button>
-            </div>
-          </form>
-        </div>
-        {% endif %}
+        </form>
+      </div>
+    </div>
+    {% endif %}
 
-        <h2 class="h4 fw-bold mb-3">Add member</h2>
+    <div class="panel">
+      <div class="panel-header">Add member</div>
+      <div class="panel-body">
         <form method="post" action="{{ url_for('main.add_member') }}">
           <div class="mb-3">
-            <label class="form-label big-label" for="full_name">Full name</label>
-            <input class="form-control form-control-lg" id="full_name" name="full_name" required />
+            <label class="form-label" for="full_name">Full name</label>
+            <input class="form-control" id="full_name" name="full_name" required />
           </div>
           <div class="row g-2 mb-3">
             <div class="col-6">
-              <label class="form-label big-label" for="gender">Gender</label>
-              <select class="form-select form-select-lg" id="gender" name="gender">
+              <label class="form-label" for="gender">Gender</label>
+              <select class="form-select" id="gender" name="gender">
                 <option value="">(optional)</option>
                 <option value="F">F</option>
                 <option value="M">M</option>
               </select>
             </div>
             <div class="col-6">
-              <label class="form-label big-label" for="group_label">Group</label>
-              <select class="form-select form-select-lg" id="group_label" name="group_label">
+              <label class="form-label" for="group_label">Group</label>
+              <select class="form-select" id="group_label" name="group_label">
                 <option value="">(optional)</option>
                 <option value="Adult">Adult</option>
                 <option value="Youth">Youth</option>
@@ -62,41 +65,53 @@
             </div>
           </div>
           <div class="mb-3">
-            <label class="form-label big-label" for="birthdate">Birthdate</label>
-            <input class="form-control form-control-lg" type="date" id="birthdate" name="birthdate" />
+            <label class="form-label" for="birthdate">Birthdate</label>
+            <input class="form-control" type="date" id="birthdate" name="birthdate" />
           </div>
-          <button class="btn btn-primary btn-lg" type="submit">Add</button>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="is_regular_attendee" name="is_regular_attendee" value="1" checked />
+            <label class="form-check-label" for="is_regular_attendee">Regular attendee (include in speaker pool)</label>
+          </div>
+          <button class="btn btn-primary btn-sm" type="submit">Add</button>
         </form>
       </div>
     </div>
   </div>
 
   <div class="col-12 col-lg-7">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
-          <h2 class="h4 fw-bold mb-0">Member list</h2>
-          <form class="d-flex gap-2" method="get" action="{{ url_for('main.members') }}">
-            <input class="form-control form-control-lg" name="q" value="{{ q }}" placeholder="Search name..." />
-            <button class="btn btn-outline-primary btn-lg" type="submit">Search</button>
+    <div class="panel">
+      <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span>Member list{% if regular_only %} · regular attendees{% endif %}</span>
+        <span class="small muted">{{ regular_count }} regular</span>
+      </div>
+      <div class="panel-body">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+          <div class="btn-group btn-group-sm" role="group" aria-label="Member filters">
+            <a class="btn btn-outline-secondary{% if not regular_only %} active{% endif %}" href="{{ url_for('main.members', q=q) if q else url_for('main.members') }}">All</a>
+            <a class="btn btn-outline-secondary{% if regular_only %} active{% endif %}" href="{{ url_for('main.members', regular='1', q=q) if q else url_for('main.members', regular='1') }}">Regular attendees</a>
+          </div>
+          <form class="d-flex gap-2 ms-auto" method="get" action="{{ url_for('main.members') }}">
+            {% if regular_only %}<input type="hidden" name="regular" value="1" />{% endif %}
+            <input class="form-control form-control-sm" name="q" value="{{ q }}" placeholder="Search name..." />
+            <button class="btn btn-outline-primary btn-sm" type="submit">Search</button>
           </form>
         </div>
-        <div class="small muted mb-3">Tip: click into the date fields and type or use the picker.</div>
 
         <div class="table-responsive">
-          <table class="table align-middle">
+          <table class="table table-sm align-middle mb-0">
             <thead>
               <tr>
                 <th>Name</th>
                 <th class="text-nowrap">Birthdate</th>
                 <th class="text-nowrap">Age</th>
+                <th class="text-nowrap">Regular</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {% for m in members %}
                 <tr>
-                  <td class="fw-bold">{{ m.full_name }}</td>
+                  <td class="fw-semibold">{{ m.full_name }}</td>
                   <td class="text-nowrap">
                     {% if m.birthdate %}
                       {{ m.birthdate.strftime("%b %d, %Y") }}
@@ -112,9 +127,19 @@
                       <span class="muted">—</span>
                     {% endif %}
                   </td>
+                  <td class="text-nowrap">
+                    <form method="post" action="{{ url_for('main.set_member_regular_attendee', member_id=m.id) }}">
+                      <input type="hidden" name="is_regular_attendee" value="{{ '0' if m.is_regular_attendee else '1' }}" />
+                      <button
+                        type="submit"
+                        class="btn btn-sm {% if m.is_regular_attendee %}btn-success{% else %}btn-outline-secondary{% endif %}"
+                        title="{% if m.is_regular_attendee %}Remove from speaker pool{% else %}Add to speaker pool{% endif %}"
+                      >{% if m.is_regular_attendee %}Yes{% else %}No{% endif %}</button>
+                    </form>
+                  </td>
                   <td class="text-end">
                     {% if current_user.role == "admin" %}
-                      <form method="post" action="{{ url_for('main.delete_member', member_id=m.id, q=q) }}" onsubmit="return confirm('Delete {{ m.full_name }}? This also deletes their talks/interviews.');">
+                      <form method="post" action="{{ url_for('main.delete_member', member_id=m.id, q=q, regular='1' if regular_only else '') }}" onsubmit="return confirm('Delete {{ m.full_name }}? This also deletes their talks/interviews.');">
                         <button class="btn btn-outline-danger btn-sm" type="submit">Delete</button>
                       </form>
                     {% endif %}

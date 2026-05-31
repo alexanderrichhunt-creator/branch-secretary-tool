@@ -3,7 +3,7 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">Baptism program</h1>
-    <p class="page-subtitle">Build a baptismal service program. Hymns can use the Children's Songbook or Hymns.</p>
+    <p class="page-subtitle">Build a foldable baptismal program. Song titles fill in from the songbook number. Word export prints as a half-fold booklet with hymn lyrics on the inside panels.</p>
     {% if has_saved_defaults %}
       <p class="page-note text-success">Branch defaults saved — they load automatically.</p>
     {% endif %}
@@ -121,13 +121,14 @@
         <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
           <span>Preview</span>
           <div class="d-flex flex-wrap gap-2">
-            <button type="submit" class="btn btn-primary btn-sm" formaction="{{ url_for('main.baptism_export', fmt='docx') }}" formtarget="_blank">Download Word</button>
+            <button type="submit" class="btn btn-primary btn-sm" formaction="{{ url_for('main.baptism_export', fmt='docx') }}" formtarget="_blank">Download foldable Word program</button>
             <button type="submit" class="btn btn-outline-secondary btn-sm" formaction="{{ url_for('main.baptism_export', fmt='txt') }}" formtarget="_blank">Download text</button>
             <button type="submit" class="btn btn-success btn-sm" formaction="{{ url_for('main.baptism_save_defaults') }}">Save defaults</button>
           </div>
         </div>
         <div class="panel-body p-0">
           <div id="baptism-preview" class="program-preview"></div>
+          <p class="small muted px-3 pb-3 mb-0">Word export: print both pages double-sided (flip on short edge), then fold in half. Outside panels show the cover art and closing hymn; inside panels show the program and opening hymn lyrics.</p>
         </div>
       </div>
     </div>

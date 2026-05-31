@@ -7,6 +7,7 @@ from pathlib import Path
 _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 _HYMNS_PATH = _DATA_DIR / "hymns.json"
 _CHILDREN_HYMNS_PATH = _DATA_DIR / "children_hymns.json"
+_CHILDREN_LYRICS_PATH = _DATA_DIR / "children_hymn_lyrics.json"
 
 HYMN_BOOK_HYMNS = "hymns"
 HYMN_BOOK_CHILDREN = "children"
@@ -74,3 +75,31 @@ def hymn_book_label(book: str) -> str:
     if book == HYMN_BOOK_CHILDREN:
         return "Children's Songbook"
     return "Hymns"
+
+
+@lru_cache(maxsize=1)
+def _load_children_lyrics() -> dict[str, str]:
+    if not _CHILDREN_LYRICS_PATH.exists():
+        return {}
+    with _CHILDREN_LYRICS_PATH.open(encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict):
+        return {}
+    return {str(k): str(v) for k, v in data.items()}
+
+
+def parse_hymn_number(num_raw: str | None) -> int | None:
+    raw = (num_raw or "").strip().lstrip("#")
+    if not raw:
+        return None
+    try:
+        number = int(raw)
+    except ValueError:
+        return None
+    return number if number > 0 else None
+
+
+def hymn_lyrics(number: int | None, book: str = HYMN_BOOK_CHILDREN) -> str:
+    if not number or normalize_hymn_book(book) != HYMN_BOOK_CHILDREN:
+        return ""
+    return (_load_children_lyrics().get(str(number)) or "").strip()

@@ -10,6 +10,25 @@ from flask_login import current_user, login_required
 
 from . import db
 from .models import Event, Interview, Member, SuggestedTalk, Talk, User, parse_us_date
+from .talk_utils import build_speaker_pool, member_talk_recency, members_for_talk_select
+
+
+def _talk_member_select_context(*, exclude_talk_id: int | None = None, **extra):
+    pool, others = members_for_talk_select()
+    ctx = {
+        "speaker_pool": pool,
+        "other_members": others,
+        "member_talk_recency": member_talk_recency(exclude_talk_id),
+        "members": Member.query.order_by(Member.full_name.asc()).all(),
+    }
+    ctx.update(extra)
+    return ctx
+
+
+def _speaker_pool_schedule_date(today: date | None = None) -> str:
+    from .bulletin import default_sacrament_sunday
+
+    return default_sacrament_sunday(today or date.today()).isoformat()
 
 
 def _short_calendar_title(text: str, max_len: int = 40) -> str:
@@ -272,17 +291,14 @@ def _parse_event_times_from_form():
     return starts_at, end_at, False, None
 
 
-def _build_upcoming_schedule_items(limit: int = 12) -> list[dict]:
-    from .event_utils import event_category_label, iter_event_occurrences, recurrence_label
-
+def _build_upcoming_interviews(limit: int = 8) -> list[dict]:
     now = datetime.now() - timedelta(hours=2)
-    horizon = now + timedelta(days=120)
     items: list[dict] = []
 
     interviews = (
         Interview.query.filter(Interview.starts_at >= now)
         .order_by(Interview.starts_at.asc())
-        .limit(limit * 2)
+        .limit(limit)
         .all()
     )
     for interview in interviews:
@@ -296,34 +312,15 @@ def _build_upcoming_schedule_items(limit: int = 12) -> list[dict]:
                 "edit_url": url_for("main.edit_interview", interview_id=interview.id),
             }
         )
+    return items
 
-    from .bulletin import is_fast_testimony_talk
 
-    upcoming_talks = (
-        Talk.query.filter(Talk.talk_date >= now.date())
-        .order_by(Talk.talk_date.asc(), Talk.id.asc())
-        .limit(limit * 2)
-        .all()
-    )
-    for talk in upcoming_talks:
-        talk_start = datetime.combine(talk.talk_date, datetime.min.time())
-        speaker = _talk_speaker_name(talk)
-        subtitle = (talk.topic or "").strip() or "Sacrament meeting"
-        if is_fast_testimony_talk(talk):
-            title = "Fast & Testimony Meeting"
-            subtitle = "Sacrament meeting"
-        else:
-            title = f"Talk: {speaker}"
-        items.append(
-            {
-                "kind": "talk",
-                "starts_at": talk_start,
-                "all_day": True,
-                "title": title,
-                "subtitle": subtitle,
-                "edit_url": url_for("main.edit_talk", talk_id=talk.id),
-            }
-        )
+def _build_upcoming_events(limit: int = 8) -> list[dict]:
+    from .event_utils import event_category_label, iter_event_occurrences, recurrence_label
+
+    now = datetime.now() - timedelta(hours=2)
+    horizon = now + timedelta(days=120)
+    items: list[dict] = []
 
     for event in Event.query.order_by(Event.starts_at.asc()).all():
         for occ_start, _occ_end in iter_event_occurrences(event, now, horizon):
@@ -381,18 +378,20 @@ def dashboard():
         exclude_week_start=current_talk_week["week_start"],
     )
 
-    upcoming_items = _build_upcoming_schedule_items(limit=12)
+    upcoming_interviews = _build_upcoming_interviews(limit=8)
+    upcoming_events = _build_upcoming_events(limit=8)
 
     return render_template(
         "dashboard.html",
         talk_sunday_groups=talk_sunday_groups,
         current_talk_week=current_talk_week,
-        upcoming_items=upcoming_items,
+        upcoming_interviews=upcoming_interviews,
+        upcoming_events=upcoming_events,
         today=today,
         cutoff=cutoff,
         max_talks_per_week=MAX_TALKS_PER_SACRAMENT_WEEK,
-        members=Member.query.order_by(Member.full_name.asc()).all(),
-        member_talk_recency=_member_talk_recency(),
+        schedule_date=_speaker_pool_schedule_date(today),
+        **_talk_member_select_context(),
     )
 
 
@@ -400,11 +399,22 @@ def dashboard():
 @login_required
 def members():
     q = (request.args.get("q") or "").strip()
+    regular_only = (request.args.get("regular") or "").strip() == "1"
     query = Member.query
+    if regular_only:
+        query = query.filter(Member.is_regular_attendee.is_(True))
     if q:
         query = query.filter(Member.full_name.ilike(f"%{q}%"))
     members = query.order_by(Member.full_name.asc()).limit(200).all()
-    return render_template("members.html", members=members, q=q, today=date.today())
+    regular_count = Member.query.filter(Member.is_regular_attendee.is_(True)).count()
+    return render_template(
+        "members.html",
+        members=members,
+        q=q,
+        regular_only=regular_only,
+        regular_count=regular_count,
+        today=date.today(),
+    )
 
 
 @main_bp.post("/members/import")
@@ -533,7 +543,23 @@ def delete_member(member_id: int):
     db.session.commit()
 
     flash(f"Deleted member: {name}", "success")
-    return redirect(url_for("main.members", q=request.args.get("q") or ""))
+    return redirect(url_for("main.members", q=request.args.get("q") or "", regular=request.args.get("regular") or ""))
+
+
+@main_bp.post("/members/<int:member_id>/regular-attendee")
+@login_required
+def set_member_regular_attendee(member_id: int):
+    member = Member.query.get_or_404(member_id)
+    if "is_regular_attendee" in request.form:
+        member.is_regular_attendee = (request.form.get("is_regular_attendee") or "").strip() in ("1", "true", "on", "yes")
+    else:
+        member.is_regular_attendee = not member.is_regular_attendee
+    db.session.commit()
+    flash(
+        f"{member.full_name} {'added to' if member.is_regular_attendee else 'removed from'} regular attendees.",
+        "success",
+    )
+    return redirect(request.referrer or url_for("main.members"))
 
 
 @main_bp.post("/members/add")
@@ -551,42 +577,43 @@ def add_member():
             birthdate = None
 
     if full_name:
-        m = Member(full_name=full_name, gender=gender, group_label=group_label, birthdate=birthdate)
+        is_regular = (request.form.get("is_regular_attendee") or "").strip() in ("1", "true", "on", "yes")
+        m = Member(
+            full_name=full_name,
+            gender=gender,
+            group_label=group_label,
+            birthdate=birthdate,
+            is_regular_attendee=is_regular,
+        )
         db.session.add(m)
         db.session.commit()
     return redirect(url_for("main.members"))
 
 
-def _member_talk_recency(exclude_talk_id: int | None = None) -> dict[str, dict]:
-    """Last talk date per member for scheduling hints on the talks form."""
-    from sqlalchemy import func
-
+@main_bp.get("/speaker-pool")
+@login_required
+def speaker_pool():
     today = date.today()
-    q = db.session.query(Talk.member_id, func.max(Talk.talk_date)).filter(Talk.member_id.isnot(None))
-    if exclude_talk_id:
-        q = q.filter(Talk.id != exclude_talk_id)
-    rows = q.group_by(Talk.member_id).all()
-    out: dict[str, dict] = {}
-    for member_id, last_talk in rows:
-        if not member_id or not last_talk:
-            continue
-        out[str(member_id)] = {
-            "last_talk_date": last_talk.isoformat(),
-            "days_since": (today - last_talk).days,
-        }
-    return out
+    return render_template(
+        "speaker_pool.html",
+        schedule_date=_speaker_pool_schedule_date(today),
+        **_talk_member_select_context(),
+    )
+
+
+def _member_talk_recency(exclude_talk_id: int | None = None) -> dict[str, dict]:
+    return member_talk_recency(exclude_talk_id)
 
 
 @main_bp.get("/talks")
 @login_required
 def talks():
     talks = Talk.query.order_by(Talk.talk_date.desc()).limit(200).all()
-    members = Member.query.order_by(Member.full_name.asc()).all()
     return render_template(
         "talks.html",
         talks=talks,
-        members=members,
-        member_talk_recency=_member_talk_recency(),
+        schedule_date=_speaker_pool_schedule_date(),
+        **_talk_member_select_context(),
     )
 
 
@@ -670,15 +697,15 @@ def add_talk():
 @login_required
 def edit_talk(talk_id: int):
     talk = Talk.query.get_or_404(talk_id)
-    members = Member.query.order_by(Member.full_name.asc()).all()
     from .bulletin import is_fast_testimony_talk
 
+    selected = talk.member_id or ""
     return render_template(
         "talk_edit.html",
         talk=talk,
-        members=members,
-        member_talk_recency=_member_talk_recency(exclude_talk_id=talk.id),
+        selected_member_id=selected,
         is_fast_testimony=is_fast_testimony_talk(talk),
+        **_talk_member_select_context(exclude_talk_id=talk.id),
     )
 
 
@@ -941,7 +968,6 @@ def delete_event(event_id: int):
 @main_bp.get("/calendar")
 @login_required
 def calendar():
-    members = Member.query.order_by(Member.full_name.asc()).all()
     from .event_utils import WEEKDAY_CODES
 
     suggested_talks = (
@@ -950,10 +976,10 @@ def calendar():
 
     return render_template(
         "calendar.html",
-        members=members,
         weekday_codes=WEEKDAY_CODES,
-        member_talk_recency=_member_talk_recency(),
         suggested_talks=suggested_talks,
+        schedule_date=_speaker_pool_schedule_date(),
+        **_talk_member_select_context(),
     )
 
 
