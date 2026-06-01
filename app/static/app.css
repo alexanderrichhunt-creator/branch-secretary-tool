@@ -122,6 +122,11 @@ body {
   flex-direction: column;
 }
 
+.speaker-pool-controls .form-select {
+  flex: 1 1 9rem;
+  min-width: 9rem;
+}
+
 .speaker-pool-compact-list .speaker-pool-badge {
   margin-top: 0.2rem;
 }

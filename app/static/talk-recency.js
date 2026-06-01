@@ -74,5 +74,7 @@
     updateRecencyAlert();
   }
 
-  document.querySelectorAll(".talk-add-form").forEach(bindForm);
+  document.querySelectorAll(".talk-add-form, .speaker-select-form").forEach(bindForm);
+
+  window.TalkRecency = { bindForm: bindForm };
 })();

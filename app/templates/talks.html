@@ -55,7 +55,7 @@
         <a class="btn btn-link btn-sm p-0" href="{{ url_for('main.speaker_pool') }}">Full pool</a>
       </div>
       <div class="panel-body panel-body-scroll talks-page-pool">
-        {% with show_schedule=true, schedule_date=schedule_date, compact=true %}
+        {% with show_schedule=true, schedule_date=schedule_date, compact=true, show_controls=true %}
           {% include 'partials/speaker_pool_table.html' %}
         {% endwith %}
       </div>
@@ -113,6 +113,7 @@
 <script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
 <script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
 <script src="{{ url_for('static', filename='talk-form.js') }}"></script>
+<script src="{{ url_for('static', filename='speaker-pool-controls.js') }}"></script>
 <script>
   (function () {
     var modalEl = document.getElementById("talksAddTalkModal");

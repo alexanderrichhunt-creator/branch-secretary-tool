@@ -191,6 +191,8 @@
         document.getElementById("suggested_edit_notes").value = suggestion.notes || "";
         document.getElementById("suggested_edit_member_filter").value = "";
         if (window.MemberSelectFilter) window.MemberSelectFilter.resetAll();
+        const editMember = document.getElementById("suggested_edit_member_id");
+        if (editMember) editMember.dispatchEvent(new Event("change", { bubbles: true }));
         showFormError(editForm.querySelector(".cal-suggested-edit-error"), "");
         if (editModal) editModal.show();
       } catch (e) {

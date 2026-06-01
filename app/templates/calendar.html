@@ -40,7 +40,7 @@
       <div class="panel-body">
         <p class="small muted mb-3">Suggested speakers and topics for a specific sacrament date.</p>
 
-        <form id="suggested-talk-add-form" class="cal-suggested-add-form mb-3">
+        <form id="suggested-talk-add-form" class="cal-suggested-add-form speaker-select-form mb-3">
           <div class="mb-2">
             <label class="form-label big-label" for="suggested_date">Sacrament date</label>
             <input class="form-control" type="date" id="suggested_date" name="suggested_date" value="{{ schedule_date }}" required />
@@ -55,12 +55,10 @@
               placeholder="Type a name to search..."
               autocomplete="off"
             />
-            <select class="form-select" id="suggested_member_id" name="member_id">
-              <option value="">— Member —</option>
-              {% for m in members %}
-                <option value="{{ m.id }}">{{ m.full_name }}</option>
-              {% endfor %}
-            </select>
+            {% with select_id='suggested_member_id', select_class='', placeholder='— Member —' %}
+              {% include 'partials/member_speaker_select.html' %}
+            {% endwith %}
+            <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
             <input class="form-control mt-2" type="text" name="speaker_text" placeholder="Or type a name (visitor, etc.)" autocomplete="off" />
           </div>
           <div class="mb-2">
@@ -122,7 +120,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <form id="suggested-talk-edit-form">
+        <form id="suggested-talk-edit-form" class="speaker-select-form">
           <input type="hidden" id="suggested_edit_id" name="suggestion_id" value="" />
           <div class="mb-3">
             <label class="form-label big-label" for="suggested_edit_date">Sacrament date</label>
@@ -138,12 +136,10 @@
               placeholder="Type a name to search..."
               autocomplete="off"
             />
-            <select class="form-select" id="suggested_edit_member_id" name="member_id">
-              <option value="">— Member —</option>
-              {% for m in members %}
-                <option value="{{ m.id }}">{{ m.full_name }}</option>
-              {% endfor %}
-            </select>
+            {% with select_id='suggested_edit_member_id', select_class='', placeholder='— Member —' %}
+              {% include 'partials/member_speaker_select.html' %}
+            {% endwith %}
+            <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
             <input class="form-control mt-2" type="text" id="suggested_edit_speaker_text" name="speaker_text" placeholder="Or type a name" autocomplete="off" />
           </div>
           <div class="mb-3">
