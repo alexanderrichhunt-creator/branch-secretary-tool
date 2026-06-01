@@ -642,11 +642,13 @@ def _member_talk_recency(exclude_talk_id: int | None = None) -> dict[str, dict]:
 @main_bp.get("/talks")
 @login_required
 def talks():
+    today = date.today()
     talks = Talk.query.order_by(Talk.talk_date.desc()).limit(200).all()
     return render_template(
         "talks.html",
         talks=talks,
-        schedule_date=_speaker_pool_schedule_date(),
+        today=today,
+        schedule_date=_speaker_pool_schedule_date(today),
         **_talk_member_select_context(),
     )
 

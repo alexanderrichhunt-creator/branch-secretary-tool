@@ -52,6 +52,14 @@
       }
 
       const info = recency[id];
+      if (info && info.upcoming_talk_date) {
+        showAlert(
+          "danger",
+          "Upcoming talk on " + formatDate(info.upcoming_talk_date) + " — already scheduled."
+        );
+        return;
+      }
+
       if (!info || !info.last_talk_date) {
         showAlert("success", "No prior talk — OK to schedule.");
         return;

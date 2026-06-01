@@ -3,24 +3,29 @@
   {% if speaker_pool %}
     {% if show_controls %}
       <div class="speaker-pool-controls d-flex flex-wrap gap-2 mb-2">
-        <select class="form-select form-select-sm speaker-pool-sort" aria-label="Sort speaker pool">
-          <option value="availability">Sort: availability</option>
-          <option value="name_asc">Sort: name A–Z</option>
-          <option value="name_desc">Sort: name Z–A</option>
-          <option value="last_talk_asc">Sort: longest since talk</option>
-          <option value="last_talk_desc">Sort: most recent talk</option>
-        </select>
         <select class="form-select form-select-sm speaker-pool-filter-status" aria-label="Filter by status">
           <option value="">All statuses</option>
           <option value="never">Never spoke</option>
           <option value="available">Available</option>
           <option value="consider">Consider waiting</option>
-          <option value="recent">Spoke recently</option>
+          <option value="recent">Spoke recently / upcoming</option>
+          <option value="upcoming">Upcoming talk</option>
         </select>
       </div>
       <div class="speaker-pool-filter-empty d-none small muted py-2">No speakers match this filter.</div>
     {% endif %}
     {% if compact %}
+      <div class="speaker-pool-compact-head d-flex justify-content-between align-items-center gap-2 mb-2 pe-5">
+        <button type="button" class="speaker-pool-sortable" data-sort="name" aria-sort="none">
+          Speaker<span class="speaker-pool-sort-indicator"></span>
+        </button>
+        <button type="button" class="speaker-pool-sortable" data-sort="last_talk" aria-sort="none">
+          Last talk<span class="speaker-pool-sort-indicator"></span>
+        </button>
+        <button type="button" class="speaker-pool-sortable" data-sort="status" aria-sort="none">
+          Status<span class="speaker-pool-sort-indicator"></span>
+        </button>
+      </div>
       <div class="speaker-pool-compact-list">
         {% for row in speaker_pool %}
           <div
@@ -28,19 +33,12 @@
             data-pool-name="{{ row.name | lower }}"
             data-pool-status="{{ row.status }}"
             data-pool-days="{{ row.days_since if row.days_since is not none else '' }}"
+            data-pool-upcoming="{{ '1' if row.upcoming_talk_date else '0' }}"
           >
             <div class="min-w-0">
               <div class="fw-semibold small">{{ member_label(row.member) }}</div>
               <div class="small muted">{{ row.last_talk_summary }}</div>
-              {% if row.status == 'never' %}
-                <span class="speaker-pool-badge speaker-pool-badge-never">Never spoke</span>
-              {% elif row.status == 'available' %}
-                <span class="speaker-pool-badge speaker-pool-badge-available">Available</span>
-              {% elif row.status == 'consider' %}
-                <span class="speaker-pool-badge speaker-pool-badge-consider">Consider waiting</span>
-              {% else %}
-                <span class="speaker-pool-badge speaker-pool-badge-recent">Spoke recently</span>
-              {% endif %}
+              <span class="speaker-pool-badge speaker-pool-badge-{{ row.status }}">{{ row.status_label }}</span>
             </div>
             {% if show_schedule %}
               {% if assign_in_modal %}
@@ -65,9 +63,21 @@
         <table class="table table-sm align-middle speaker-pool-table mb-0">
           <thead>
             <tr>
-              <th>Speaker</th>
-              <th class="text-nowrap">Last talk</th>
-              <th class="text-nowrap">Status</th>
+              <th class="text-nowrap">
+                <button type="button" class="speaker-pool-sortable" data-sort="name" aria-sort="none">
+                  Speaker<span class="speaker-pool-sort-indicator"></span>
+                </button>
+              </th>
+              <th class="text-nowrap">
+                <button type="button" class="speaker-pool-sortable" data-sort="last_talk" aria-sort="none">
+                  Last talk<span class="speaker-pool-sort-indicator"></span>
+                </button>
+              </th>
+              <th class="text-nowrap">
+                <button type="button" class="speaker-pool-sortable" data-sort="status" aria-sort="none">
+                  Status<span class="speaker-pool-sort-indicator"></span>
+                </button>
+              </th>
               {% if show_schedule %}
                 <th class="text-end text-nowrap">Schedule</th>
               {% endif %}
@@ -80,6 +90,7 @@
                 data-pool-name="{{ row.name | lower }}"
                 data-pool-status="{{ row.status }}"
                 data-pool-days="{{ row.days_since if row.days_since is not none else '' }}"
+                data-pool-upcoming="{{ '1' if row.upcoming_talk_date else '0' }}"
               >
                 <td>
                   <div class="fw-semibold">{{ member_label(row.member) }}</div>
@@ -96,15 +107,7 @@
                   <div class="muted">{{ row.last_talk_summary }}</div>
                 </td>
                 <td class="text-nowrap">
-                  {% if row.status == 'never' %}
-                    <span class="speaker-pool-badge speaker-pool-badge-never">Never spoke</span>
-                  {% elif row.status == 'available' %}
-                    <span class="speaker-pool-badge speaker-pool-badge-available">Available</span>
-                  {% elif row.status == 'consider' %}
-                    <span class="speaker-pool-badge speaker-pool-badge-consider">Consider waiting</span>
-                  {% else %}
-                    <span class="speaker-pool-badge speaker-pool-badge-recent">Spoke recently</span>
-                  {% endif %}
+                  <span class="speaker-pool-badge speaker-pool-badge-{{ row.status }}">{{ row.status_label }}</span>
                 </td>
                 {% if show_schedule %}
                   <td class="text-end text-nowrap">

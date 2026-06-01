@@ -3,7 +3,7 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">Talks</h1>
-    <p class="page-subtitle">Log sacrament talks and see who spoke recently.</p>
+    <p class="page-subtitle">Log sacrament talks, sort the list by column, and see who is available or already scheduled.</p>
   </div>
   <div class="page-actions">
     <button class="btn btn-primary btn-sm" type="button" id="talksOpenAddBtn" data-bs-toggle="modal" data-bs-target="#talksAddTalkModal">Add talk</button>
@@ -17,20 +17,43 @@
     <div class="panel">
       <div class="panel-header">Recent talks</div>
       <div class="panel-body p-0 panel-body-scroll">
-        <div class="table-responsive">
+        <div class="table-responsive" data-talks-recent-list>
           <table class="table table-sm align-middle mb-0 talks-recent-table">
             <thead>
               <tr>
-                <th class="text-nowrap">Date</th>
-                <th>Speaker</th>
-                <th>Topic</th>
+                <th class="text-nowrap">
+                  <button type="button" class="speaker-pool-sortable" data-sort="date" aria-sort="none">
+                    Date<span class="speaker-pool-sort-indicator"></span>
+                  </button>
+                </th>
+                <th>
+                  <button type="button" class="speaker-pool-sortable" data-sort="speaker" aria-sort="none">
+                    Speaker<span class="speaker-pool-sort-indicator"></span>
+                  </button>
+                </th>
+                <th>
+                  <button type="button" class="speaker-pool-sortable" data-sort="topic" aria-sort="none">
+                    Topic<span class="speaker-pool-sort-indicator"></span>
+                  </button>
+                </th>
                 <th class="text-end text-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>
               {% for t in talks %}
-                <tr>
-                  <td class="text-nowrap">{{ t.talk_date.strftime("%b %d, '%y") }}</td>
+                <tr
+                  class="{% if t.talk_date > today %}talks-recent-row-upcoming{% endif %}"
+                  data-talk-date="{{ t.talk_date.isoformat() }}"
+                  data-talk-speaker="{{ talk_speaker_label(t) | lower }}"
+                  data-talk-topic="{{ (t.topic or '') | lower }}"
+                  data-talk-upcoming="{{ '1' if t.talk_date > today else '0' }}"
+                >
+                  <td class="text-nowrap">
+                    {{ t.talk_date.strftime("%b %d, '%y") }}
+                    {% if t.talk_date > today %}
+                      <span class="speaker-pool-badge speaker-pool-badge-upcoming d-inline-block ms-1">Upcoming talk</span>
+                    {% endif %}
+                  </td>
                   <td class="fw-semibold talks-recent-speaker">{{ talk_speaker_label(t) }}</td>
                   <td class="talks-recent-topic">{% if t.topic %}{{ t.topic }}{% else %}<span class="muted">—</span>{% endif %}</td>
                   <td class="text-end text-nowrap">
@@ -55,7 +78,7 @@
         <a class="btn btn-link btn-sm p-0" href="{{ url_for('main.speaker_pool') }}">Full pool</a>
       </div>
       <div class="panel-body panel-body-scroll talks-page-pool">
-        {% with show_schedule=true, schedule_date=schedule_date, compact=true, show_controls=true %}
+        {% with speaker_pool=speaker_pool, show_schedule=true, schedule_date=schedule_date, compact=true, show_controls=true %}
           {% include 'partials/speaker_pool_table.html' %}
         {% endwith %}
       </div>
@@ -114,6 +137,7 @@
 <script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
 <script src="{{ url_for('static', filename='talk-form.js') }}"></script>
 <script src="{{ url_for('static', filename='speaker-pool-controls.js') }}"></script>
+<script src="{{ url_for('static', filename='talks-recent-controls.js') }}"></script>
 <script>
   (function () {
     var modalEl = document.getElementById("talksAddTalkModal");

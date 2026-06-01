@@ -1,5 +1,5 @@
 (function () {
-  const STATUS_TIER = { never: 0, available: 1, consider: 2, recent: 3 };
+  const STATUS_TIER = { never: 0, available: 1, consider: 2, recent: 3, upcoming: 3 };
 
   function poolDays(el) {
     const raw = el.getAttribute("data-pool-days");
@@ -16,7 +16,7 @@
     const status = a.getAttribute("data-pool-status");
     const daysA = poolDays(a);
     const daysB = poolDays(b);
-    if (status === "available" || status === "recent") {
+    if (status === "available" || status === "recent" || status === "upcoming") {
       const dA = daysA ?? 0;
       const dB = daysB ?? 0;
       if (dA !== dB) return dB - dA;
@@ -35,6 +35,12 @@
   }
 
   function compareLastTalk(a, b, direction) {
+    const upcomingA = a.getAttribute("data-pool-upcoming") === "1";
+    const upcomingB = b.getAttribute("data-pool-upcoming") === "1";
+    if (upcomingA !== upcomingB) {
+      return direction === "asc" ? (upcomingA ? -1 : 1) : (upcomingA ? 1 : -1);
+    }
+
     const daysA = poolDays(a);
     const daysB = poolDays(b);
     const rankA = daysA === null ? Number.MAX_SAFE_INTEGER : daysA;
@@ -47,47 +53,82 @@
     return compareName(a, b, "asc");
   }
 
+  function compareStatus(a, b, direction) {
+    const tierA = STATUS_TIER[a.getAttribute("data-pool-status")] ?? 9;
+    const tierB = STATUS_TIER[b.getAttribute("data-pool-status")] ?? 9;
+    const cmp = tierA - tierB;
+    if (cmp !== 0) return direction === "desc" ? -cmp : cmp;
+    return compareName(a, b, "asc");
+  }
+
   function getItems(wrap) {
-    return Array.from(
-      wrap.querySelectorAll(".speaker-pool-row[data-pool-status], .speaker-pool-compact-row[data-pool-status]")
-    );
+    return Array.from(wrap.querySelectorAll(".speaker-pool-row[data-pool-status]"));
   }
 
   function getListParent(wrap) {
     return wrap.querySelector("tbody") || wrap.querySelector(".speaker-pool-compact-list");
   }
 
-  function applySortFilter(wrap) {
-    const sortSelect = wrap.querySelector(".speaker-pool-sort");
+  function defaultDirection(column) {
+    if (column === "name") return "asc";
+    if (column === "last_talk") return "desc";
+    if (column === "status") return "asc";
+    return "asc";
+  }
+
+  function updateHeaderIndicators(wrap, column, direction) {
+    wrap.querySelectorAll(".speaker-pool-sortable").forEach(function (btn) {
+      const sortColumn = btn.getAttribute("data-sort");
+      const indicator = btn.querySelector(".speaker-pool-sort-indicator");
+      const active = sortColumn === column;
+      btn.classList.toggle("is-sorted", active);
+      btn.setAttribute("aria-sort", active ? (direction === "asc" ? "ascending" : "descending") : "none");
+      if (indicator) {
+        indicator.textContent = active ? (direction === "asc" ? " ▲" : " ▼") : "";
+      }
+    });
+  }
+
+  function applySortFilter(wrap, state) {
     const filterSelect = wrap.querySelector(".speaker-pool-filter-status");
     const emptyEl = wrap.querySelector(".speaker-pool-filter-empty");
     const parent = getListParent(wrap);
     if (!parent) return;
 
-    const sortBy = sortSelect ? sortSelect.value : "availability";
     const filterStatus = filterSelect ? filterSelect.value : "";
     let items = getItems(wrap);
 
     if (filterStatus) {
       items = items.filter(function (el) {
-        return el.getAttribute("data-pool-status") === filterStatus;
+        const status = el.getAttribute("data-pool-status");
+        if (filterStatus === "recent") {
+          return status === "recent" || status === "upcoming";
+        }
+        return status === filterStatus;
       });
     }
 
-    items.sort(function (a, b) {
-      if (sortBy === "name_asc") return compareName(a, b, "asc");
-      if (sortBy === "name_desc") return compareName(a, b, "desc");
-      if (sortBy === "last_talk_asc") return compareLastTalk(a, b, "asc");
-      if (sortBy === "last_talk_desc") return compareLastTalk(a, b, "desc");
-      return compareAvailability(a, b);
-    });
-
-    items.forEach(function (el) {
-      parent.appendChild(el);
-    });
+    if (state.column) {
+      items.sort(function (a, b) {
+        if (state.column === "name") return compareName(a, b, state.direction);
+        if (state.column === "last_talk") return compareLastTalk(a, b, state.direction);
+        if (state.column === "status") return compareStatus(a, b, state.direction);
+        return compareAvailability(a, b);
+      });
+      items.forEach(function (el) {
+        parent.appendChild(el);
+      });
+    }
 
     getItems(wrap).forEach(function (el) {
-      const visible = !filterStatus || el.getAttribute("data-pool-status") === filterStatus;
+      let visible = true;
+      if (filterStatus) {
+        const status = el.getAttribute("data-pool-status");
+        visible =
+          filterStatus === "recent"
+            ? status === "recent" || status === "upcoming"
+            : status === filterStatus;
+      }
       el.classList.toggle("d-none", !visible);
     });
 
@@ -97,15 +138,31 @@
   }
 
   function initWrap(wrap) {
-    const sortSelect = wrap.querySelector(".speaker-pool-sort");
     const filterSelect = wrap.querySelector(".speaker-pool-filter-status");
-    if (!sortSelect && !filterSelect) return;
+    const sortButtons = wrap.querySelectorAll(".speaker-pool-sortable");
+    if (!sortButtons.length && !filterSelect) return;
+
+    const state = { column: null, direction: "asc" };
 
     function refresh() {
-      applySortFilter(wrap);
+      applySortFilter(wrap, state);
+      updateHeaderIndicators(wrap, state.column, state.direction);
     }
 
-    if (sortSelect) sortSelect.addEventListener("change", refresh);
+    sortButtons.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const column = btn.getAttribute("data-sort");
+        if (!column) return;
+        if (state.column === column) {
+          state.direction = state.direction === "asc" ? "desc" : "asc";
+        } else {
+          state.column = column;
+          state.direction = defaultDirection(column);
+        }
+        refresh();
+      });
+    });
+
     if (filterSelect) filterSelect.addEventListener("change", refresh);
     refresh();
   }

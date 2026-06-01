@@ -117,6 +117,20 @@ body {
   white-space: nowrap;
 }
 
+.talks-recent-table .speaker-pool-sortable {
+  text-transform: none;
+  font-size: 0.8125rem;
+}
+
+.talks-recent-row-upcoming td:first-child {
+  border-left: 3px solid #dc2626;
+}
+
+.talks-recent-table .speaker-pool-badge-upcoming {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.35rem;
+}
+
 .speaker-pool-compact-list {
   display: flex;
   flex-direction: column;
@@ -125,6 +139,37 @@ body {
 .speaker-pool-controls .form-select {
   flex: 1 1 9rem;
   min-width: 9rem;
+}
+
+.speaker-pool-sortable {
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 0.8125rem;
+  color: var(--app-muted);
+  cursor: pointer;
+  text-align: inherit;
+}
+
+.speaker-pool-sortable:hover,
+.speaker-pool-sortable.is-sorted {
+  color: var(--app-accent);
+}
+
+.speaker-pool-sort-indicator {
+  font-size: 0.7rem;
+}
+
+.speaker-pool-compact-head .speaker-pool-sortable {
+  font-size: 0.72rem;
+  text-transform: none;
+  font-weight: 600;
+  color: var(--app-muted);
 }
 
 .speaker-pool-compact-list .speaker-pool-badge {
@@ -641,6 +686,11 @@ body {
   background: rgba(185, 28, 28, 0.1);
 }
 
+.speaker-pool-badge-upcoming {
+  color: #b91c1c;
+  background: rgba(185, 28, 28, 0.1);
+}
+
 .speaker-pool-row-never td:first-child {
   border-left: 3px solid #16a34a;
 }
@@ -654,6 +704,10 @@ body {
 }
 
 .speaker-pool-row-recent td:first-child {
+  border-left: 3px solid #dc2626;
+}
+
+.speaker-pool-row-upcoming td:first-child {
   border-left: 3px solid #dc2626;
 }
 
@@ -682,6 +736,11 @@ body {
 }
 
 .speaker-pool-compact-row.speaker-pool-row-recent {
+  border-left: 3px solid #dc2626;
+  padding-left: 0.5rem;
+}
+
+.speaker-pool-compact-row.speaker-pool-row-upcoming {
   border-left: 3px solid #dc2626;
   padding-left: 0.5rem;
 }

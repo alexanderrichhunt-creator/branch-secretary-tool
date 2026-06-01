@@ -14,30 +14,54 @@ STATUS_NEVER = "never"
 STATUS_AVAILABLE = "available"
 STATUS_CONSIDER = "consider"
 STATUS_RECENT = "recent"
+STATUS_UPCOMING = "upcoming"
 
 STATUS_LABELS = {
     STATUS_NEVER: "Never spoke",
     STATUS_AVAILABLE: "Available",
     STATUS_CONSIDER: "Consider waiting",
     STATUS_RECENT: "Spoke recently",
+    STATUS_UPCOMING: "Upcoming talk",
 }
 
 
 def member_talk_recency(exclude_talk_id: int | None = None) -> dict[str, dict]:
-    """Last talk date per member for scheduling hints."""
+    """Past and upcoming talk dates per member for scheduling hints."""
     today = date.today()
-    q = db.session.query(Talk.member_id, func.max(Talk.talk_date)).filter(Talk.member_id.isnot(None))
-    if exclude_talk_id:
-        q = q.filter(Talk.id != exclude_talk_id)
-    rows = q.group_by(Talk.member_id).all()
+
+    def _apply_exclude(q):
+        if exclude_talk_id:
+            return q.filter(Talk.id != exclude_talk_id)
+        return q
+
+    past_rows = _apply_exclude(
+        db.session.query(Talk.member_id, func.max(Talk.talk_date)).filter(
+            Talk.member_id.isnot(None),
+            Talk.talk_date <= today,
+        )
+    ).group_by(Talk.member_id).all()
+
+    future_rows = _apply_exclude(
+        db.session.query(Talk.member_id, func.min(Talk.talk_date)).filter(
+            Talk.member_id.isnot(None),
+            Talk.talk_date > today,
+        )
+    ).group_by(Talk.member_id).all()
+
+    past_map = {member_id: talk_date for member_id, talk_date in past_rows if member_id and talk_date}
+    future_map = {member_id: talk_date for member_id, talk_date in future_rows if member_id and talk_date}
+
     out: dict[str, dict] = {}
-    for member_id, last_talk in rows:
-        if not member_id or not last_talk:
-            continue
-        out[str(member_id)] = {
-            "last_talk_date": last_talk.isoformat(),
-            "days_since": (today - last_talk).days,
-        }
+    for member_id in set(past_map) | set(future_map):
+        entry: dict = {}
+        past = past_map.get(member_id)
+        future = future_map.get(member_id)
+        if past:
+            entry["last_talk_date"] = past.isoformat()
+            entry["days_since"] = (today - past).days
+        if future:
+            entry["upcoming_talk_date"] = future.isoformat()
+        out[str(member_id)] = entry
     return out
 
 
@@ -57,6 +81,7 @@ def _pool_sort_key(status: str, days_since: int | None, name: str) -> tuple:
         STATUS_AVAILABLE: 1,
         STATUS_CONSIDER: 2,
         STATUS_RECENT: 3,
+        STATUS_UPCOMING: 3,
     }.get(status, 4)
     if status == STATUS_NEVER:
         secondary = 0
@@ -70,7 +95,21 @@ def _pool_sort_key(status: str, days_since: int | None, name: str) -> tuple:
 
 
 def last_talk_summary(recency: dict | None) -> str:
-    if not recency or not recency.get("last_talk_date"):
+    if not recency:
+        return "No prior talk"
+
+    upcoming = recency.get("upcoming_talk_date")
+    if upcoming:
+        upcoming_date = datetime.strptime(upcoming, "%Y-%m-%d").date()
+        upcoming_text = f"Upcoming talk on {upcoming_date.strftime('%b %d, %Y')}"
+        if not recency.get("last_talk_date"):
+            return upcoming_text
+        past_summary = last_talk_summary(
+            {"last_talk_date": recency.get("last_talk_date"), "days_since": recency.get("days_since")}
+        )
+        return f"{upcoming_text} · {past_summary}"
+
+    if not recency.get("last_talk_date"):
         return "No prior talk"
     days = recency.get("days_since", 0)
     if days <= 0:
@@ -96,11 +135,25 @@ def build_speaker_pool(*, regular_only: bool = True) -> list[dict]:
     pool: list[dict] = []
     for member in members:
         info = recency.get(str(member.id))
-        days_since = info.get("days_since") if info else None
+        upcoming_talk_date = info.get("upcoming_talk_date") if info else None
         last_talk_date = info.get("last_talk_date") if info else None
-        if not last_talk_date:
-            days_since = None
-        status = talk_availability_status(days_since)
+        days_since = info.get("days_since") if info else None
+
+        if upcoming_talk_date:
+            status = STATUS_UPCOMING
+            status_label = STATUS_LABELS[STATUS_UPCOMING]
+            last_talk_display = datetime.strptime(upcoming_talk_date, "%Y-%m-%d").strftime("%b %d, %Y")
+        else:
+            if not last_talk_date:
+                days_since = None
+            status = talk_availability_status(days_since)
+            status_label = STATUS_LABELS[status]
+            last_talk_display = (
+                datetime.strptime(last_talk_date, "%Y-%m-%d").strftime("%b %d, %Y")
+                if last_talk_date
+                else ""
+            )
+
         pool.append(
             {
                 "member": member,
@@ -109,14 +162,11 @@ def build_speaker_pool(*, regular_only: bool = True) -> list[dict]:
                 "group_label": member.group_label or "",
                 "is_regular_attendee": bool(member.is_regular_attendee),
                 "last_talk_date": last_talk_date,
-                "last_talk_display": (
-                    datetime.strptime(last_talk_date, "%Y-%m-%d").strftime("%b %d, %Y")
-                    if last_talk_date
-                    else ""
-                ),
+                "upcoming_talk_date": upcoming_talk_date,
+                "last_talk_display": last_talk_display,
                 "days_since": days_since,
                 "status": status,
-                "status_label": STATUS_LABELS[status],
+                "status_label": status_label,
                 "last_talk_summary": last_talk_summary(info),
                 "sort_key": _pool_sort_key(status, days_since, member.full_name),
             }
