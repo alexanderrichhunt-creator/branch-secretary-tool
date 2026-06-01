@@ -143,6 +143,7 @@ def build_speaker_pool(*, regular_only: bool = True) -> list[dict]:
             status = STATUS_UPCOMING
             status_label = STATUS_LABELS[STATUS_UPCOMING]
             last_talk_display = datetime.strptime(upcoming_talk_date, "%Y-%m-%d").strftime("%b %d, %Y")
+            sort_talk_date = upcoming_talk_date
         else:
             if not last_talk_date:
                 days_since = None
@@ -153,6 +154,7 @@ def build_speaker_pool(*, regular_only: bool = True) -> list[dict]:
                 if last_talk_date
                 else ""
             )
+            sort_talk_date = last_talk_date or ""
 
         pool.append(
             {
@@ -168,6 +170,7 @@ def build_speaker_pool(*, regular_only: bool = True) -> list[dict]:
                 "status": status,
                 "status_label": status_label,
                 "last_talk_summary": last_talk_summary(info),
+                "sort_talk_date": sort_talk_date,
                 "sort_key": _pool_sort_key(status, days_since, member.full_name),
             }
         )

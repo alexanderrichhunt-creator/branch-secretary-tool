@@ -33,6 +33,7 @@
             data-pool-name="{{ row.name | lower }}"
             data-pool-status="{{ row.status }}"
             data-pool-days="{{ row.days_since if row.days_since is not none else '' }}"
+            data-pool-sort-date="{{ row.sort_talk_date or '' }}"
             data-pool-upcoming="{{ '1' if row.upcoming_talk_date else '0' }}"
           >
             <div class="min-w-0">
@@ -90,6 +91,7 @@
                 data-pool-name="{{ row.name | lower }}"
                 data-pool-status="{{ row.status }}"
                 data-pool-days="{{ row.days_since if row.days_since is not none else '' }}"
+                data-pool-sort-date="{{ row.sort_talk_date or '' }}"
                 data-pool-upcoming="{{ '1' if row.upcoming_talk_date else '0' }}"
               >
                 <td>

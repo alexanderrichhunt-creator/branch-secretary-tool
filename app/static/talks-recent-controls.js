@@ -1,4 +1,16 @@
 (function () {
+  function compareIsoDates(dateA, dateB, direction) {
+    if (window.AppDateSort && window.AppDateSort.compareIsoDates) {
+      return window.AppDateSort.compareIsoDates(dateA, dateB, direction);
+    }
+    const emptySentinel = direction === "desc" ? "0000-01-01" : "9999-12-31";
+    const rankA = dateA || emptySentinel;
+    const rankB = dateB || emptySentinel;
+    const cmp = rankA.localeCompare(rankB);
+    if (cmp !== 0) return direction === "asc" ? cmp : -cmp;
+    return 0;
+  }
+
   function getRows(wrap) {
     const tbody = wrap.querySelector("tbody");
     if (!tbody) return [];
@@ -12,17 +24,12 @@
   }
 
   function compareDate(a, b, direction) {
-    const upcomingA = a.getAttribute("data-talk-upcoming") === "1";
-    const upcomingB = b.getAttribute("data-talk-upcoming") === "1";
-    if (upcomingA !== upcomingB) {
-      return direction === "asc" ? (upcomingA ? -1 : 1) : (upcomingA ? 1 : -1);
-    }
-
-    const dateA = a.getAttribute("data-talk-date") || "";
-    const dateB = b.getAttribute("data-talk-date") || "";
-    const cmp = dateA.localeCompare(dateB);
-    if (cmp !== 0) return direction === "asc" ? cmp : -cmp;
-
+    const cmp = compareIsoDates(
+      a.getAttribute("data-talk-date") || "",
+      b.getAttribute("data-talk-date") || "",
+      direction
+    );
+    if (cmp !== 0) return cmp;
     return (a.getAttribute("data-talk-speaker") || "").localeCompare(b.getAttribute("data-talk-speaker") || "");
   }
 
@@ -33,7 +40,7 @@
   }
 
   function updateHeaderIndicators(wrap, column, direction) {
-    wrap.querySelectorAll(".speaker-pool-sortable").forEach(function (btn) {
+    wrap.querySelectorAll(".talks-recent-sortable").forEach(function (btn) {
       const sortColumn = btn.getAttribute("data-sort");
       const indicator = btn.querySelector(".speaker-pool-sort-indicator");
       const active = sortColumn === column;
@@ -63,7 +70,7 @@
   }
 
   function initWrap(wrap) {
-    const sortButtons = wrap.querySelectorAll(".speaker-pool-sortable");
+    const sortButtons = wrap.querySelectorAll(".talks-recent-sortable");
     if (!sortButtons.length) return;
 
     const state = { column: null, direction: "asc" };

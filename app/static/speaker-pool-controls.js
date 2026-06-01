@@ -34,22 +34,22 @@
     return direction === "desc" ? -cmp : cmp;
   }
 
-  function compareLastTalk(a, b, direction) {
-    const upcomingA = a.getAttribute("data-pool-upcoming") === "1";
-    const upcomingB = b.getAttribute("data-pool-upcoming") === "1";
-    if (upcomingA !== upcomingB) {
-      return direction === "asc" ? (upcomingA ? -1 : 1) : (upcomingA ? 1 : -1);
-    }
+  function compareIsoDates(dateA, dateB, direction) {
+    const emptySentinel = direction === "desc" ? "0000-01-01" : "9999-12-31";
+    const rankA = dateA || emptySentinel;
+    const rankB = dateB || emptySentinel;
+    const cmp = rankA.localeCompare(rankB);
+    if (cmp !== 0) return direction === "asc" ? cmp : -cmp;
+    return 0;
+  }
 
-    const daysA = poolDays(a);
-    const daysB = poolDays(b);
-    const rankA = daysA === null ? Number.MAX_SAFE_INTEGER : daysA;
-    const rankB = daysB === null ? Number.MAX_SAFE_INTEGER : daysB;
-    if (direction === "asc") {
-      if (rankA !== rankB) return rankB - rankA;
-    } else if (rankA !== rankB) {
-      return rankA - rankB;
-    }
+  function poolSortDate(el) {
+    return el.getAttribute("data-pool-sort-date") || "";
+  }
+
+  function compareLastTalk(a, b, direction) {
+    const cmp = compareIsoDates(poolSortDate(a), poolSortDate(b), direction);
+    if (cmp !== 0) return cmp;
     return compareName(a, b, "asc");
   }
 
@@ -170,4 +170,5 @@
   document.querySelectorAll("[data-speaker-pool-list]").forEach(initWrap);
 
   window.SpeakerPoolControls = { applySortFilter: applySortFilter };
+  window.AppDateSort = { compareIsoDates: compareIsoDates };
 })();

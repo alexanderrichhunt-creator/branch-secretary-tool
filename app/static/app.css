@@ -157,7 +157,9 @@ body {
 }
 
 .speaker-pool-sortable:hover,
-.speaker-pool-sortable.is-sorted {
+.speaker-pool-sortable.is-sorted,
+.talks-recent-sortable:hover,
+.talks-recent-sortable.is-sorted {
   color: var(--app-accent);
 }
 
