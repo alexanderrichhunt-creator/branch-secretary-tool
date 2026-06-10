@@ -202,12 +202,46 @@ def _week_start_sunday(d: date) -> date:
 MAX_TALKS_PER_SACRAMENT_WEEK = 4
 
 
-def _talk_week_meta(talks: list[Talk]) -> dict:
+def _parse_talk_sort_order() -> int:
+    raw = (request.form.get("sort_order") or "").strip()
+    if raw in ("1", "2", "3", "4"):
+        return int(raw)
+    return 0
+
+
+def _auto_talk_sort_order(talk_date: date, exclude_talk_id: int | None = None) -> int:
     from .bulletin import is_fast_testimony_talk
 
+    used = {
+        t.sort_order
+        for t in _week_talks(talk_date, exclude_talk_id)
+        if not is_fast_testimony_talk(t) and t.sort_order in (1, 2, 3, 4)
+    }
+    for order in range(1, MAX_TALKS_PER_SACRAMENT_WEEK + 1):
+        if order not in used:
+            return order
+    return MAX_TALKS_PER_SACRAMENT_WEEK
+
+
+def _resolve_talk_sort_order(
+    talk_date: date,
+    requested: int,
+    *,
+    exclude_talk_id: int | None = None,
+) -> int:
+    if requested in range(1, MAX_TALKS_PER_SACRAMENT_WEEK + 1):
+        return requested
+    return _auto_talk_sort_order(talk_date, exclude_talk_id)
+
+
+def _talk_week_meta(talks: list[Talk]) -> dict:
+    from .bulletin import is_fast_testimony_talk, sort_assigned_talks
+
+    regular = sort_assigned_talks(talks)
     return {
         "has_fast_testimony": any(is_fast_testimony_talk(t) for t in talks),
-        "regular_talk_count": sum(1 for t in talks if not is_fast_testimony_talk(t)),
+        "regular_talk_count": len(regular),
+        "regular_talks": regular,
     }
 
 
@@ -219,7 +253,11 @@ def _build_current_talk_week(recent_talks: list[Talk], today: date) -> dict:
     week_start = _week_start_sunday(sacrament_date)
     week_talks = sorted(
         (t for t in recent_talks if _week_start_sunday(t.talk_date) == week_start),
-        key=lambda t: t.talk_date,
+        key=lambda t: (
+            (getattr(t, "sort_order", 0) or 999) if (getattr(t, "sort_order", 0) or 0) > 0 else 999,
+            t.talk_date,
+            t.id,
+        ),
     )
     return {
         "week_start": week_start,
@@ -249,7 +287,11 @@ def _build_talk_sunday_groups(
     cutoff_week = _week_start_sunday(cutoff)
     while week_start >= cutoff_week:
         if exclude_week_start is None or week_start != exclude_week_start:
-            talks = sorted(by_week.get(week_start, []), key=lambda t: t.talk_date)
+            talks = sorted(by_week.get(week_start, []), key=lambda t: (
+                (getattr(t, "sort_order", 0) or 999) if (getattr(t, "sort_order", 0) or 0) > 0 else 999,
+                t.talk_date,
+                t.id,
+            ))
             groups.append(
                 {
                     "sacrament_date": week_start,
@@ -642,8 +684,11 @@ def _member_talk_recency(exclude_talk_id: int | None = None) -> dict[str, dict]:
 @main_bp.get("/talks")
 @login_required
 def talks():
+    from .bulletin import is_fast_testimony_talk
+
     today = date.today()
-    talks = Talk.query.order_by(Talk.talk_date.desc()).limit(200).all()
+    all_talks = Talk.query.order_by(Talk.talk_date.desc()).limit(200).all()
+    talks = [t for t in all_talks if not is_fast_testimony_talk(t)]
     return render_template(
         "talks.html",
         talks=talks,
@@ -713,6 +758,7 @@ def add_talk():
         talk_date=talk_date,
         topic=topic,
         notes=notes,
+        sort_order=0 if is_fast_testimony else _resolve_talk_sort_order(talk_date, _parse_talk_sort_order()),
     )
     db.session.add(t)
     db.session.commit()
@@ -792,6 +838,14 @@ def edit_talk_post(talk_id: int):
     talk.speaker_text = speaker_text
     talk.topic = topic
     talk.notes = notes
+    if is_fast_testimony:
+        talk.sort_order = 0
+    else:
+        talk.sort_order = _resolve_talk_sort_order(
+            talk_date,
+            _parse_talk_sort_order(),
+            exclude_talk_id=talk.id,
+        )
     db.session.commit()
 
     flash("Talk updated.", "success")
@@ -1211,16 +1265,14 @@ def api_events():
 
 
 def _talks_for_bulletin_date(talk_date: date) -> list[Talk]:
-    talks = Talk.query.filter_by(talk_date=talk_date).order_by(Talk.id.asc()).all()
-    if talks:
-        return talks
-    week_start = _week_start_sunday(talk_date)
-    week_end = week_start + timedelta(days=6)
-    return (
-        Talk.query.filter(Talk.talk_date >= week_start, Talk.talk_date <= week_end)
-        .order_by(Talk.talk_date.asc(), Talk.id.asc())
-        .all()
-    )
+    from .bulletin import talk_sort_key
+
+    talks = Talk.query.filter_by(talk_date=talk_date).all()
+    if not talks:
+        week_start = _week_start_sunday(talk_date)
+        week_end = week_start + timedelta(days=6)
+        talks = Talk.query.filter(Talk.talk_date >= week_start, Talk.talk_date <= week_end).all()
+    return sorted(talks, key=talk_sort_key)
 
 
 @main_bp.get("/bulletin")
@@ -1251,9 +1303,15 @@ def bulletin_builder():
         _talks_for_bulletin_date(meeting_date),
     )
     defaults["is_first_sacrament_sunday"] = is_first_sacrament_sunday(meeting_date)
+    week_talks = _talks_for_bulletin_date(meeting_date)
+    has_intermediate = bool(
+        (defaults.get("intermediate_hymn_num") or "").strip()
+        or (defaults.get("intermediate_hymn_title") or "").strip()
+    )
     defaults["speakers_text"] = speakers_text_for_mode(
         defaults["speakers_mode"],
-        _talks_for_bulletin_date(meeting_date),
+        week_talks,
+        split_for_intermediate=has_intermediate,
     )
 
     return render_template(
@@ -1297,9 +1355,15 @@ def api_bulletin_speakers():
     if mode not in (SPEAKERS_MODE_TALKS, SPEAKERS_MODE_FAST_TESTIMONY):
         mode = default_speakers_mode(talk_date, talks)
 
+    split_for_intermediate = (request.args.get("has_intermediate") or "").strip() == "1"
+
     return jsonify(
         {
-            "speakers_text": speakers_text_for_mode(mode, talks),
+            "speakers_text": speakers_text_for_mode(
+                mode,
+                talks,
+                split_for_intermediate=split_for_intermediate,
+            ),
             "speakers_mode": mode,
             "is_first_sacrament_sunday": is_first_sacrament_sunday(talk_date),
         }
@@ -1406,11 +1470,12 @@ def bulletin_export(fmt: str):
 
     data = bulletin_from_form(request.form)
     meeting_date = data.get("meeting_date")
+    talks = _talks_for_bulletin_date(meeting_date) if meeting_date else []
     suffix = meeting_date.isoformat() if meeting_date else "draft"
 
     try:
         if fmt == "docx":
-            payload = export_docx(data)
+            payload = export_docx(data, talks)
             return send_file(
                 io.BytesIO(payload),
                 as_attachment=True,
@@ -1418,7 +1483,7 @@ def bulletin_export(fmt: str):
                 mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             )
         if fmt == "txt":
-            text = build_bulletin_text(data)
+            text = build_bulletin_text(data, talks)
             return send_file(
                 io.BytesIO(text.encode("utf-8")),
                 as_attachment=True,

@@ -78,6 +78,10 @@
     });
   }
 
+  function hasIntermediateHymn() {
+    return Boolean(val("intermediate_hymn_num") || val("intermediate_hymn_title"));
+  }
+
   function updateSpeakersHint(isFirstSunday, mode) {
     if (!speakersHint) return;
     if (mode === MODE_FAST) {
@@ -89,6 +93,51 @@
     speakersHint.textContent = isFirstSunday
       ? "First Sunday of the month — switch to Fast & Testimony if needed."
       : "Auto-filled from calendar talks when assigned speakers is selected.";
+  }
+
+  function programLinesAfterSacrament() {
+    const lines = [];
+    const intermediate = hymnLine(
+      document.getElementById("intermediate_hymn_num"),
+      document.getElementById("intermediate_hymn_title")
+    );
+    const speakersText = val("speakers_text");
+    const mode = selectedSpeakersMode();
+
+    if (mode === MODE_FAST) {
+      if (speakersText) {
+        lines.push(speakersText);
+        lines.push("");
+      }
+      return lines;
+    }
+
+    if (speakersText && intermediate) {
+      const parts = speakersText.split(/\n\s*\n/).map(function (p) {
+        return p.trim();
+      }).filter(Boolean);
+      if (parts.length >= 2) {
+        lines.push(parts[0]);
+        lines.push("");
+        lines.push("Intermediate Hymn: " + intermediate);
+        lines.push("");
+        for (let i = 1; i < parts.length; i++) {
+          lines.push(parts[i]);
+        }
+        lines.push("");
+        return lines;
+      }
+    }
+
+    if (speakersText) {
+      lines.push(speakersText);
+      lines.push("");
+    }
+    if (intermediate) {
+      lines.push("Intermediate Hymn: " + intermediate);
+      lines.push("");
+    }
+    return lines;
   }
 
   function updatePreview() {
@@ -128,18 +177,7 @@
     );
     if (sacrament) lines.push("The Sacrament Hymn is " + sacrament);
     lines.push("");
-    if (val("speakers_text")) {
-      lines.push(val("speakers_text"));
-      lines.push("");
-    }
-    const intermediate = hymnLine(
-      document.getElementById("intermediate_hymn_num"),
-      document.getElementById("intermediate_hymn_title")
-    );
-    if (intermediate) {
-      lines.push("Intermediate Hymn: " + intermediate);
-      lines.push("");
-    }
+    lines.push.apply(lines, programLinesAfterSacrament());
     const closing = hymnLine(
       document.getElementById("closing_hymn_num"),
       document.getElementById("closing_hymn_title")
@@ -159,10 +197,8 @@
       return;
     }
     if (!numRaw) {
-      updatePreview();
-      return;
-    }
-    if ((target.value || "").trim()) {
+      target.value = "";
+      input.removeAttribute("data-last-hymn-num");
       updatePreview();
       return;
     }
@@ -171,15 +207,19 @@
       updatePreview();
       return;
     }
-    try {
-      const res = await fetch("/api/hymn/" + n);
-      if (!res.ok) return;
-      const data = await res.json();
-      if (!(target.value || "").trim()) {
-        target.value = data.title || "";
+    const lastNum = input.getAttribute("data-last-hymn-num");
+    if (lastNum !== String(n)) {
+      try {
+        const res = await fetch("/api/hymn/" + n);
+        if (res.ok) {
+          const data = await res.json();
+          target.value = data.title || "";
+          target.removeAttribute("data-title-manual");
+        }
+      } catch (e) {
+        /* ignore */
       }
-    } catch (e) {
-      /* ignore */
+      input.setAttribute("data-last-hymn-num", String(n));
     }
     updatePreview();
   }
@@ -195,7 +235,9 @@
         "/api/bulletin/speakers?date=" +
         encodeURIComponent(d) +
         "&mode=" +
-        encodeURIComponent(mode);
+        encodeURIComponent(mode) +
+        "&has_intermediate=" +
+        (hasIntermediateHymn() ? "1" : "0");
       const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
@@ -211,6 +253,12 @@
     }
     updatePreview();
   }
+
+  document.querySelectorAll(".hymn-title-display").forEach(function (input) {
+    input.addEventListener("input", function () {
+      input.setAttribute("data-title-manual", "1");
+    });
+  });
 
   document.querySelectorAll(".hymn-num-input").forEach(function (input) {
     input.addEventListener("input", function () {
@@ -238,6 +286,16 @@
     });
   }
 
+  ["intermediate_hymn_num", "intermediate_hymn_title"].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("change", function () {
+      if (selectedSpeakersMode() === MODE_TALKS) {
+        loadSpeakers();
+      }
+    });
+  });
+
   const printBtn = document.getElementById("bulletin-print-btn");
   if (printBtn) {
     printBtn.addEventListener("click", function () {
@@ -254,7 +312,13 @@
     });
   }
 
-  document.querySelectorAll(".hymn-num-input").forEach(lookupHymn);
+  document.querySelectorAll(".hymn-num-input").forEach(function (input) {
+    const numRaw = (input.value || "").trim();
+    if (numRaw) {
+      input.setAttribute("data-last-hymn-num", String(parseInt(numRaw.replace(/^#/, ""), 10) || ""));
+    }
+    lookupHymn(input);
+  });
   loadSpeakers();
   updatePreview();
 })();

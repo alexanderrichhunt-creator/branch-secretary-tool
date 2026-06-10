@@ -15,7 +15,15 @@
 <div class="row g-3 talks-page-layout align-items-start">
   <div class="col-12 col-lg-7 order-2 order-lg-1 talks-page-main">
     <div class="panel">
-      <div class="panel-header">Recent talks</div>
+      <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span>Recent talks</span>
+        <input
+          type="search"
+          class="form-control form-control-sm talks-recent-search"
+          placeholder="Search speakers…"
+          aria-label="Search recent talks by speaker"
+        />
+      </div>
       <div class="panel-body p-0 panel-body-scroll">
         <div class="table-responsive" data-talks-recent-list>
           <table class="table table-sm align-middle mb-0 talks-recent-table">
@@ -54,7 +62,10 @@
                       <span class="speaker-pool-badge speaker-pool-badge-upcoming d-inline-block ms-1">Upcoming talk</span>
                     {% endif %}
                   </td>
-                  <td class="fw-semibold talks-recent-speaker">{{ talk_speaker_label(t) }}</td>
+                  <td class="fw-semibold talks-recent-speaker">
+                    {% if t.sort_order %}<span class="text-muted me-1">#{{ t.sort_order }}</span>{% endif %}
+                    {{ talk_speaker_label(t) }}
+                  </td>
                   <td class="talks-recent-topic">{% if t.topic %}{{ t.topic }}{% else %}<span class="muted">—</span>{% endif %}</td>
                   <td class="text-end text-nowrap">
                     <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
@@ -118,6 +129,9 @@
               <label class="form-label" for="talks_topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
               <input class="form-control" type="text" id="talks_topic" name="topic" placeholder="Faith, service, testimony…" />
             </div>
+            {% with id_prefix='talks_', selected_sort_order=none %}
+              {% include 'partials/talk_speaker_order.html' %}
+            {% endwith %}
           </div>
           <div class="mb-3">
             <label class="form-label" for="talks_notes">Notes <span class="text-muted fw-normal">(optional)</span></label>

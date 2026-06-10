@@ -28,11 +28,22 @@
           <div class="fw-semibold">{{ week.sacrament_date.strftime("%A, %b %d, %Y") }}</div>
           <div class="small muted">Week of {{ week.week_start.strftime("%b %d") }} – {{ week.week_end.strftime("%b %d, %Y") }}</div>
 
-          {% if week.talks %}
+          {% if week.has_fast_testimony %}
             <div class="data-list mt-3">
-              {% for t in week.talks %}
+              <div class="data-list-item">
+                <div class="data-list-meta">&nbsp;</div>
+                <div>
+                  <div class="data-list-title">Fast &amp; Testimony Meeting</div>
+                </div>
+              </div>
+            </div>
+          {% elif week.regular_talks %}
+            <div class="data-list mt-3">
+              {% for t in week.regular_talks %}
                 <div class="data-list-item">
-                  <div class="data-list-meta">{{ t.talk_date.strftime("%a %b %d") }}</div>
+                  <div class="data-list-meta">
+                    {% if t.sort_order %}#{{ t.sort_order }}{% else %}{{ t.talk_date.strftime("%a %b %d") }}{% endif %}
+                  </div>
                   <div>
                     <div class="data-list-title">{{ talk_speaker_label(t) }}</div>
                     {% if t.topic %}<div class="data-list-sub">{{ t.topic }}</div>{% endif %}
@@ -68,11 +79,11 @@
               {% endif %}
 
               {% set group_count = group.regular_talk_count %}
-              <div class="dashboard-sunday-group{% if group.talks|length == 0 %} dashboard-sunday-group-empty{% endif %}">
+              <div class="dashboard-sunday-group{% if not group.regular_talks and not group.has_fast_testimony %} dashboard-sunday-group-empty{% endif %}">
                 <div class="dashboard-sunday-header">
                   <div>
                     <div class="fw-semibold">{{ group.sacrament_date.strftime("%A, %b %d, %Y") }}</div>
-                    {% if group.talks|length == 0 %}
+                    {% if not group.regular_talks and not group.has_fast_testimony %}
                       <div class="small muted">No talks logged</div>
                     {% endif %}
                   </div>
@@ -88,12 +99,23 @@
                   {% endif %}
                 </div>
 
-                {% if group.talks %}
+                {% if group.has_fast_testimony %}
                   <div class="data-list mt-2">
-                    {% for t in group.talks %}
+                    <div class="data-list-item">
+                      <div class="data-list-meta">&nbsp;</div>
+                      <div>
+                        <div class="data-list-title">Fast &amp; Testimony Meeting</div>
+                      </div>
+                    </div>
+                  </div>
+                {% elif group.regular_talks %}
+                  <div class="data-list mt-2">
+                    {% for t in group.regular_talks %}
                       <div class="data-list-item">
                         <div class="data-list-meta">
-                          {% if group.talks|length > 1 and t.talk_date != group.sacrament_date %}
+                          {% if group.regular_talks|length > 1 and t.sort_order %}
+                            #{{ t.sort_order }}
+                          {% elif group.regular_talks|length > 1 and t.talk_date != group.sacrament_date %}
                             {{ t.talk_date.strftime("%a %b %d") }}
                           {% else %}
                             &nbsp;
@@ -208,6 +230,9 @@
               <label class="form-label" for="dashboard_add_topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
               <input class="form-control" type="text" id="dashboard_add_topic" name="topic" placeholder="Topic" />
             </div>
+            {% with id_prefix='dashboard_add_', selected_sort_order=none %}
+              {% include 'partials/talk_speaker_order.html' %}
+            {% endwith %}
           </div>
           <button class="btn btn-primary btn-sm" type="submit">Save talk</button>
         </form>

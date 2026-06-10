@@ -47,6 +47,7 @@ class Talk(db.Model):
     # Link to a member, OR use speaker_text for generic/one-off entries.
     member_id = db.Column(db.Integer, db.ForeignKey("member.id"), nullable=True, index=True)
     speaker_text = db.Column(db.String(256), nullable=True)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
     member = db.relationship("Member", back_populates="talks")
 
 

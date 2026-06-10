@@ -177,6 +177,7 @@ def bulletin_from_form(form) -> dict:
         "intermediate_hymn_title": intermediate_title,
         "intermediate_hymn_line": hymn_display(intermediate_num, intermediate_title),
         "speakers_text": (form.get("speakers_text") or "").strip(),
+        "speakers_mode": (form.get("speakers_mode") or SPEAKERS_MODE_TALKS).strip(),
         "closing_hymn_num": closing_num,
         "closing_hymn_title": closing_title,
         "closing_hymn_line": hymn_display(closing_num, closing_title),
@@ -184,7 +185,7 @@ def bulletin_from_form(form) -> dict:
     }
 
 
-def build_bulletin_text(data: dict) -> str:
+def build_bulletin_text(data: dict, talks=None) -> str:
     lines = [
         "Sacrament Meeting",
         data.get("meeting_date_display") or "",
@@ -219,12 +220,7 @@ def build_bulletin_text(data: dict) -> str:
     if data.get("sacrament_hymn_line"):
         lines.append(f"The Sacrament Hymn is {data['sacrament_hymn_line']}")
     lines.append("")
-    if data.get("speakers_text"):
-        lines.append(data["speakers_text"])
-        lines.append("")
-    if data.get("intermediate_hymn_line"):
-        lines.append(f"Intermediate Hymn: {data['intermediate_hymn_line']}")
-        lines.append("")
+    lines.extend(program_lines_after_sacrament(data, talks))
     if data.get("closing_hymn_line"):
         lines.append(f"Closing Hymn {data['closing_hymn_line']}")
     if data.get("benediction"):
@@ -236,7 +232,7 @@ def _iter_bulletin_lines(data: dict) -> list[str]:
     return build_bulletin_text(data).split("\n")
 
 
-def export_docx(data: dict) -> bytes:
+def export_docx(data: dict, talks=None) -> bytes:
     from docx import Document
     from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
     from docx.shared import Inches, Pt
@@ -426,11 +422,15 @@ def export_docx(data: dict) -> bytes:
             after=section_after,
         )
 
-    if data.get("speakers_text"):
-        add_multiline(data["speakers_text"], after_last=section_after)
-
-    if data.get("intermediate_hymn_line"):
-        add_labeled_line("Intermediate Hymn", data["intermediate_hymn_line"], after=section_after)
+    for program_line in program_lines_after_sacrament(data, talks):
+        if program_line.startswith("Intermediate Hymn:"):
+            add_labeled_line(
+                "Intermediate Hymn",
+                program_line.split(":", 1)[1].strip(),
+                after=section_after,
+            )
+        elif program_line:
+            add_multiline(program_line, after_last=section_after)
 
     add_labeled_line("Closing Hymn", data.get("closing_hymn_line") or "", separator=" ", after=body_after)
     add_labeled_line("Benediction", data.get("benediction") or "", after=body_after)
@@ -441,6 +441,7 @@ def export_docx(data: dict) -> bytes:
 
 
 def speakers_text_for_talks(talks) -> str:
+    talks = sort_assigned_talks(talks)
     names = [_talk_display_name(t) for t in talks]
     names = [n for n in names if n and n != "—"]
     if not names:
@@ -448,6 +449,109 @@ def speakers_text_for_talks(talks) -> str:
     if len(names) == 1:
         return f"Our speaker today will be {names[0]}."
     return "Our speakers today will be " + " followed by ".join(names) + "."
+
+
+def speakers_text_blocks_for_talks(talks) -> list[str]:
+    """Split speaker intro for bulletin layout with an intermediate hymn between groups."""
+    talks = sort_assigned_talks(talks)
+    names = [_talk_display_name(t) for t in talks]
+    names = [n for n in names if n and n != "—"]
+    if not names:
+        return []
+    if len(names) == 1:
+        return [f"Our speaker today will be {names[0]}."]
+    first = f"Our speaker today will be {names[0]}."
+    rest = "Followed by " + " followed by ".join(names[1:]) + "."
+    return [first, rest]
+
+
+def speakers_text_for_talks_layout(talks, *, split_for_intermediate: bool = False) -> str:
+    talks = sort_assigned_talks(talks)
+    if split_for_intermediate and len(talks) >= 2:
+        return "\n\n".join(speakers_text_blocks_for_talks(talks))
+    return speakers_text_for_talks(talks)
+
+
+def talk_sort_key(talk) -> tuple:
+    order = getattr(talk, "sort_order", 0) or 0
+    if order <= 0:
+        order = 999
+    talk_date = getattr(talk, "talk_date", None)
+    talk_id = getattr(talk, "id", 0) or 0
+    return (order, talk_date or date.min, talk_id)
+
+
+def sort_assigned_talks(talks) -> list:
+    return sorted(regular_assigned_talks(talks), key=talk_sort_key)
+
+
+def regular_assigned_talks(talks) -> list:
+    return [t for t in talks if not is_fast_testimony_talk(t)]
+
+
+def has_intermediate_hymn(data: dict) -> bool:
+    return bool((data.get("intermediate_hymn_line") or "").strip())
+
+
+def program_lines_after_sacrament(data: dict, talks=None) -> list[str]:
+    """Speaker paragraphs with optional intermediate hymn between first and remaining speakers."""
+    lines: list[str] = []
+    intermediate = (data.get("intermediate_hymn_line") or "").strip()
+    speakers_mode = (data.get("speakers_mode") or SPEAKERS_MODE_TALKS).strip()
+    speakers_text = (data.get("speakers_text") or "").strip()
+    assigned = sort_assigned_talks(talks or [])
+
+    if speakers_mode == SPEAKERS_MODE_FAST_TESTIMONY or any(
+        is_fast_testimony_talk(t) for t in (talks or [])
+    ):
+        text = speakers_text or FAST_TESTIMONY_SPEAKERS_TEXT
+        if text:
+            lines.append(text)
+            lines.append("")
+        return lines
+
+    if assigned and intermediate and len(assigned) >= 2:
+        blocks = speakers_text_blocks_for_talks(assigned)
+        if blocks:
+            lines.append(blocks[0])
+            lines.append("")
+            lines.append(f"Intermediate Hymn: {intermediate}")
+            lines.append("")
+            if len(blocks) > 1:
+                lines.append(blocks[1])
+                lines.append("")
+        return lines
+
+    if assigned:
+        text = speakers_text or speakers_text_for_talks(assigned)
+        if text:
+            lines.append(text)
+            lines.append("")
+        if intermediate:
+            lines.append(f"Intermediate Hymn: {intermediate}")
+            lines.append("")
+        return lines
+
+    if speakers_text:
+        parts = [part.strip() for part in speakers_text.split("\n\n") if part.strip()]
+        if intermediate and len(parts) >= 2:
+            lines.append(parts[0])
+            lines.append("")
+            lines.append(f"Intermediate Hymn: {intermediate}")
+            lines.append("")
+            lines.extend(parts[1:])
+            lines.append("")
+        else:
+            lines.append(speakers_text)
+            lines.append("")
+            if intermediate:
+                lines.append(f"Intermediate Hymn: {intermediate}")
+                lines.append("")
+    elif intermediate:
+        lines.append(f"Intermediate Hymn: {intermediate}")
+        lines.append("")
+
+    return lines
 
 
 SPEAKERS_MODE_TALKS = "talks"
@@ -477,10 +581,10 @@ def default_speakers_mode(meeting_date: date, talks=None) -> str:
     return SPEAKERS_MODE_TALKS
 
 
-def speakers_text_for_mode(mode: str, talks) -> str:
+def speakers_text_for_mode(mode: str, talks, *, split_for_intermediate: bool = False) -> str:
     if mode == SPEAKERS_MODE_FAST_TESTIMONY or any(is_fast_testimony_talk(t) for t in talks):
         return FAST_TESTIMONY_SPEAKERS_TEXT
-    return speakers_text_for_talks(talks)
+    return speakers_text_for_talks_layout(talks, split_for_intermediate=split_for_intermediate)
 
 
 def resolved_hymn_title(defaults: dict, num_key: str, title_key: str) -> str:

@@ -141,6 +141,15 @@ body {
   min-width: 9rem;
 }
 
+.speaker-pool-controls .speaker-pool-name-search {
+  flex: 1 1 100%;
+  min-width: 10rem;
+}
+
+.talks-page-main .talks-recent-search {
+  max-width: 14rem;
+}
+
 .speaker-pool-sortable {
   border: 0;
   background: none;

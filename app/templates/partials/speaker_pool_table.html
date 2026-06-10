@@ -3,6 +3,12 @@
   {% if speaker_pool %}
     {% if show_controls %}
       <div class="speaker-pool-controls d-flex flex-wrap gap-2 mb-2">
+        <input
+          type="search"
+          class="form-control form-control-sm speaker-pool-name-search"
+          placeholder="Search speakers…"
+          aria-label="Search speakers by name"
+        />
         <select class="form-select form-select-sm speaker-pool-filter-status" aria-label="Filter by status">
           <option value="">All statuses</option>
           <option value="never">Never spoke</option>

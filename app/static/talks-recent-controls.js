@@ -69,15 +69,32 @@
     });
   }
 
+  function applySearch(wrap) {
+    const searchInput = wrap.closest(".panel")?.querySelector(".talks-recent-search")
+      || document.querySelector(".talks-recent-search");
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    getRows(wrap).forEach(function (row) {
+      if (!query) {
+        row.classList.remove("d-none");
+        return;
+      }
+      const speaker = (row.getAttribute("data-talk-speaker") || "").toLowerCase();
+      row.classList.toggle("d-none", !speaker.includes(query));
+    });
+  }
+
   function initWrap(wrap) {
     const sortButtons = wrap.querySelectorAll(".talks-recent-sortable");
-    if (!sortButtons.length) return;
+    const searchInput = wrap.closest(".panel")?.querySelector(".talks-recent-search")
+      || document.querySelector(".talks-recent-search");
+    if (!sortButtons.length && !searchInput) return;
 
     const state = { column: null, direction: "asc" };
 
     function refresh() {
       applySort(wrap, state);
       updateHeaderIndicators(wrap, state.column, state.direction);
+      applySearch(wrap);
     }
 
     sortButtons.forEach(function (btn) {
@@ -93,6 +110,8 @@
         refresh();
       });
     });
+
+    if (searchInput) searchInput.addEventListener("input", refresh);
   }
 
   document.querySelectorAll("[data-talks-recent-list]").forEach(initWrap);

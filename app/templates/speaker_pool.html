@@ -92,6 +92,9 @@
               <label class="form-label" for="pool_topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
               <input class="form-control" type="text" id="pool_topic" name="topic" placeholder="Topic" />
             </div>
+            {% with id_prefix='pool_', selected_sort_order=none %}
+              {% include 'partials/talk_speaker_order.html' %}
+            {% endwith %}
           </div>
           <button class="btn btn-primary btn-sm" type="submit">Save talk assignment</button>
         </form>

@@ -97,6 +97,9 @@ def _apply_schema_patches():
             conn.execute(
                 text("ALTER TABLE suggested_talk ADD COLUMN IF NOT EXISTS suggested_date DATE")
             )
+            conn.execute(
+                text("ALTER TABLE talk ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0")
+            )
         elif dialect == "sqlite":
             _sqlite_patch_talk_interview_schema(conn, engine, inspect)
             _sqlite_patch_event_schema(conn, engine, inspect)
@@ -115,6 +118,9 @@ def _sqlite_patch_talk_interview_schema(conn, engine, sa_inspect):
         cols = {c["name"]: c for c in insp.get_columns("talk")}
         if "speaker_text" not in cols:
             conn.execute(text("ALTER TABLE talk ADD COLUMN speaker_text VARCHAR(256)"))
+        cols = {c["name"] for c in sa_inspect(engine).get_columns("talk")}
+        if "sort_order" not in cols:
+            conn.execute(text("ALTER TABLE talk ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0"))
         cols = {c["name"]: c for c in sa_inspect(engine).get_columns("talk")}
         mcol = cols.get("member_id")
         if mcol is not None and mcol.get("nullable") is False:
@@ -129,7 +135,8 @@ def _sqlite_patch_talk_interview_schema(conn, engine, sa_inspect):
                   notes TEXT,
                   created_at DATETIME NOT NULL,
                   member_id INTEGER REFERENCES member(id),
-                  speaker_text VARCHAR(256)
+                  speaker_text VARCHAR(256),
+                  sort_order INTEGER NOT NULL DEFAULT 0
                 )
                 """
                 )
@@ -137,8 +144,8 @@ def _sqlite_patch_talk_interview_schema(conn, engine, sa_inspect):
             conn.execute(
                 text(
                     """
-                INSERT INTO talk__new (id, talk_date, topic, notes, created_at, member_id, speaker_text)
-                SELECT id, talk_date, topic, notes, created_at, member_id, speaker_text
+                INSERT INTO talk__new (id, talk_date, topic, notes, created_at, member_id, speaker_text, sort_order)
+                SELECT id, talk_date, topic, notes, created_at, member_id, speaker_text, 0
                 FROM talk
                 """
                 )

@@ -91,11 +91,13 @@
 
   function applySortFilter(wrap, state) {
     const filterSelect = wrap.querySelector(".speaker-pool-filter-status");
+    const searchInput = wrap.querySelector(".speaker-pool-name-search");
     const emptyEl = wrap.querySelector(".speaker-pool-filter-empty");
     const parent = getListParent(wrap);
     if (!parent) return;
 
     const filterStatus = filterSelect ? filterSelect.value : "";
+    const searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : "";
     let items = getItems(wrap);
 
     if (filterStatus) {
@@ -105,6 +107,12 @@
           return status === "recent" || status === "upcoming";
         }
         return status === filterStatus;
+      });
+    }
+
+    if (searchQuery) {
+      items = items.filter(function (el) {
+        return (el.getAttribute("data-pool-name") || "").includes(searchQuery);
       });
     }
 
@@ -129,6 +137,9 @@
             ? status === "recent" || status === "upcoming"
             : status === filterStatus;
       }
+      if (visible && searchQuery) {
+        visible = (el.getAttribute("data-pool-name") || "").includes(searchQuery);
+      }
       el.classList.toggle("d-none", !visible);
     });
 
@@ -139,8 +150,9 @@
 
   function initWrap(wrap) {
     const filterSelect = wrap.querySelector(".speaker-pool-filter-status");
+    const searchInput = wrap.querySelector(".speaker-pool-name-search");
     const sortButtons = wrap.querySelectorAll(".speaker-pool-sortable");
-    if (!sortButtons.length && !filterSelect) return;
+    if (!sortButtons.length && !filterSelect && !searchInput) return;
 
     const state = { column: null, direction: "asc" };
 
@@ -164,6 +176,7 @@
     });
 
     if (filterSelect) filterSelect.addEventListener("change", refresh);
+    if (searchInput) searchInput.addEventListener("input", refresh);
     refresh();
   }
 
