@@ -34,7 +34,7 @@
           <span class="small muted">{{ speaker_pool_adult | length }} regular attendee{% if speaker_pool_adult | length != 1 %}s{% endif %}</span>
         </div>
         <div class="panel-body panel-body-scroll">
-          {% with speaker_pool=speaker_pool_adult, show_schedule=true, schedule_date=schedule_date, assign_in_modal=true, show_controls=true, pool_empty_message='No adult regular attendees yet. Mark adults as regular attendees on the Members page.' %}
+          {% with speaker_pool=speaker_pool_adult, show_schedule=true, schedule_date=schedule_date, assign_in_modal=true, show_controls=true, compact=true, pool_empty_message='No adult regular attendees yet. Mark adults as regular attendees on the Members page.' %}
             {% include 'partials/speaker_pool_table.html' %}
           {% endwith %}
         </div>
@@ -48,7 +48,7 @@
           <span class="small muted">{{ speaker_pool_youth | length }} regular attendee{% if speaker_pool_youth | length != 1 %}s{% endif %}</span>
         </div>
         <div class="panel-body panel-body-scroll">
-          {% with speaker_pool=speaker_pool_youth, show_schedule=true, schedule_date=schedule_date, assign_in_modal=true, show_controls=true, pool_empty_message='No youth regular attendees yet. Set group to Youth on the Members page when marking regular attendees.' %}
+          {% with speaker_pool=speaker_pool_youth, show_schedule=true, schedule_date=schedule_date, assign_in_modal=true, show_controls=true, compact=true, pool_empty_message='No youth regular attendees yet. Set group to Youth on the Members page when marking regular attendees.' %}
             {% include 'partials/speaker_pool_table.html' %}
           {% endwith %}
         </div>

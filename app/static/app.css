@@ -108,11 +108,13 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    min-width: 0;
   }
 
   .speaker-pool-page-layout .panel.h-100 {
     flex: 1 1 auto;
     min-height: 0;
+    min-width: 0;
     display: flex;
     flex-direction: column;
   }
@@ -120,8 +122,21 @@ body {
   .speaker-pool-page-layout .panel-body-scroll {
     flex: 1 1 auto;
     min-height: 0;
+    min-width: 0;
     max-height: none;
+    overflow-x: hidden;
     overflow-y: auto;
+  }
+
+  .speaker-pool-page-layout .speaker-pool-table-wrap {
+    min-width: 0;
+  }
+
+  .speaker-pool-page-layout .speaker-pool-controls .speaker-pool-name-search,
+  .speaker-pool-page-layout .speaker-pool-controls .form-select {
+    flex: 1 1 100%;
+    min-width: 0;
+    width: 100%;
   }
 }
 
@@ -218,6 +233,15 @@ body {
   text-transform: none;
   font-weight: 600;
   color: var(--app-muted);
+  white-space: nowrap;
+}
+
+.speaker-pool-compact-head {
+  min-width: 0;
+}
+
+.speaker-pool-table-wrap {
+  min-width: 0;
 }
 
 .speaker-pool-compact-list .speaker-pool-badge {
