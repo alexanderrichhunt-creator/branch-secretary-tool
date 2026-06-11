@@ -62,6 +62,11 @@ CALENDAR_ITEM_STYLES = {
         "color": "#16a34a",
         "border": "#15803d",
     },
+    "suggested_talk": {
+        "label": "Suggested talks",
+        "color": "#7c3aed",
+        "border": "#6d28d9",
+    },
     "general": {
         "label": "General events",
         "color": DEFAULT_EVENT_STYLE["color"],

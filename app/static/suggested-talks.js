@@ -1,6 +1,7 @@
 (function () {
   const listEl = document.getElementById("suggested-talk-list");
   const addForm = document.getElementById("suggested-talk-add-form");
+  const calAddForm = document.getElementById("cal-suggested-talk-add-form");
   const editForm = document.getElementById("suggested-talk-edit-form");
   const editModalEl = document.getElementById("suggestedTalkEditModal");
   const editSaveBtn = document.getElementById("suggestedTalkEditSaveBtn");
@@ -9,7 +10,7 @@
   const dateFilterClearBtn = document.getElementById("suggested_date_filter_clear");
   const addDateEl = document.getElementById("suggested_date");
 
-  if (!listEl) return;
+  if (!listEl && !addForm && !calAddForm) return;
 
   const editModal = editModalEl && window.bootstrap ? new bootstrap.Modal(editModalEl) : null;
 
@@ -40,11 +41,57 @@
     return dateFilterEl && dateFilterEl.value ? dateFilterEl.value : "";
   }
 
+  function refreshCalendar() {
+    if (window.branchCalendar && window.branchCalendar.refetchEvents) {
+      window.branchCalendar.refetchEvents();
+    }
+  }
+
+  async function submitSuggestedForm(form, errorSelector, onSuccess) {
+    const errorEl = form.querySelector(errorSelector);
+    showFormError(errorEl, "");
+    try {
+      const res = await fetch("/api/suggested-talks", {
+        method: "POST",
+        body: new FormData(form),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showFormError(errorEl, data.error || "Could not save.");
+        return;
+      }
+      if (onSuccess) await onSuccess(data);
+      refreshCalendar();
+    } catch (e) {
+      showFormError(errorEl, "Could not save.");
+    }
+  }
+
   function setSelectedDate(dateStr) {
     const value = dateStr || "";
     if (addDateEl && value) addDateEl.value = value;
     if (dateFilterEl) dateFilterEl.value = value;
-    refreshList();
+    const calSuggestedDate = document.getElementById("cal_suggested_date");
+    if (calSuggestedDate && value) calSuggestedDate.value = value;
+    if (listEl) refreshList();
+  }
+
+  async function openEdit(id) {
+    const suggestion = await fetchSuggestion(id);
+    document.getElementById("suggested_edit_id").value = suggestion.id;
+    document.getElementById("suggested_edit_date").value = suggestion.suggested_date || "";
+    document.getElementById("suggested_edit_member_id").value = suggestion.member_id
+      ? String(suggestion.member_id)
+      : "";
+    document.getElementById("suggested_edit_speaker_text").value = suggestion.speaker_text || "";
+    document.getElementById("suggested_edit_topic").value = suggestion.topic || "";
+    document.getElementById("suggested_edit_notes").value = suggestion.notes || "";
+    document.getElementById("suggested_edit_member_filter").value = "";
+    if (window.MemberSelectFilter) window.MemberSelectFilter.resetAll();
+    const editMember = document.getElementById("suggested_edit_member_id");
+    if (editMember) editMember.dispatchEvent(new Event("change", { bubbles: true }));
+    showFormError(editForm.querySelector(".cal-suggested-edit-error"), "");
+    if (editModal) editModal.show();
   }
 
   function renderSuggestionItem(item) {
@@ -81,6 +128,7 @@
   }
 
   function renderList(items) {
+    if (!listEl) return;
     updateCount(items.length);
     if (!items.length) {
       const filterDate = currentFilterDate();
@@ -96,6 +144,7 @@
   }
 
   async function refreshList() {
+    if (!listEl) return;
     try {
       const filterDate = currentFilterDate();
       const url = filterDate
@@ -128,25 +177,32 @@
   if (addForm) {
     addForm.addEventListener("submit", async function (event) {
       event.preventDefault();
-      showFormError(addForm.querySelector(".cal-suggested-form-error"), "");
-      try {
-        const res = await fetch("/api/suggested-talks", {
-          method: "POST",
-          body: new FormData(addForm),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          showFormError(addForm.querySelector(".cal-suggested-form-error"), data.error || "Could not save.");
-          return;
-        }
+      await submitSuggestedForm(addForm, ".cal-suggested-form-error", async function () {
         if (dateFilterEl && addDateEl && addDateEl.value) {
           dateFilterEl.value = addDateEl.value;
         }
         resetAddForm();
         await refreshList();
-      } catch (e) {
-        showFormError(addForm.querySelector(".cal-suggested-form-error"), "Could not save.");
-      }
+      });
+    });
+  }
+
+  if (calAddForm) {
+    calAddForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      await submitSuggestedForm(calAddForm, ".cal-suggested-modal-error", async function () {
+        const dateInput = document.getElementById("cal_suggested_date");
+        const dateValue = dateInput ? dateInput.value : "";
+        calAddForm.reset();
+        if (dateInput && dateValue) dateInput.value = dateValue;
+        if (dateFilterEl && dateValue) dateFilterEl.value = dateValue;
+        if (addDateEl && dateValue) addDateEl.value = dateValue;
+        if (window.MemberSelectFilter) window.MemberSelectFilter.resetAll();
+        await refreshList();
+        if (window.CalCreateForm && window.CalCreateForm.modal) {
+          window.CalCreateForm.modal.hide();
+        }
+      });
     });
   }
 
@@ -161,57 +217,46 @@
     });
   }
 
-  listEl.addEventListener("click", async function (event) {
-    const itemEl = event.target.closest(".cal-suggested-item");
-    if (!itemEl) return;
-    const id = itemEl.getAttribute("data-suggestion-id");
-    if (!id) return;
+  if (listEl) {
+    listEl.addEventListener("click", async function (event) {
+      const itemEl = event.target.closest(".cal-suggested-item");
+      if (!itemEl) return;
+      const id = itemEl.getAttribute("data-suggestion-id");
+      if (!id) return;
 
-    if (event.target.closest(".cal-suggested-delete-btn")) {
-      if (!window.confirm("Remove this suggestion from the list?")) return;
-      try {
-        await fetch("/api/suggested-talks/" + encodeURIComponent(id) + "/delete", { method: "POST" });
-        await refreshList();
-      } catch (e) {
-        /* ignore */
-      }
-      return;
-    }
-
-    if (event.target.closest(".cal-suggested-edit-btn")) {
-      try {
-        const suggestion = await fetchSuggestion(id);
-        document.getElementById("suggested_edit_id").value = suggestion.id;
-        document.getElementById("suggested_edit_date").value = suggestion.suggested_date || "";
-        document.getElementById("suggested_edit_member_id").value = suggestion.member_id
-          ? String(suggestion.member_id)
-          : "";
-        document.getElementById("suggested_edit_speaker_text").value = suggestion.speaker_text || "";
-        document.getElementById("suggested_edit_topic").value = suggestion.topic || "";
-        document.getElementById("suggested_edit_notes").value = suggestion.notes || "";
-        document.getElementById("suggested_edit_member_filter").value = "";
-        if (window.MemberSelectFilter) window.MemberSelectFilter.resetAll();
-        const editMember = document.getElementById("suggested_edit_member_id");
-        if (editMember) editMember.dispatchEvent(new Event("change", { bubbles: true }));
-        showFormError(editForm.querySelector(".cal-suggested-edit-error"), "");
-        if (editModal) editModal.show();
-      } catch (e) {
-        /* ignore */
-      }
-      return;
-    }
-
-    if (event.target.closest(".cal-suggested-schedule-btn")) {
-      try {
-        const suggestion = await fetchSuggestion(id);
-        if (window.CalCreateForm && window.CalCreateForm.openForSuggestion) {
-          window.CalCreateForm.openForSuggestion(suggestion, suggestion.suggested_date || "");
+      if (event.target.closest(".cal-suggested-delete-btn")) {
+        if (!window.confirm("Remove this suggestion from the list?")) return;
+        try {
+          await fetch("/api/suggested-talks/" + encodeURIComponent(id) + "/delete", { method: "POST" });
+          await refreshList();
+          refreshCalendar();
+        } catch (e) {
+          /* ignore */
         }
-      } catch (e) {
-        /* ignore */
+        return;
       }
-    }
-  });
+
+      if (event.target.closest(".cal-suggested-edit-btn")) {
+        try {
+          await openEdit(id);
+        } catch (e) {
+          /* ignore */
+        }
+        return;
+      }
+
+      if (event.target.closest(".cal-suggested-schedule-btn")) {
+        try {
+          const suggestion = await fetchSuggestion(id);
+          if (window.CalCreateForm && window.CalCreateForm.openForSuggestion) {
+            window.CalCreateForm.openForSuggestion(suggestion, suggestion.suggested_date || "");
+          }
+        } catch (e) {
+          /* ignore */
+        }
+      }
+    });
+  }
 
   if (editSaveBtn && editForm) {
     editSaveBtn.addEventListener("click", async function () {
@@ -230,6 +275,7 @@
         }
         if (editModal) editModal.hide();
         await refreshList();
+        refreshCalendar();
       } catch (e) {
         showFormError(editForm.querySelector(".cal-suggested-edit-error"), "Could not save.");
       }
@@ -239,5 +285,6 @@
   window.SuggestedTalks = {
     refresh: refreshList,
     setSelectedDate: setSelectedDate,
+    openEdit: openEdit,
   };
 })();

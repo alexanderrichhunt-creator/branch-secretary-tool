@@ -72,10 +72,13 @@
   }
 
   window.CalEventDetail = {
+    lastProps: null,
+
     render: function (modalEl, fcEvent) {
       if (!modalEl || !fcEvent) return;
 
       const props = fcEvent.extendedProps || {};
+      this.lastProps = props;
       const start = fcEvent.start;
       const end = fcEvent.end;
       const allDay = !!fcEvent.allDay;
@@ -126,6 +129,12 @@
       if (props.kind === "talk" && props.topic) {
         metaParts.push(metaRow("Topic", props.topic));
       }
+      if (props.kind === "suggested_talk") {
+        if (props.speakerLabel && props.speakerLabel !== "—") {
+          metaParts.push(metaRow("Speaker", props.speakerLabel));
+        }
+        if (props.topic) metaParts.push(metaRow("Topic", props.topic));
+      }
       if (props.kind === "interview") {
         if (props.interviewSubject) metaParts.push(metaRow("With", props.interviewSubject));
         if (props.interviewPurpose) metaParts.push(metaRow("Purpose", props.interviewPurpose));
@@ -156,8 +165,23 @@
       setText(modalEl.querySelector(".cal-detail-notes"), notes);
 
       const editLink = modalEl.querySelector(".cal-edit-link");
-      if (editLink) {
-        editLink.href = props.editUrl || "#";
+      const scheduleBtn = modalEl.querySelector(".cal-schedule-suggestion-btn");
+      if (props.kind === "suggested_talk") {
+        if (editLink) {
+          editLink.textContent = "Edit suggestion";
+          editLink.href = "#";
+          editLink.classList.remove("btn-primary");
+          editLink.classList.add("btn-outline-primary");
+        }
+        if (scheduleBtn) scheduleBtn.classList.remove("d-none");
+      } else {
+        if (editLink) {
+          editLink.textContent = "Edit";
+          editLink.href = props.editUrl || "#";
+          editLink.classList.add("btn-primary");
+          editLink.classList.remove("btn-outline-primary");
+        }
+        if (scheduleBtn) scheduleBtn.classList.add("d-none");
       }
     },
   };

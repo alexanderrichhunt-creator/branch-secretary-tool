@@ -119,6 +119,18 @@ def _suggested_talk_speaker_label(st: SuggestedTalk) -> str:
     return st.speaker_label()
 
 
+def _suggested_talk_calendar_title(st: SuggestedTalk) -> str:
+    speaker = _suggested_talk_speaker_label(st)
+    topic = (st.topic or "").strip()
+    if speaker and speaker != "—":
+        if topic:
+            return f"Suggested: {speaker} — {topic}"
+        return f"Suggested: {speaker}"
+    if topic:
+        return f"Suggested topic: {topic}"
+    return "Suggested talk"
+
+
 def _suggested_talk_payload(st: SuggestedTalk) -> dict:
     return {
         "id": st.id,
@@ -1260,6 +1272,37 @@ def api_events():
             else:
                 fc_event["end"] = occ_end.isoformat()
             events.append(fc_event)
+
+    suggested_talks = SuggestedTalk.query.filter(
+        SuggestedTalk.suggested_date >= range_start_date,
+        SuggestedTalk.suggested_date <= range_end_date,
+    ).order_by(*_suggested_talk_order()).all()
+    for st in suggested_talks:
+        full_title = _suggested_talk_calendar_title(st)
+        bg, border = calendar_item_colors("suggested_talk")
+        topic = (st.topic or "").strip()
+        events.append(
+            {
+                "id": f"suggested-{st.id}",
+                "title": _short_calendar_title(full_title),
+                "start": st.suggested_date.isoformat(),
+                "allDay": True,
+                "backgroundColor": bg,
+                "borderColor": border,
+                "extendedProps": {
+                    "kind": "suggested_talk",
+                    "kindLabel": "Suggested talk",
+                    "accentColor": bg,
+                    "suggestionId": st.id,
+                    "fullTitle": full_title,
+                    "speakerLabel": _suggested_talk_speaker_label(st),
+                    "memberId": st.member_id,
+                    "speakerText": st.speaker_text or "",
+                    "topic": topic,
+                    "notes": (st.notes or "").strip(),
+                },
+            }
+        )
 
     return jsonify(events)
 

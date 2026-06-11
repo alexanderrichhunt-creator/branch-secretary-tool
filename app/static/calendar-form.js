@@ -79,6 +79,23 @@
     }
     const suggestedTalkId = document.getElementById("cal_suggested_talk_id");
     if (suggestedTalkId) suggestedTalkId.value = "";
+    const calSuggestedForm = document.getElementById("cal-suggested-talk-add-form");
+    if (calSuggestedForm) {
+      calSuggestedForm.reset();
+      showCalSuggestedError("");
+    }
+  }
+
+  function showCalSuggestedError(message) {
+    const el = document.querySelector(".cal-suggested-modal-error");
+    if (!el) return;
+    if (!message) {
+      el.classList.add("d-none");
+      el.textContent = "";
+      return;
+    }
+    el.textContent = message;
+    el.classList.remove("d-none");
   }
 
   function activateCreateTab(tabId) {
@@ -142,7 +159,7 @@
   }
 
   function syncDates(dateValue) {
-    document.querySelectorAll(".cal-event-date, .cal-talk-date").forEach(function (el) {
+    document.querySelectorAll(".cal-event-date, .cal-talk-date, .cal-suggested-date").forEach(function (el) {
       el.value = dateValue;
     });
   }
@@ -199,13 +216,18 @@
       setAllDayState(modalEl.querySelector("#cal-pane-interview"), false);
     },
 
-    openFromCalendar: function (start, end, allDay, dateStr) {
-      this.open({
-        start: start,
-        end: end,
-        allDay: allDay,
-        dateStr: dateStr,
-      });
+    openFromCalendar: function (start, end, allDay, dateStr, extra) {
+      this.open(
+        Object.assign(
+          {
+            start: start,
+            end: end,
+            allDay: allDay,
+            dateStr: dateStr,
+          },
+          extra || {}
+        )
+      );
     },
 
     openForSuggestion: function (suggestion, dateStr) {
@@ -271,6 +293,8 @@
       }
       if (opts.tab) {
         activateCreateTab(opts.tab);
+      } else {
+        activateCreateTab("cal-tab-event");
       }
 
       dispatchTalkDateChange();
@@ -279,4 +303,5 @@
   };
 
   window.CalCreateForm = CalCreateForm;
+  window.showCalSuggestedError = showCalSuggestedError;
 })();
