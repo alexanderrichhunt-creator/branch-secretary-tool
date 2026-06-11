@@ -122,13 +122,15 @@ def _suggested_talk_speaker_label(st: SuggestedTalk) -> str:
 def _suggested_talk_calendar_title(st: SuggestedTalk) -> str:
     speaker = _suggested_talk_speaker_label(st)
     topic = (st.topic or "").strip()
+    order = getattr(st, "sort_order", 0) or 0
+    order_prefix = f"#{order} " if order in range(1, MAX_TALKS_PER_SACRAMENT_WEEK + 1) else ""
     if speaker and speaker != "—":
         if topic:
-            return f"Suggested: {speaker} — {topic}"
-        return f"Suggested: {speaker}"
+            return f"{order_prefix}Suggested: {speaker} — {topic}"
+        return f"{order_prefix}Suggested: {speaker}"
     if topic:
-        return f"Suggested topic: {topic}"
-    return "Suggested talk"
+        return f"{order_prefix}Suggested topic: {topic}"
+    return f"{order_prefix}Suggested talk".strip() or "Suggested talk"
 
 
 def _suggested_talk_payload(st: SuggestedTalk) -> dict:
@@ -141,6 +143,7 @@ def _suggested_talk_payload(st: SuggestedTalk) -> dict:
         "speaker_label": _suggested_talk_speaker_label(st),
         "topic": st.topic or "",
         "notes": st.notes or "",
+        "sort_order": st.sort_order or 0,
         "created_at": st.created_at.isoformat() if st.created_at else "",
     }
 
@@ -244,6 +247,36 @@ def _resolve_talk_sort_order(
     if requested in range(1, MAX_TALKS_PER_SACRAMENT_WEEK + 1):
         return requested
     return _auto_talk_sort_order(talk_date, exclude_talk_id)
+
+
+def _suggested_talks_on_date(suggested_date: date, exclude_id: int | None = None) -> list[SuggestedTalk]:
+    q = SuggestedTalk.query.filter_by(suggested_date=suggested_date)
+    if exclude_id:
+        q = q.filter(SuggestedTalk.id != exclude_id)
+    return q.all()
+
+
+def _auto_suggested_sort_order(suggested_date: date, exclude_id: int | None = None) -> int:
+    used = {
+        st.sort_order
+        for st in _suggested_talks_on_date(suggested_date, exclude_id)
+        if st.sort_order in range(1, MAX_TALKS_PER_SACRAMENT_WEEK + 1)
+    }
+    for order in range(1, MAX_TALKS_PER_SACRAMENT_WEEK + 1):
+        if order not in used:
+            return order
+    return MAX_TALKS_PER_SACRAMENT_WEEK
+
+
+def _resolve_suggested_sort_order(
+    suggested_date: date,
+    requested: int,
+    *,
+    exclude_id: int | None = None,
+) -> int:
+    if requested in range(1, MAX_TALKS_PER_SACRAMENT_WEEK + 1):
+        return requested
+    return _auto_suggested_sort_order(suggested_date, exclude_id)
 
 
 def _talk_week_meta(talks: list[Talk]) -> dict:
@@ -1121,6 +1154,7 @@ def api_create_suggested_talk():
         speaker_text=speaker_text,
         topic=topic,
         notes=notes,
+        sort_order=_resolve_suggested_sort_order(suggested_date, _parse_talk_sort_order()),
     )
     db.session.add(st)
     db.session.commit()
@@ -1141,6 +1175,11 @@ def api_edit_suggested_talk(suggestion_id: int):
     st.speaker_text = speaker_text
     st.topic = topic
     st.notes = notes
+    st.sort_order = _resolve_suggested_sort_order(
+        suggested_date,
+        _parse_talk_sort_order(),
+        exclude_id=st.id,
+    )
     db.session.commit()
     return jsonify({"suggestion": _suggested_talk_payload(st)})
 
@@ -1303,6 +1342,7 @@ def api_events():
                     "speakerText": st.speaker_text or "",
                     "topic": topic,
                     "notes": (st.notes or "").strip(),
+                    "sortOrder": st.sort_order or 0,
                 },
             }
         )

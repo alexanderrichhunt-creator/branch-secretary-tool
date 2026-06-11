@@ -127,6 +127,12 @@
     const notes = document.getElementById("cal_talk_notes");
     if (notes) notes.value = suggestion.notes || "";
 
+    const sortOrder = form.querySelector('[name="sort_order"]');
+    if (sortOrder) {
+      sortOrder.value =
+        suggestion.sort_order && suggestion.sort_order > 0 ? String(suggestion.sort_order) : "";
+    }
+
     const assigned = form.querySelector("#cal_talk_kind_assigned");
     if (assigned) assigned.checked = true;
   }

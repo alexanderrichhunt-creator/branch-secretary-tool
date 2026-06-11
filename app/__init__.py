@@ -98,6 +98,11 @@ def _apply_schema_patches():
                 text("ALTER TABLE suggested_talk ADD COLUMN IF NOT EXISTS suggested_date DATE")
             )
             conn.execute(
+                text(
+                    "ALTER TABLE suggested_talk ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0"
+                )
+            )
+            conn.execute(
                 text("ALTER TABLE talk ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0")
             )
         elif dialect == "sqlite":
@@ -212,6 +217,8 @@ def _sqlite_patch_suggested_talk_schema(conn, engine, sa_inspect):
     cols = {c["name"] for c in insp.get_columns("suggested_talk")}
     if "suggested_date" not in cols:
         conn.execute(text("ALTER TABLE suggested_talk ADD COLUMN suggested_date DATE"))
+    if "sort_order" not in cols:
+        conn.execute(text("ALTER TABLE suggested_talk ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0"))
 
 
 def _backfill_suggested_talk_dates():

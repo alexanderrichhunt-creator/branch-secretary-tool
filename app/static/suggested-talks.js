@@ -86,6 +86,11 @@
     document.getElementById("suggested_edit_speaker_text").value = suggestion.speaker_text || "";
     document.getElementById("suggested_edit_topic").value = suggestion.topic || "";
     document.getElementById("suggested_edit_notes").value = suggestion.notes || "";
+    const editSortOrder = document.getElementById("suggested_edit_sort_order");
+    if (editSortOrder) {
+      editSortOrder.value =
+        suggestion.sort_order && suggestion.sort_order > 0 ? String(suggestion.sort_order) : "";
+    }
     document.getElementById("suggested_edit_member_filter").value = "";
     if (window.MemberSelectFilter) window.MemberSelectFilter.resetAll();
     const editMember = document.getElementById("suggested_edit_member_id");
@@ -106,6 +111,10 @@
     const notesHtml = item.notes
       ? '<div class="cal-suggested-notes small muted">' + escapeHtml(item.notes) + "</div>"
       : "";
+    const orderHtml =
+      item.sort_order && item.sort_order > 0
+        ? '<span class="cal-suggested-order text-muted me-1">#' + escapeHtml(item.sort_order) + "</span>"
+        : "";
 
     return (
       '<div class="cal-suggested-item" data-suggestion-id="' +
@@ -114,6 +123,7 @@
       '<div class="cal-suggested-item-main">' +
       dateHtml +
       '<div class="cal-suggested-speaker fw-semibold">' +
+      orderHtml +
       escapeHtml(item.speaker_label || "—") +
       "</div>" +
       topicHtml +

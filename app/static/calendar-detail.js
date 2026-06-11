@@ -130,6 +130,9 @@
         metaParts.push(metaRow("Topic", props.topic));
       }
       if (props.kind === "suggested_talk") {
+        if (props.sortOrder && props.sortOrder > 0) {
+          metaParts.push(metaRow("Order", "#" + props.sortOrder));
+        }
         if (props.speakerLabel && props.speakerLabel !== "—") {
           metaParts.push(metaRow("Speaker", props.speakerLabel));
         }

@@ -63,6 +63,9 @@
             <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
             <input class="form-control mt-2" type="text" name="speaker_text" placeholder="Or type a name (visitor, etc.)" autocomplete="off" />
           </div>
+          {% with id_prefix='suggested_', selected_sort_order=none, order_label='Speaker order', help_text='Order speakers for this sacrament (1 = first, before the hymn).', big_label=true %}
+            {% include 'partials/talk_speaker_order.html' %}
+          {% endwith %}
           <div class="mb-2">
             <label class="form-label big-label" for="suggested_topic">Topic (optional)</label>
             <input class="form-control" type="text" id="suggested_topic" name="topic" placeholder="Talk topic or theme" />
@@ -91,7 +94,9 @@
                   <div class="cal-suggested-item" data-suggestion-id="{{ st.id }}">
                     <div class="cal-suggested-item-main">
                       <div class="cal-suggested-date small fw-semibold text-primary">{{ st.suggested_date.strftime("%a, %b %d, %Y") }}</div>
-                      <div class="cal-suggested-speaker fw-semibold">{{ st.speaker_label() }}</div>
+                      <div class="cal-suggested-speaker fw-semibold">
+                        {% if st.sort_order %}<span class="cal-suggested-order text-muted me-1">#{{ st.sort_order }}</span>{% endif %}{{ st.speaker_label() }}
+                      </div>
                       {% if st.topic %}
                         <div class="cal-suggested-topic small">{{ st.topic }}</div>
                       {% endif %}
@@ -148,6 +153,9 @@
             <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
             <input class="form-control mt-2" type="text" id="suggested_edit_speaker_text" name="speaker_text" placeholder="Or type a name" autocomplete="off" />
           </div>
+          {% with id_prefix='suggested_edit_', selected_sort_order=none, order_label='Speaker order', help_text='Order speakers for this sacrament (1 = first, before the hymn).', big_label=true %}
+            {% include 'partials/talk_speaker_order.html' %}
+          {% endwith %}
           <div class="mb-3">
             <label class="form-label big-label" for="suggested_edit_topic">Topic (optional)</label>
             <input class="form-control" type="text" id="suggested_edit_topic" name="topic" />
@@ -388,6 +396,9 @@
                   <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
                   <input class="form-control form-control-lg mt-2" type="text" id="cal_talk_speaker_text" name="speaker_text" placeholder="Or type name (visitor, etc.)" autocomplete="off" />
                 </div>
+                {% with id_prefix='cal_', selected_sort_order=none, select_class='form-select-lg', big_label=true %}
+                  {% include 'partials/talk_speaker_order.html' %}
+                {% endwith %}
                 <div class="mb-3">
                   <label class="form-label big-label" for="cal_talk_topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
                   <input class="form-control form-control-lg" type="text" id="cal_talk_topic" name="topic" placeholder="Topic" />
@@ -423,6 +434,9 @@
                 <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
                 <input class="form-control form-control-lg mt-2" type="text" id="cal_suggested_speaker_text" name="speaker_text" placeholder="Or type a name (visitor, etc.)" autocomplete="off" />
               </div>
+              {% with id_prefix='cal_suggested_', selected_sort_order=none, order_label='Speaker order', help_text='Order speakers for this sacrament (1 = first, before the hymn).', select_class='form-select-lg', big_label=true %}
+                {% include 'partials/talk_speaker_order.html' %}
+              {% endwith %}
               <div class="mb-3">
                 <label class="form-label big-label" for="cal_suggested_topic">Topic (optional)</label>
                 <input class="form-control form-control-lg" type="text" id="cal_suggested_topic" name="topic" placeholder="Talk topic or theme" />
