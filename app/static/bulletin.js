@@ -9,6 +9,21 @@
 
   const MODE_TALKS = "talks";
   const MODE_FAST = "fast_testimony";
+  const MODE_BRANCH = "branch_conference";
+  const MODE_STAKE = "stake_conference";
+  const SPECIAL_MODES = [MODE_FAST, MODE_BRANCH, MODE_STAKE];
+  const MODE_HINTS = {
+    fast_testimony: {
+      firstSunday: "First Sunday of the month — Fast & Testimony Meeting selected automatically.",
+      selected: "Fast & Testimony Meeting selected. You can still edit the text below.",
+    },
+    branch_conference: {
+      selected: "Branch Conference selected. You can still edit the text below.",
+    },
+    stake_conference: {
+      selected: "Stake Conference selected. You can still edit the text below.",
+    },
+  };
   const URL_PATTERN = /https?:\/\/[^\s<>"']+/g;
 
   function escapeHtml(text) {
@@ -82,12 +97,22 @@
     return Boolean(val("intermediate_hymn_num") || val("intermediate_hymn_title"));
   }
 
+  function isSpecialSpeakersMode(mode) {
+    return SPECIAL_MODES.indexOf(mode) !== -1;
+  }
+
   function updateSpeakersHint(isFirstSunday, mode) {
     if (!speakersHint) return;
     if (mode === MODE_FAST) {
-      speakersHint.textContent = isFirstSunday
-        ? "First Sunday of the month — Fast & Testimony Meeting selected automatically."
-        : "Fast & Testimony Meeting selected. You can still edit the text below.";
+      speakersHint.textContent = isFirstSunday ? MODE_HINTS.fast_testimony.firstSunday : MODE_HINTS.fast_testimony.selected;
+      return;
+    }
+    if (mode === MODE_BRANCH) {
+      speakersHint.textContent = MODE_HINTS.branch_conference.selected;
+      return;
+    }
+    if (mode === MODE_STAKE) {
+      speakersHint.textContent = MODE_HINTS.stake_conference.selected;
       return;
     }
     speakersHint.textContent = isFirstSunday
@@ -104,7 +129,7 @@
     const speakersText = val("speakers_text");
     const mode = selectedSpeakersMode();
 
-    if (mode === MODE_FAST) {
+    if (isSpecialSpeakersMode(mode)) {
       if (speakersText) {
         lines.push(speakersText);
         lines.push("");

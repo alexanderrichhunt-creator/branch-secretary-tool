@@ -82,9 +82,46 @@ body {
   }
 
   .talks-page-main .panel-body-scroll,
-  .talks-page-sidebar .panel-body-scroll,
-  .speaker-pool-page-layout .panel-body-scroll {
+  .talks-page-sidebar .panel-body-scroll {
     max-height: calc(100vh - 10.5rem);
+  }
+
+  .speaker-pool-page-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    height: calc(100vh - 6.25rem);
+    min-height: 0;
+  }
+
+  .speaker-pool-page-layout > section.panel {
+    flex: 0 0 auto;
+    margin-bottom: 0 !important;
+  }
+
+  .speaker-pool-page-layout > .row {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .speaker-pool-page-layout > .row > [class*="col-"] {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .speaker-pool-page-layout .panel.h-100 {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .speaker-pool-page-layout .panel-body-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
   }
 }
 
@@ -187,10 +224,30 @@ body {
   margin-top: 0.2rem;
 }
 
+.speaker-pool-legend-panel .panel-header {
+  padding: 0.45rem 0.9rem;
+}
+
+.speaker-pool-legend-panel .panel-body {
+  padding: 0.55rem 0.9rem;
+}
+
 .speaker-pool-legend {
   display: grid;
   gap: 0.35rem 1.5rem;
   list-style: disc;
+}
+
+.talk-kind-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem 1rem;
+}
+
+@media (max-width: 575.98px) {
+  .talk-kind-options {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (min-width: 768px) {

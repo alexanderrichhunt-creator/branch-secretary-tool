@@ -11,7 +11,7 @@
 <div class="card shadow-sm">
   <div class="card-body">
         <form method="post" action="{{ url_for('main.edit_talk_post', talk_id=talk.id) }}" class="talk-add-form">
-      {% set is_fast_testimony = is_fast_testimony %}{% set id_prefix = '' %}{% include 'partials/talk_kind_selector.html' %}
+      {% set selected_talk_kind = selected_talk_kind %}{% set id_prefix = '' %}{% include 'partials/talk_kind_selector.html' %}
       <div class="talk-assigned-fields">
         <div class="mb-3">
           <label class="form-label big-label" for="member_filter">Speaker (speaker pool first)</label>

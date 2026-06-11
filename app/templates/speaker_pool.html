@@ -13,7 +13,7 @@
 </div>
 
 <div class="speaker-pool-page-layout">
-  <section class="panel mb-3">
+  <section class="panel mb-3 speaker-pool-legend-panel">
     <div class="panel-header">How to read this</div>
     <div class="panel-body small">
       <ul class="speaker-pool-legend mb-0 ps-3">
@@ -58,7 +58,7 @@
 </div>
 
 <div class="modal fade" id="poolAssignTalkModal" tabindex="-1" aria-labelledby="poolAssignTalkModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+  <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
         <h2 class="modal-title h5 fw-bold" id="poolAssignTalkModalLabel">Assign talk</h2>
@@ -67,7 +67,7 @@
       <div class="modal-body">
         <form method="post" action="{{ url_for('main.add_talk') }}" class="talk-add-form" id="pool-assign-form">
           <input type="hidden" name="return_to" value="speaker_pool" />
-          {% set id_prefix = 'pool_' %}{% set is_fast_testimony = false %}{% include 'partials/talk_kind_selector.html' %}
+          {% with id_prefix='pool_', compact=true %}{% include 'partials/talk_kind_selector.html' %}{% endwith %}
           <div class="mb-3">
             <label class="form-label" for="pool_talk_date">Sacrament date</label>
             <input class="form-control" type="date" id="pool_talk_date" name="talk_date" value="{{ schedule_date }}" required />
@@ -92,7 +92,7 @@
               <label class="form-label" for="pool_topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
               <input class="form-control" type="text" id="pool_topic" name="topic" placeholder="Topic" />
             </div>
-            {% with id_prefix='pool_', selected_sort_order=none %}
+            {% with id_prefix='pool_', selected_sort_order=none, show_help=false %}
               {% include 'partials/talk_speaker_order.html' %}
             {% endwith %}
           </div>

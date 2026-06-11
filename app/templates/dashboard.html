@@ -28,12 +28,12 @@
           <div class="fw-semibold">{{ week.sacrament_date.strftime("%A, %b %d, %Y") }}</div>
           <div class="small muted">Week of {{ week.week_start.strftime("%b %d") }} – {{ week.week_end.strftime("%b %d, %Y") }}</div>
 
-          {% if week.has_fast_testimony %}
+          {% if week.has_special_meeting %}
             <div class="data-list mt-3">
               <div class="data-list-item">
                 <div class="data-list-meta">&nbsp;</div>
                 <div>
-                  <div class="data-list-title">Fast &amp; Testimony Meeting</div>
+                  <div class="data-list-title">{{ week.special_meeting_label }}</div>
                 </div>
               </div>
             </div>
@@ -56,7 +56,7 @@
             <div class="muted small mt-2">No talks logged for this week yet.</div>
           {% endif %}
 
-          {% if not week.has_fast_testimony and talk_count < max_talks_per_week %}
+          {% if not week.has_special_meeting and talk_count < max_talks_per_week %}
             <button
               type="button"
               class="btn btn-sm btn-outline-primary mt-2"
@@ -79,15 +79,15 @@
               {% endif %}
 
               {% set group_count = group.regular_talk_count %}
-              <div class="dashboard-sunday-group{% if not group.regular_talks and not group.has_fast_testimony %} dashboard-sunday-group-empty{% endif %}">
+              <div class="dashboard-sunday-group{% if not group.regular_talks and not group.has_special_meeting %} dashboard-sunday-group-empty{% endif %}">
                 <div class="dashboard-sunday-header">
                   <div>
                     <div class="fw-semibold">{{ group.sacrament_date.strftime("%A, %b %d, %Y") }}</div>
-                    {% if not group.regular_talks and not group.has_fast_testimony %}
+                    {% if not group.regular_talks and not group.has_special_meeting %}
                       <div class="small muted">No talks logged</div>
                     {% endif %}
                   </div>
-                  {% if not group.has_fast_testimony and group_count < max_talks_per_week %}
+                  {% if not group.has_special_meeting and group_count < max_talks_per_week %}
                     <button
                       type="button"
                       class="btn btn-sm btn-outline-primary dashboard-sunday-add-btn"
@@ -99,12 +99,12 @@
                   {% endif %}
                 </div>
 
-                {% if group.has_fast_testimony %}
+                {% if group.has_special_meeting %}
                   <div class="data-list mt-2">
                     <div class="data-list-item">
                       <div class="data-list-meta">&nbsp;</div>
                       <div>
-                        <div class="data-list-title">Fast &amp; Testimony Meeting</div>
+                        <div class="data-list-title">{{ group.special_meeting_label }}</div>
                       </div>
                     </div>
                   </div>
@@ -211,7 +211,7 @@
       <div class="modal-body">
         <form method="post" action="{{ url_for('main.add_talk') }}" class="talk-add-form">
           <input type="hidden" name="return_to" value="dashboard" />
-          {% set id_prefix = 'dashboard_' %}{% set is_fast_testimony = false %}{% include 'partials/talk_kind_selector.html' %}
+          {% with id_prefix='dashboard_', compact=true %}{% include 'partials/talk_kind_selector.html' %}{% endwith %}
           <div class="mb-3">
             <label class="form-label" for="dashboard_add_talk_date">Talk date</label>
             <input class="form-control" type="date" id="dashboard_add_talk_date" name="talk_date" required />

@@ -486,7 +486,7 @@ def sort_assigned_talks(talks) -> list:
 
 
 def regular_assigned_talks(talks) -> list:
-    return [t for t in talks if not is_fast_testimony_talk(t)]
+    return [t for t in talks if not is_special_meeting_talk(t)]
 
 
 def has_intermediate_hymn(data: dict) -> bool:
@@ -501,10 +501,8 @@ def program_lines_after_sacrament(data: dict, talks=None) -> list[str]:
     speakers_text = (data.get("speakers_text") or "").strip()
     assigned = sort_assigned_talks(talks or [])
 
-    if speakers_mode == SPEAKERS_MODE_FAST_TESTIMONY or any(
-        is_fast_testimony_talk(t) for t in (talks or [])
-    ):
-        text = speakers_text or FAST_TESTIMONY_SPEAKERS_TEXT
+    if _special_meeting_mode_from_data(speakers_mode, talks):
+        text = speakers_text or _special_meeting_speakers_text(speakers_mode, talks)
         if text:
             lines.append(text)
             lines.append("")
@@ -556,17 +554,104 @@ def program_lines_after_sacrament(data: dict, talks=None) -> list[str]:
 
 SPEAKERS_MODE_TALKS = "talks"
 SPEAKERS_MODE_FAST_TESTIMONY = "fast_testimony"
-FAST_TESTIMONY_LABEL = "Fast and Testimony Meeting"
-FAST_TESTIMONY_SPEAKERS_TEXT = "Today we will hold a Fast and Testimony Meeting."
+SPEAKERS_MODE_BRANCH_CONFERENCE = "branch_conference"
+SPEAKERS_MODE_STAKE_CONFERENCE = "stake_conference"
+
 TALK_KIND_ASSIGNED = "assigned"
 TALK_KIND_FAST_TESTIMONY = "fast_testimony"
+TALK_KIND_BRANCH_CONFERENCE = "branch_conference"
+TALK_KIND_STAKE_CONFERENCE = "stake_conference"
+
+SPECIAL_MEETINGS = {
+    TALK_KIND_FAST_TESTIMONY: {
+        "label": "Fast and Testimony Meeting",
+        "short_label": "Fast & Testimony Meeting",
+        "speakers_text": "Today we will hold a Fast and Testimony Meeting.",
+        "speakers_mode": SPEAKERS_MODE_FAST_TESTIMONY,
+        "calendar_kind": "fast_testimony",
+        "calendar_label": "Fast & Testimony Meeting",
+    },
+    TALK_KIND_BRANCH_CONFERENCE: {
+        "label": "Branch Conference",
+        "short_label": "Branch Conference",
+        "speakers_text": "Today we will hold Branch Conference.",
+        "speakers_mode": SPEAKERS_MODE_BRANCH_CONFERENCE,
+        "calendar_kind": "branch_conference",
+        "calendar_label": "Branch Conference",
+    },
+    TALK_KIND_STAKE_CONFERENCE: {
+        "label": "Stake Conference",
+        "short_label": "Stake Conference",
+        "speakers_text": "Today we will hold Stake Conference.",
+        "speakers_mode": SPEAKERS_MODE_STAKE_CONFERENCE,
+        "calendar_kind": "stake_conference",
+        "calendar_label": "Stake Conference",
+    },
+}
+
+SPECIAL_TALK_KINDS = frozenset(SPECIAL_MEETINGS.keys())
+SPECIAL_SPEAKERS_MODES = frozenset(meta["speakers_mode"] for meta in SPECIAL_MEETINGS.values())
+
+FAST_TESTIMONY_LABEL = SPECIAL_MEETINGS[TALK_KIND_FAST_TESTIMONY]["label"]
+FAST_TESTIMONY_SPEAKERS_TEXT = SPECIAL_MEETINGS[TALK_KIND_FAST_TESTIMONY]["speakers_text"]
+BRANCH_CONFERENCE_LABEL = SPECIAL_MEETINGS[TALK_KIND_BRANCH_CONFERENCE]["label"]
+STAKE_CONFERENCE_LABEL = SPECIAL_MEETINGS[TALK_KIND_STAKE_CONFERENCE]["label"]
+
+
+def is_special_talk_kind(kind: str) -> bool:
+    return kind in SPECIAL_TALK_KINDS
+
+
+def label_for_talk_kind(kind: str) -> str | None:
+    meta = SPECIAL_MEETINGS.get(kind)
+    return meta["label"] if meta else None
+
+
+def special_meeting_kind(talk) -> str | None:
+    if getattr(talk, "member_id", None):
+        return None
+    speaker = (getattr(talk, "speaker_text", None) or "").strip().casefold()
+    for kind, meta in SPECIAL_MEETINGS.items():
+        if speaker == meta["label"].casefold():
+            return kind
+    return None
+
+
+def is_special_meeting_talk(talk) -> bool:
+    return special_meeting_kind(talk) is not None
 
 
 def is_fast_testimony_talk(talk) -> bool:
-    if getattr(talk, "member_id", None):
-        return False
-    speaker = (getattr(talk, "speaker_text", None) or "").strip().casefold()
-    return speaker == FAST_TESTIMONY_LABEL.casefold()
+    return special_meeting_kind(talk) == TALK_KIND_FAST_TESTIMONY
+
+
+def is_branch_conference_talk(talk) -> bool:
+    return special_meeting_kind(talk) == TALK_KIND_BRANCH_CONFERENCE
+
+
+def is_stake_conference_talk(talk) -> bool:
+    return special_meeting_kind(talk) == TALK_KIND_STAKE_CONFERENCE
+
+
+def _special_meeting_mode_from_data(speakers_mode: str, talks) -> bool:
+    if speakers_mode in SPECIAL_SPEAKERS_MODES:
+        return True
+    return any(special_meeting_kind(t) for t in (talks or []))
+
+
+def _special_meeting_speakers_text(speakers_mode: str, talks) -> str:
+    for kind, meta in SPECIAL_MEETINGS.items():
+        if speakers_mode == meta["speakers_mode"] or any(
+            special_meeting_kind(t) == kind for t in (talks or [])
+        ):
+            return meta["speakers_text"]
+    return ""
+
+
+def special_meeting_meta(kind: str | None) -> dict | None:
+    if not kind:
+        return None
+    return SPECIAL_MEETINGS.get(kind)
 
 
 def is_first_sacrament_sunday(d: date) -> bool:
@@ -574,16 +659,19 @@ def is_first_sacrament_sunday(d: date) -> bool:
 
 
 def default_speakers_mode(meeting_date: date, talks=None) -> str:
-    if talks and any(is_fast_testimony_talk(t) for t in talks):
-        return SPEAKERS_MODE_FAST_TESTIMONY
+    if talks:
+        for talk in talks:
+            kind = special_meeting_kind(talk)
+            if kind:
+                return SPECIAL_MEETINGS[kind]["speakers_mode"]
     if is_first_sacrament_sunday(meeting_date):
         return SPEAKERS_MODE_FAST_TESTIMONY
     return SPEAKERS_MODE_TALKS
 
 
 def speakers_text_for_mode(mode: str, talks, *, split_for_intermediate: bool = False) -> str:
-    if mode == SPEAKERS_MODE_FAST_TESTIMONY or any(is_fast_testimony_talk(t) for t in talks):
-        return FAST_TESTIMONY_SPEAKERS_TEXT
+    if mode in SPECIAL_SPEAKERS_MODES or any(is_special_meeting_talk(t) for t in talks):
+        return _special_meeting_speakers_text(mode, talks)
     return speakers_text_for_talks_layout(talks, split_for_intermediate=split_for_intermediate)
 
 

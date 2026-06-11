@@ -131,7 +131,7 @@
                   name="speakers_mode"
                   id="speakers_mode_talks"
                   value="talks"
-                  {% if defaults.speakers_mode != 'fast_testimony' %}checked{% endif %}
+                  {% if defaults.speakers_mode == 'talks' %}checked{% endif %}
                 />
                 <label class="form-check-label" for="speakers_mode_talks">Assigned speakers</label>
               </div>
@@ -145,6 +145,28 @@
                   {% if defaults.speakers_mode == 'fast_testimony' %}checked{% endif %}
                 />
                 <label class="form-check-label" for="speakers_mode_fast">Fast &amp; Testimony Meeting</label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="radio"
+                  name="speakers_mode"
+                  id="speakers_mode_branch"
+                  value="branch_conference"
+                  {% if defaults.speakers_mode == 'branch_conference' %}checked{% endif %}
+                />
+                <label class="form-check-label" for="speakers_mode_branch">Branch Conference</label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="radio"
+                  name="speakers_mode"
+                  id="speakers_mode_stake"
+                  value="stake_conference"
+                  {% if defaults.speakers_mode == 'stake_conference' %}checked{% endif %}
+                />
+                <label class="form-check-label" for="speakers_mode_stake">Stake Conference</label>
               </div>
             </div>
             <div class="form-text" id="speakers_mode_hint">

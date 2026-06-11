@@ -1,4 +1,17 @@
 (function () {
+  const SPECIAL_KINDS = {
+    fast_testimony: {
+      autoHint: "First Sunday of the month — Fast & Testimony selected automatically.",
+      selectedHint: "No assigned speakers for this week. Appears on the calendar and bulletin.",
+    },
+    branch_conference: {
+      selectedHint: "Branch Conference for this sacrament Sunday. No assigned speakers.",
+    },
+    stake_conference: {
+      selectedHint: "Stake Conference for this sacrament Sunday. No assigned speakers.",
+    },
+  };
+
   function isFirstSacramentSunday(iso) {
     if (!iso) return false;
     const parts = iso.split("-");
@@ -9,29 +22,41 @@
 
   function selectedTalkKind(form) {
     const checked = form.querySelector('input[name="talk_kind"]:checked');
-    return checked ? checked.value : "assigned";
+    if (checked) return checked.value;
+    const select = form.querySelector('select[name="talk_kind"]');
+    return select ? select.value : "assigned";
   }
 
   function setTalkKind(form, kind) {
     const input = form.querySelector('input[name="talk_kind"][value="' + kind + '"]');
     if (input) input.checked = true;
+    const select = form.querySelector('select[name="talk_kind"]');
+    if (select) select.value = kind;
     syncTalkKind(form);
   }
 
+  function isSpecialTalkKind(kind) {
+    return kind !== "assigned";
+  }
+
   function syncTalkKind(form) {
-    const isFast = selectedTalkKind(form) === "fast_testimony";
+    const kind = selectedTalkKind(form);
+    const isSpecial = isSpecialTalkKind(kind);
     form.querySelectorAll(".talk-assigned-fields").forEach(function (el) {
-      el.classList.toggle("d-none", isFast);
+      el.classList.toggle("d-none", isSpecial);
     });
 
     const hint = form.querySelector(".talk-kind-hint");
     const dateInput = form.querySelector('[name="talk_date"]');
     const dateValue = dateInput ? dateInput.value : "";
     if (hint) {
-      if (isFast) {
-        hint.textContent = isFirstSacramentSunday(dateValue)
-          ? "First Sunday of the month — Fast & Testimony selected automatically."
-          : "No assigned speakers for this week. Appears on the calendar and bulletin.";
+      if (isSpecial) {
+        const meta = SPECIAL_KINDS[kind] || {};
+        if (kind === "fast_testimony" && isFirstSacramentSunday(dateValue)) {
+          hint.textContent = meta.autoHint || meta.selectedHint || "";
+        } else {
+          hint.textContent = meta.selectedHint || "No assigned speakers for this week.";
+        }
       } else if (isFirstSacramentSunday(dateValue)) {
         hint.textContent = "First Sunday of the month — switch to Fast & Testimony if needed.";
       } else {
@@ -54,6 +79,11 @@
 
   function bindForm(form) {
     form.querySelectorAll(".talk-kind-input").forEach(function (input) {
+      input.addEventListener("change", function () {
+        syncTalkKind(form);
+      });
+    });
+    form.querySelectorAll(".talk-kind-select").forEach(function (input) {
       input.addEventListener("change", function () {
         syncTalkKind(form);
       });

@@ -13,7 +13,7 @@
 </div>
 
 <div class="d-flex flex-wrap gap-2 mb-3 cal-legend">
-  {% for key in ['talk', 'fast_testimony', 'suggested_talk', 'interview', 'general'] %}
+  {% for key in ['talk', 'fast_testimony', 'branch_conference', 'stake_conference', 'suggested_talk', 'interview', 'general'] %}
     {% set meta = CALENDAR_ITEM_STYLES[key] %}
     <span class="badge cal-legend-item" style="background:{{ meta.color }};">{{ meta.label }}</span>
   {% endfor %}
@@ -452,7 +452,7 @@
         </div>
 
         <div class="mt-3 pt-3 border-top">
-          <div class="small muted mb-0">Sacrament talks and Fast &amp; Testimony meetings appear as all-day items on the calendar.</div>
+          <div class="small muted mb-0">Sacrament talks, special Sunday meetings, and suggested speakers appear on the calendar.</div>
         </div>
       </div>
     </div>

@@ -39,10 +39,11 @@ def _short_calendar_title(text: str, max_len: int = 40) -> str:
 
 
 def _parse_talk_speaker_submission():
-    from .bulletin import FAST_TESTIMONY_LABEL, TALK_KIND_FAST_TESTIMONY
+    from .bulletin import label_for_talk_kind, is_special_talk_kind
 
-    if (request.form.get("talk_kind") or "").strip() == TALK_KIND_FAST_TESTIMONY:
-        return None, FAST_TESTIMONY_LABEL
+    talk_kind = (request.form.get("talk_kind") or "").strip()
+    if is_special_talk_kind(talk_kind):
+        return None, label_for_talk_kind(talk_kind)
 
     member_raw = (request.form.get("member_id") or "").strip()
     member_id = int(member_raw) if member_raw and int(member_raw) > 0 else None
@@ -104,10 +105,12 @@ def _talk_speaker_name(t: Talk) -> str:
 
 
 def _talk_calendar_title(t: Talk) -> str:
-    from .bulletin import FAST_TESTIMONY_LABEL, is_fast_testimony_talk
+    from .bulletin import special_meeting_kind, special_meeting_meta
 
-    if is_fast_testimony_talk(t):
-        return FAST_TESTIMONY_LABEL
+    kind = special_meeting_kind(t)
+    if kind:
+        meta = special_meeting_meta(kind)
+        return meta["label"] if meta else kind
     speaker = _talk_speaker_name(t)
     topic = (t.topic or "").strip()
     if topic:
@@ -192,15 +195,46 @@ def _week_talks(talk_date: date, exclude_talk_id: int | None = None) -> list[Tal
 
 
 def _talks_in_week(talk_date: date, exclude_talk_id: int | None = None) -> int:
-    from .bulletin import is_fast_testimony_talk
+    from .bulletin import is_special_meeting_talk
 
-    return sum(1 for t in _week_talks(talk_date, exclude_talk_id) if not is_fast_testimony_talk(t))
+    return sum(1 for t in _week_talks(talk_date, exclude_talk_id) if not is_special_meeting_talk(t))
+
+
+def _week_special_meeting_kind(talk_date: date, exclude_talk_id: int | None = None) -> str | None:
+    from .bulletin import special_meeting_kind
+
+    for talk in _week_talks(talk_date, exclude_talk_id):
+        kind = special_meeting_kind(talk)
+        if kind:
+            return kind
+    return None
+
+
+def _week_has_special_meeting(talk_date: date, exclude_talk_id: int | None = None) -> bool:
+    return _week_special_meeting_kind(talk_date, exclude_talk_id) is not None
 
 
 def _week_has_fast_testimony(talk_date: date, exclude_talk_id: int | None = None) -> bool:
-    from .bulletin import is_fast_testimony_talk
+    return _week_special_meeting_kind(talk_date, exclude_talk_id) == "fast_testimony"
 
-    return any(is_fast_testimony_talk(t) for t in _week_talks(talk_date, exclude_talk_id))
+
+def _validate_talk_week(talk_date: date, talk_kind: str, *, exclude_talk_id: int | None = None) -> str | None:
+    from .bulletin import SPECIAL_MEETINGS, is_special_talk_kind
+
+    if is_special_talk_kind(talk_kind):
+        existing = _week_special_meeting_kind(talk_date, exclude_talk_id)
+        if existing:
+            return f"That week already has a {SPECIAL_MEETINGS[existing]['short_label']} logged."
+        if _talks_in_week(talk_date, exclude_talk_id) > 0:
+            return "That week already has assigned speakers logged."
+        return None
+
+    existing = _week_special_meeting_kind(talk_date, exclude_talk_id)
+    if existing:
+        return f"That week is marked as a {SPECIAL_MEETINGS[existing]['short_label']}."
+    if _talks_in_week(talk_date, exclude_talk_id) >= MAX_TALKS_PER_SACRAMENT_WEEK:
+        return f"That week already has {MAX_TALKS_PER_SACRAMENT_WEEK} talks logged."
+    return None
 
 
 def _interview_subject_name(i: Interview) -> str:
@@ -225,12 +259,12 @@ def _parse_talk_sort_order() -> int:
 
 
 def _auto_talk_sort_order(talk_date: date, exclude_talk_id: int | None = None) -> int:
-    from .bulletin import is_fast_testimony_talk
+    from .bulletin import is_special_meeting_talk
 
     used = {
         t.sort_order
         for t in _week_talks(talk_date, exclude_talk_id)
-        if not is_fast_testimony_talk(t) and t.sort_order in (1, 2, 3, 4)
+        if not is_special_meeting_talk(t) and t.sort_order in (1, 2, 3, 4)
     }
     for order in range(1, MAX_TALKS_PER_SACRAMENT_WEEK + 1):
         if order not in used:
@@ -280,14 +314,29 @@ def _resolve_suggested_sort_order(
 
 
 def _talk_week_meta(talks: list[Talk]) -> dict:
-    from .bulletin import is_fast_testimony_talk, sort_assigned_talks
+    from .bulletin import SPECIAL_MEETINGS, sort_assigned_talks, special_meeting_kind
 
     regular = sort_assigned_talks(talks)
+    special_kind = _week_special_meeting_kind_from_talks(talks)
+    special_meta = SPECIAL_MEETINGS.get(special_kind) if special_kind else None
     return {
-        "has_fast_testimony": any(is_fast_testimony_talk(t) for t in talks),
+        "has_fast_testimony": special_kind == "fast_testimony",
+        "has_special_meeting": bool(special_kind),
+        "special_meeting_kind": special_kind,
+        "special_meeting_label": special_meta["short_label"] if special_meta else None,
         "regular_talk_count": len(regular),
         "regular_talks": regular,
     }
+
+
+def _week_special_meeting_kind_from_talks(talks: list[Talk]) -> str | None:
+    from .bulletin import special_meeting_kind
+
+    for talk in talks:
+        kind = special_meeting_kind(talk)
+        if kind:
+            return kind
+    return None
 
 
 def _build_current_talk_week(recent_talks: list[Talk], today: date) -> dict:
@@ -729,11 +778,11 @@ def _member_talk_recency(exclude_talk_id: int | None = None) -> dict[str, dict]:
 @main_bp.get("/talks")
 @login_required
 def talks():
-    from .bulletin import is_fast_testimony_talk
+    from .bulletin import is_special_meeting_talk
 
     today = date.today()
     all_talks = Talk.query.order_by(Talk.talk_date.desc()).limit(200).all()
-    talks = [t for t in all_talks if not is_fast_testimony_talk(t)]
+    talks = [t for t in all_talks if not is_special_meeting_talk(t)]
     return render_template(
         "talks.html",
         talks=talks,
@@ -757,19 +806,25 @@ def _redirect_after_talk_action():
 @main_bp.post("/talks/add")
 @login_required
 def add_talk():
-    from .bulletin import FAST_TESTIMONY_LABEL, TALK_KIND_ASSIGNED, TALK_KIND_FAST_TESTIMONY, is_fast_testimony_talk
+    from .bulletin import (
+        SPECIAL_MEETINGS,
+        TALK_KIND_ASSIGNED,
+        is_special_meeting_talk,
+        is_special_talk_kind,
+        label_for_talk_kind,
+    )
 
     talk_kind = (request.form.get("talk_kind") or TALK_KIND_ASSIGNED).strip()
-    is_fast_testimony = talk_kind == TALK_KIND_FAST_TESTIMONY
+    is_special = is_special_talk_kind(talk_kind)
     member_id, speaker_text = _parse_talk_speaker_submission()
     talk_date_raw = (request.form.get("talk_date") or "").strip()
-    topic = "" if is_fast_testimony else (request.form.get("topic") or "").strip()
+    topic = "" if is_special else (request.form.get("topic") or "").strip()
     notes = (request.form.get("notes") or "").strip() or None
 
     if not talk_date_raw:
         flash("Date is required.", "warning")
         return _redirect_after_talk_action()
-    if not is_fast_testimony and not member_id and not speaker_text:
+    if not is_special and not member_id and not speaker_text:
         flash("Choose a speaker from the list or type a name.", "warning")
         return _redirect_after_talk_action()
     try:
@@ -778,24 +833,14 @@ def add_talk():
         flash("Invalid date.", "warning")
         return _redirect_after_talk_action()
 
-    if is_fast_testimony:
-        if _week_has_fast_testimony(talk_date):
-            flash("That week already has a Fast and Testimony Meeting logged.", "warning")
-            return _redirect_after_talk_action()
-        if _talks_in_week(talk_date) > 0:
-            flash("That week already has assigned speakers logged.", "warning")
-            return _redirect_after_talk_action()
-        speaker_text = FAST_TESTIMONY_LABEL
+    week_error = _validate_talk_week(talk_date, talk_kind)
+    if week_error:
+        flash(week_error, "warning")
+        return _redirect_after_talk_action()
+
+    if is_special:
+        speaker_text = label_for_talk_kind(talk_kind)
         member_id = None
-    elif _week_has_fast_testimony(talk_date):
-        flash("That week is marked as a Fast and Testimony Meeting.", "warning")
-        return _redirect_after_talk_action()
-    elif _talks_in_week(talk_date) >= MAX_TALKS_PER_SACRAMENT_WEEK:
-        flash(
-            f"That week already has {MAX_TALKS_PER_SACRAMENT_WEEK} talks logged.",
-            "warning",
-        )
-        return _redirect_after_talk_action()
 
     t = Talk(
         member_id=member_id,
@@ -803,7 +848,7 @@ def add_talk():
         talk_date=talk_date,
         topic=topic,
         notes=notes,
-        sort_order=0 if is_fast_testimony else _resolve_talk_sort_order(talk_date, _parse_talk_sort_order()),
+        sort_order=0 if is_special else _resolve_talk_sort_order(talk_date, _parse_talk_sort_order()),
     )
     db.session.add(t)
     db.session.commit()
@@ -818,7 +863,10 @@ def add_talk():
         except ValueError:
             pass
 
-    flash("Fast and Testimony Meeting saved." if is_fast_testimony_talk(t) else "Talk saved.", "success")
+    if is_special_meeting_talk(t):
+        flash(f"{SPECIAL_MEETINGS[talk_kind]['short_label']} saved.", "success")
+    else:
+        flash("Talk saved.", "success")
     return _redirect_after_talk_action()
 
 
@@ -826,14 +874,14 @@ def add_talk():
 @login_required
 def edit_talk(talk_id: int):
     talk = Talk.query.get_or_404(talk_id)
-    from .bulletin import is_fast_testimony_talk
+    from .bulletin import TALK_KIND_ASSIGNED, special_meeting_kind
 
     selected = talk.member_id or ""
     return render_template(
         "talk_edit.html",
         talk=talk,
         selected_member_id=selected,
-        is_fast_testimony=is_fast_testimony_talk(talk),
+        selected_talk_kind=special_meeting_kind(talk) or TALK_KIND_ASSIGNED,
         **_talk_member_select_context(exclude_talk_id=talk.id),
     )
 
@@ -841,21 +889,21 @@ def edit_talk(talk_id: int):
 @main_bp.post("/talks/<int:talk_id>/edit")
 @login_required
 def edit_talk_post(talk_id: int):
-    from .bulletin import FAST_TESTIMONY_LABEL, TALK_KIND_FAST_TESTIMONY, is_fast_testimony_talk
+    from .bulletin import TALK_KIND_ASSIGNED, is_special_talk_kind, label_for_talk_kind
 
     talk = Talk.query.get_or_404(talk_id)
 
     talk_kind = (request.form.get("talk_kind") or TALK_KIND_ASSIGNED).strip()
-    is_fast_testimony = talk_kind == TALK_KIND_FAST_TESTIMONY
+    is_special = is_special_talk_kind(talk_kind)
     member_id, speaker_text = _parse_talk_speaker_submission()
     talk_date_raw = (request.form.get("talk_date") or "").strip()
-    topic = "" if is_fast_testimony else (request.form.get("topic") or "").strip()
+    topic = "" if is_special else (request.form.get("topic") or "").strip()
     notes = (request.form.get("notes") or "").strip() or None
 
     if not talk_date_raw:
         flash("Date is required.", "warning")
         return redirect(url_for("main.edit_talk", talk_id=talk_id))
-    if not is_fast_testimony and not member_id and not speaker_text:
+    if not is_special and not member_id and not speaker_text:
         flash("Choose a speaker or enter a name under “Speaker (free text)”.", "warning")
         return redirect(url_for("main.edit_talk", talk_id=talk_id))
 
@@ -865,25 +913,21 @@ def edit_talk_post(talk_id: int):
         flash("Invalid date.", "warning")
         return redirect(url_for("main.edit_talk", talk_id=talk_id))
 
-    if is_fast_testimony:
-        if _week_has_fast_testimony(talk_date, exclude_talk_id=talk.id):
-            flash("That week already has a Fast and Testimony Meeting logged.", "warning")
-            return redirect(url_for("main.edit_talk", talk_id=talk_id))
-        if _talks_in_week(talk_date, exclude_talk_id=talk.id) > 0:
-            flash("That week already has assigned speakers logged.", "warning")
-            return redirect(url_for("main.edit_talk", talk_id=talk_id))
-        member_id = None
-        speaker_text = FAST_TESTIMONY_LABEL
-    elif _week_has_fast_testimony(talk_date, exclude_talk_id=talk.id):
-        flash("That week is marked as a Fast and Testimony Meeting.", "warning")
+    week_error = _validate_talk_week(talk_date, talk_kind, exclude_talk_id=talk.id)
+    if week_error:
+        flash(week_error, "warning")
         return redirect(url_for("main.edit_talk", talk_id=talk_id))
+
+    if is_special:
+        member_id = None
+        speaker_text = label_for_talk_kind(talk_kind)
 
     talk.talk_date = talk_date
     talk.member_id = member_id
     talk.speaker_text = speaker_text
     talk.topic = topic
     talk.notes = notes
-    if is_fast_testimony:
+    if is_special:
         talk.sort_order = 0
     else:
         talk.sort_order = _resolve_talk_sort_order(
@@ -1225,12 +1269,17 @@ def api_events():
     branch_events = Event.query.all()
 
     for t in talks:
-        from .bulletin import is_fast_testimony_talk
+        from .bulletin import special_meeting_kind, special_meeting_meta
 
-        is_ft = is_fast_testimony_talk(t)
+        special_kind = special_meeting_kind(t)
         full_title = _talk_calendar_title(t)
-        talk_kind = "fast_testimony" if is_ft else "talk"
-        kind_label = "Fast & Testimony Meeting" if is_ft else "Sacrament talk"
+        if special_kind:
+            meta = special_meeting_meta(special_kind) or {}
+            talk_kind = meta.get("calendar_kind", "talk")
+            kind_label = meta.get("calendar_label", full_title)
+        else:
+            talk_kind = "talk"
+            kind_label = "Sacrament talk"
         bg, border = calendar_item_colors(talk_kind)
         topic = (t.topic or "").strip()
         events.append(
@@ -1242,7 +1291,7 @@ def api_events():
                 "backgroundColor": bg,
                 "borderColor": border,
                 "extendedProps": {
-                    "kind": "talk",
+                    "kind": talk_kind if special_kind else "talk",
                     "kindLabel": kind_label,
                     "accentColor": bg,
                     "editUrl": url_for("main.edit_talk", talk_id=t.id),
@@ -1421,7 +1470,7 @@ def bulletin_save_defaults():
 @login_required
 def api_bulletin_speakers():
     from .bulletin import (
-        SPEAKERS_MODE_FAST_TESTIMONY,
+        SPECIAL_SPEAKERS_MODES,
         SPEAKERS_MODE_TALKS,
         default_speakers_mode,
         is_first_sacrament_sunday,
@@ -1438,7 +1487,7 @@ def api_bulletin_speakers():
 
     mode = (request.args.get("mode") or "").strip()
     talks = _talks_for_bulletin_date(talk_date)
-    if mode not in (SPEAKERS_MODE_TALKS, SPEAKERS_MODE_FAST_TESTIMONY):
+    if mode not in (SPEAKERS_MODE_TALKS, *SPECIAL_SPEAKERS_MODES):
         mode = default_speakers_mode(talk_date, talks)
 
     split_for_intermediate = (request.args.get("has_intermediate") or "").strip() == "1"

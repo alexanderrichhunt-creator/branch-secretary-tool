@@ -106,7 +106,7 @@
       </div>
       <div class="modal-body">
         <form method="post" action="{{ url_for('main.add_talk') }}" class="talk-add-form" id="talks-add-form">
-          {% set id_prefix = 'talks_' %}{% set is_fast_testimony = false %}{% include 'partials/talk_kind_selector.html' %}
+          {% with id_prefix='talks_', compact=true %}{% include 'partials/talk_kind_selector.html' %}{% endwith %}
           <div class="mb-3">
             <label class="form-label" for="talks_talk_date">Date</label>
             <input class="form-control" type="date" id="talks_talk_date" name="talk_date" value="{{ schedule_date }}" required />

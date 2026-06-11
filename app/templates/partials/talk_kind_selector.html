@@ -1,14 +1,26 @@
+{% set kind = selected_talk_kind|default('assigned') %}
+{% if compact %}
+<div class="mb-2 talk-kind-wrap">
+  <label class="form-label" for="{{ id_prefix }}talk_kind">Meeting type</label>
+  <select class="form-select form-select-sm talk-kind-select" name="talk_kind" id="{{ id_prefix }}talk_kind">
+    <option value="assigned" {% if kind == 'assigned' %}selected{% endif %}>Assigned speaker</option>
+    <option value="fast_testimony" {% if kind == 'fast_testimony' %}selected{% endif %}>Fast &amp; Testimony Meeting</option>
+    <option value="branch_conference" {% if kind == 'branch_conference' %}selected{% endif %}>Branch Conference</option>
+    <option value="stake_conference" {% if kind == 'stake_conference' %}selected{% endif %}>Stake Conference</option>
+  </select>
+  <div class="form-text talk-kind-hint small mb-0"></div>
+</div>
+{% else %}
 <div class="mb-3 talk-kind-wrap">
   <label class="form-label big-label">Meeting type</label>
-  <div class="d-flex flex-wrap gap-3">
-    <div class="form-check">
+  <div class="talk-kind-options d-flex flex-wrap gap-3">    <div class="form-check">
       <input
         class="form-check-input talk-kind-input"
         type="radio"
         name="talk_kind"
         id="{{ id_prefix }}talk_kind_assigned"
         value="assigned"
-        {% if not is_fast_testimony %}checked{% endif %}
+        {% if kind == 'assigned' %}checked{% endif %}
       />
       <label class="form-check-label" for="{{ id_prefix }}talk_kind_assigned">Assigned speaker</label>
     </div>
@@ -19,10 +31,33 @@
         name="talk_kind"
         id="{{ id_prefix }}talk_kind_fast"
         value="fast_testimony"
-        {% if is_fast_testimony %}checked{% endif %}
+        {% if kind == 'fast_testimony' %}checked{% endif %}
       />
       <label class="form-check-label" for="{{ id_prefix }}talk_kind_fast">Fast &amp; Testimony Meeting</label>
+    </div>
+    <div class="form-check">
+      <input
+        class="form-check-input talk-kind-input"
+        type="radio"
+        name="talk_kind"
+        id="{{ id_prefix }}talk_kind_branch"
+        value="branch_conference"
+        {% if kind == 'branch_conference' %}checked{% endif %}
+      />
+      <label class="form-check-label" for="{{ id_prefix }}talk_kind_branch">Branch Conference</label>
+    </div>
+    <div class="form-check">
+      <input
+        class="form-check-input talk-kind-input"
+        type="radio"
+        name="talk_kind"
+        id="{{ id_prefix }}talk_kind_stake"
+        value="stake_conference"
+        {% if kind == 'stake_conference' %}checked{% endif %}
+      />
+      <label class="form-check-label" for="{{ id_prefix }}talk_kind_stake">Stake Conference</label>
     </div>
   </div>
   <div class="form-text talk-kind-hint"></div>
 </div>
+{% endif %}

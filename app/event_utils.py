@@ -57,6 +57,16 @@ CALENDAR_ITEM_STYLES = {
         "color": "#be185d",
         "border": "#9f1239",
     },
+    "branch_conference": {
+        "label": "Branch Conference",
+        "color": "#0d9488",
+        "border": "#0f766e",
+    },
+    "stake_conference": {
+        "label": "Stake Conference",
+        "color": "#c2410c",
+        "border": "#9a3412",
+    },
     "interview": {
         "label": "Interviews",
         "color": "#16a34a",
