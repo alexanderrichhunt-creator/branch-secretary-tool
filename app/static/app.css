@@ -405,7 +405,7 @@ body {
 
 .calendar-page .fc .fc-daygrid-day-frame {
   cursor: pointer;
-  min-height: 5.5rem;
+  min-height: 7.25rem;
 }
 
 .calendar-page .fc .fc-daygrid-day:not(.fc-day-disabled):hover .fc-daygrid-day-frame {
@@ -439,6 +439,36 @@ body {
   flex-wrap: wrap;
   align-items: baseline;
   column-gap: 0.25rem;
+}
+
+.calendar-page .fc .fc-daygrid-event.cal-suggested-event,
+.calendar-page .fc .fc-daygrid-dot-event.cal-suggested-event {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none;
+  margin-top: 1px;
+}
+
+.calendar-page .fc .fc-daygrid-event.cal-suggested-event .fc-daygrid-event-dot,
+.calendar-page .fc .fc-daygrid-dot-event.cal-suggested-event .fc-daygrid-event-dot {
+  border-color: #7c3aed;
+  background-color: #7c3aed;
+}
+
+.calendar-page .fc .fc-daygrid-event.cal-suggested-event .fc-event-title,
+.calendar-page .fc .fc-daygrid-dot-event.cal-suggested-event .fc-event-title {
+  color: #5b21b6;
+  font-style: italic;
+  font-weight: 600;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.calendar-page .fc .fc-daygrid-block-event .fc-event-title {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .cal-legend .cal-legend-item {
@@ -576,14 +606,20 @@ body {
   font-weight: 600;
 }
 
-.cal-suggested-panel {
-  position: sticky;
-  top: 1rem;
+.cal-calendar-panel .panel-body {
+  min-height: 36rem;
 }
 
 .cal-suggested-panel .panel-body {
-  max-height: min(78vh, 42rem);
-  overflow: auto;
+  padding-top: 0.85rem;
+}
+
+.cal-suggested-layout {
+  align-items: flex-start;
+}
+
+.cal-suggested-list-wrap {
+  min-width: 0;
 }
 
 .cal-suggested-count {
@@ -591,25 +627,35 @@ body {
 }
 
 .cal-suggested-add-form {
-  padding-bottom: 0.75rem;
-  border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+@media (min-width: 992px) {
+  .cal-suggested-add-form {
+    padding-right: 1rem;
+    border-right: 1px dashed rgba(0, 0, 0, 0.1);
+  }
 }
 
 .cal-suggested-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-  padding-top: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 0.35rem 1rem;
+  max-height: 14rem;
+  overflow: auto;
+  padding-top: 0.25rem;
 }
 
 .cal-suggested-item {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  padding: 0.75rem 0.85rem;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 8px;
-  background: #fafafa;
+  gap: 0.45rem;
+  padding: 0.55rem 0;
+  border: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 0;
+  background: transparent;
 }
 
 .cal-suggested-item-main {
@@ -638,16 +684,7 @@ body {
 
 .cal-suggested-empty {
   padding: 0.5rem 0;
-}
-
-@media (max-width: 1199.98px) {
-  .cal-suggested-panel {
-    position: static;
-  }
-
-  .cal-suggested-panel .panel-body {
-    max-height: none;
-  }
+  grid-column: 1 / -1;
 }
 
 .dashboard-interviews-card .card-body {

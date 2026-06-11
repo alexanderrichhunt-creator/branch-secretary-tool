@@ -1287,8 +1287,11 @@ def api_events():
                 "title": _short_calendar_title(full_title),
                 "start": st.suggested_date.isoformat(),
                 "allDay": True,
+                "display": "list-item",
+                "classNames": ["cal-suggested-event"],
                 "backgroundColor": bg,
                 "borderColor": border,
+                "textColor": border,
                 "extendedProps": {
                     "kind": "suggested_talk",
                     "kindLabel": "Suggested talk",
