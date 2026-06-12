@@ -44,8 +44,17 @@
           >
             <div class="min-w-0">
               <div class="fw-semibold small">{{ member_label(row.member) }}</div>
-              <div class="small muted">{{ row.last_talk_summary }}</div>
-              <span class="speaker-pool-badge speaker-pool-badge-{{ row.status }}">{{ row.status_label }}</span>
+              <div class="small speaker-pool-compact-date">
+                {% if row.last_talk_display %}
+                  {{ row.last_talk_display }}
+                {% else %}
+                  <span class="muted">—</span>
+                {% endif %}
+              </div>
+              <div class="small muted speaker-pool-compact-summary">{{ row.last_talk_summary }}</div>
+              <div class="speaker-pool-compact-status">
+                <span class="speaker-pool-badge speaker-pool-badge-{{ row.status }}">{{ row.status_label }}</span>
+              </div>
             </div>
             {% if show_schedule %}
               {% if assign_in_modal %}

@@ -245,7 +245,19 @@ body {
 }
 
 .speaker-pool-compact-list .speaker-pool-badge {
-  margin-top: 0.2rem;
+  margin-top: 0;
+}
+
+.speaker-pool-compact-date {
+  margin-top: 0.1rem;
+}
+
+.speaker-pool-compact-summary {
+  margin-top: 0.1rem;
+}
+
+.speaker-pool-compact-status {
+  margin-top: 0.25rem;
 }
 
 .speaker-pool-legend-panel .panel-header {
