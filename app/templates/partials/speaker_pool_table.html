@@ -21,7 +21,7 @@
       <div class="speaker-pool-filter-empty d-none small muted py-2">No speakers match this filter.</div>
     {% endif %}
     {% if compact %}
-      <div class="speaker-pool-compact-head d-flex justify-content-between align-items-center gap-2 mb-2">
+      <div class="speaker-pool-compact-head speaker-pool-compact-grid{% if show_schedule %} speaker-pool-compact-grid--schedule{% endif %} mb-2">
         <button type="button" class="speaker-pool-sortable" data-sort="name" aria-sort="none">
           Speaker<span class="speaker-pool-sort-indicator"></span>
         </button>
@@ -31,19 +31,27 @@
         <button type="button" class="speaker-pool-sortable" data-sort="status" aria-sort="none">
           Status<span class="speaker-pool-sort-indicator"></span>
         </button>
+        {% if show_schedule %}
+          <span class="speaker-pool-compact-head-action small muted">Schedule</span>
+        {% endif %}
       </div>
       <div class="speaker-pool-compact-list">
         {% for row in speaker_pool %}
           <div
-            class="speaker-pool-compact-row speaker-pool-row speaker-pool-row-{{ row.status }} d-flex justify-content-between align-items-start gap-2"
+            class="speaker-pool-compact-row speaker-pool-row speaker-pool-row-{{ row.status }} speaker-pool-compact-grid{% if show_schedule %} speaker-pool-compact-grid--schedule{% endif %}"
             data-pool-name="{{ row.name | lower }}"
             data-pool-status="{{ row.status }}"
             data-pool-days="{{ row.days_since if row.days_since is not none else '' }}"
             data-pool-sort-date="{{ row.sort_talk_date or '' }}"
             data-pool-upcoming="{{ '1' if row.upcoming_talk_date else '0' }}"
           >
-            <div class="min-w-0">
+            <div class="speaker-pool-compact-speaker min-w-0">
               <div class="fw-semibold small">{{ member_label(row.member) }}</div>
+              {% if row.group_label %}
+                <div class="small muted">{{ row.group_label }}</div>
+              {% endif %}
+            </div>
+            <div class="speaker-pool-compact-last-talk min-w-0">
               <div class="small speaker-pool-compact-date">
                 {% if row.last_talk_display %}
                   {{ row.last_talk_display }}
@@ -52,24 +60,26 @@
                 {% endif %}
               </div>
               <div class="small muted speaker-pool-compact-summary">{{ row.last_talk_summary }}</div>
-              <div class="speaker-pool-compact-status">
-                <span class="speaker-pool-badge speaker-pool-badge-{{ row.status }}">{{ row.status_label }}</span>
-              </div>
+            </div>
+            <div class="speaker-pool-compact-status">
+              <span class="speaker-pool-badge speaker-pool-badge-{{ row.status }}">{{ row.status_label }}</span>
             </div>
             {% if show_schedule %}
-              {% if assign_in_modal %}
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-primary flex-shrink-0 pool-assign-talk-btn"
-                  data-member-id="{{ row.member_id }}"
-                  data-talk-date="{{ schedule_date or '' }}"
-                >Assign</button>
-              {% else %}
-                <a
-                  class="btn btn-sm btn-outline-primary flex-shrink-0"
-                  href="{{ url_for('main.talks', prefill_member=row.member_id, prefill_date=schedule_date) if schedule_date else url_for('main.talks', prefill_member=row.member_id) }}"
-                >Assign</a>
-              {% endif %}
+              <div class="speaker-pool-compact-action">
+                {% if assign_in_modal %}
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-primary flex-shrink-0 pool-assign-talk-btn"
+                    data-member-id="{{ row.member_id }}"
+                    data-talk-date="{{ schedule_date or '' }}"
+                  >Assign</button>
+                {% else %}
+                  <a
+                    class="btn btn-sm btn-outline-primary flex-shrink-0"
+                    href="{{ url_for('main.talks', prefill_member=row.member_id, prefill_date=schedule_date) if schedule_date else url_for('main.talks', prefill_member=row.member_id) }}"
+                  >Assign</a>
+                {% endif %}
+              </div>
             {% endif %}
           </div>
         {% endfor %}

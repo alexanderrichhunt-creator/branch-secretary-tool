@@ -236,7 +236,34 @@ body {
   white-space: nowrap;
 }
 
-.speaker-pool-compact-head {
+.speaker-pool-compact-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(5.5rem, auto);
+  gap: 0.35rem 0.65rem;
+  align-items: start;
+  min-width: 0;
+}
+
+.speaker-pool-compact-grid--schedule {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.95fr) minmax(5.5rem, auto) auto;
+}
+
+.speaker-pool-compact-head.speaker-pool-compact-grid {
+  align-items: end;
+}
+
+.speaker-pool-compact-head-action {
+  justify-self: end;
+  text-transform: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.speaker-pool-compact-action {
+  justify-self: end;
+}
+
+.speaker-pool-compact-last-talk {
   min-width: 0;
 }
 
@@ -249,7 +276,7 @@ body {
 }
 
 .speaker-pool-compact-date {
-  margin-top: 0.1rem;
+  margin-top: 0;
 }
 
 .speaker-pool-compact-summary {
@@ -257,7 +284,7 @@ body {
 }
 
 .speaker-pool-compact-status {
-  margin-top: 0.25rem;
+  min-width: 0;
 }
 
 .speaker-pool-legend-panel .panel-header {
