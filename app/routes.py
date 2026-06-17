@@ -104,6 +104,15 @@ def _talk_speaker_name(t: Talk) -> str:
     return (t.speaker_text or "").strip() or "—"
 
 
+def _calendar_event_order(*, sort_order: int = 0, is_special: bool = False) -> int:
+    if is_special:
+        return 0
+    order = sort_order or 0
+    if order in range(1, MAX_TALKS_PER_SACRAMENT_WEEK + 1):
+        return order
+    return 999
+
+
 def _talk_calendar_title(t: Talk) -> str:
     from .bulletin import special_meeting_kind, special_meeting_meta
 
@@ -113,9 +122,15 @@ def _talk_calendar_title(t: Talk) -> str:
         return meta["label"] if meta else kind
     speaker = _talk_speaker_name(t)
     topic = (t.topic or "").strip()
+    order = getattr(t, "sort_order", 0) or 0
+    order_prefix = (
+        f"#{order} "
+        if order in range(1, MAX_TALKS_PER_SACRAMENT_WEEK + 1)
+        else ""
+    )
     if topic:
-        return f"Talk: {speaker} — {topic}"
-    return f"Talk: {speaker}"
+        return f"{order_prefix}Talk: {speaker} — {topic}"
+    return f"{order_prefix}Talk: {speaker}"
 
 
 def _suggested_talk_speaker_label(st: SuggestedTalk) -> str:
@@ -803,6 +818,24 @@ def _redirect_after_talk_action():
     return redirect(url_for("main.talks"))
 
 
+def _talk_add_wants_json() -> bool:
+    return (request.form.get("respond_json") or "").strip() == "1"
+
+
+def _talk_add_error(message: str):
+    if _talk_add_wants_json():
+        return jsonify({"ok": False, "error": message}), 400
+    flash(message, "warning")
+    return _redirect_after_talk_action()
+
+
+def _talk_add_success(message: str):
+    if _talk_add_wants_json():
+        return jsonify({"ok": True, "message": message})
+    flash(message, "success")
+    return _redirect_after_talk_action()
+
+
 @main_bp.post("/talks/add")
 @login_required
 def add_talk():
@@ -822,21 +855,17 @@ def add_talk():
     notes = (request.form.get("notes") or "").strip() or None
 
     if not talk_date_raw:
-        flash("Date is required.", "warning")
-        return _redirect_after_talk_action()
+        return _talk_add_error("Date is required.")
     if not is_special and not member_id and not speaker_text:
-        flash("Choose a speaker from the list or type a name.", "warning")
-        return _redirect_after_talk_action()
+        return _talk_add_error("Choose a speaker from the list or type a name.")
     try:
         talk_date = datetime.strptime(talk_date_raw, "%Y-%m-%d").date()
     except Exception:
-        flash("Invalid date.", "warning")
-        return _redirect_after_talk_action()
+        return _talk_add_error("Invalid date.")
 
     week_error = _validate_talk_week(talk_date, talk_kind)
     if week_error:
-        flash(week_error, "warning")
-        return _redirect_after_talk_action()
+        return _talk_add_error(week_error)
 
     if is_special:
         speaker_text = label_for_talk_kind(talk_kind)
@@ -864,10 +893,8 @@ def add_talk():
             pass
 
     if is_special_meeting_talk(t):
-        flash(f"{SPECIAL_MEETINGS[talk_kind]['short_label']} saved.", "success")
-    else:
-        flash("Talk saved.", "success")
-    return _redirect_after_talk_action()
+        return _talk_add_success(f"{SPECIAL_MEETINGS[talk_kind]['short_label']} saved.")
+    return _talk_add_success("Talk saved.")
 
 
 @main_bp.get("/talks/<int:talk_id>/edit")
@@ -1257,11 +1284,14 @@ def api_events():
     range_start_date = range_start.date()
     range_end_date = range_end.date()
 
+    from .bulletin import talk_sort_key
+
     events = []
     talks = Talk.query.filter(
         Talk.talk_date >= range_start_date,
         Talk.talk_date <= range_end_date,
     ).all()
+    talks = sorted(talks, key=talk_sort_key)
     interviews = Interview.query.filter(
         Interview.starts_at < range_end,
         Interview.starts_at >= range_start - timedelta(days=1),
@@ -1282,12 +1312,17 @@ def api_events():
             kind_label = "Sacrament talk"
         bg, border = calendar_item_colors(talk_kind)
         topic = (t.topic or "").strip()
+        talk_sort_order = getattr(t, "sort_order", 0) or 0
         events.append(
             {
                 "id": f"talk-{t.id}",
                 "title": _short_calendar_title(full_title),
                 "start": t.talk_date.isoformat(),
                 "allDay": True,
+                "order": _calendar_event_order(
+                    sort_order=talk_sort_order,
+                    is_special=bool(special_kind),
+                ),
                 "backgroundColor": bg,
                 "borderColor": border,
                 "extendedProps": {
@@ -1298,6 +1333,7 @@ def api_events():
                     "fullTitle": full_title,
                     "topic": topic,
                     "notes": (t.notes or "").strip(),
+                    "sortOrder": talk_sort_order,
                 },
             }
         )
@@ -1369,6 +1405,7 @@ def api_events():
         full_title = _suggested_talk_calendar_title(st)
         bg, border = calendar_item_colors("suggested_talk")
         topic = (st.topic or "").strip()
+        suggested_sort_order = st.sort_order or 0
         events.append(
             {
                 "id": f"suggested-{st.id}",
@@ -1377,6 +1414,7 @@ def api_events():
                 "allDay": True,
                 "display": "list-item",
                 "classNames": ["cal-suggested-event"],
+                "order": _calendar_event_order(sort_order=suggested_sort_order),
                 "backgroundColor": bg,
                 "borderColor": border,
                 "textColor": border,

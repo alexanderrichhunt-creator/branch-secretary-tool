@@ -8,7 +8,7 @@
   </div>
   <div class="page-actions">
     <button class="btn btn-outline-secondary btn-sm" type="button" id="calOpenCreateBtn">Add event</button>
-    <a class="btn btn-primary btn-sm" href="{{ url_for('main.talks') }}">Add talk</a>
+    <button class="btn btn-primary btn-sm" type="button" id="calOpenTalkBtn">Add talk</button>
   </div>
 </div>
 
@@ -373,6 +373,7 @@
           <div class="tab-pane fade" id="cal-pane-talk" role="tabpanel">
             <form method="post" action="{{ url_for('main.add_talk') }}" id="calTalkForm" class="talk-add-form cal-create-form">
               <input type="hidden" name="return_to" value="calendar" />
+              <input type="hidden" name="respond_json" value="1" />
               <input type="hidden" name="suggested_talk_id" id="cal_suggested_talk_id" value="" />
               {% set id_prefix = 'cal_' %}{% set is_fast_testimony = false %}{% include 'partials/talk_kind_selector.html' %}
               <div class="mb-3">
@@ -408,6 +409,7 @@
                 <label class="form-label big-label" for="cal_talk_notes">Notes (optional)</label>
                 <textarea class="form-control" id="cal_talk_notes" name="notes" rows="2"></textarea>
               </div>
+              <div class="cal-talk-form-error alert alert-warning py-2 px-3 small d-none" role="alert"></div>
               <button class="btn btn-primary btn-lg" type="submit">Save to calendar</button>
             </form>
           </div>
@@ -523,6 +525,7 @@
       navLinks: true,
       dayMaxEvents: 6,
       expandRows: true,
+      eventOrder: "order,title",
       slotEventOverlap: false,
       eventTimeFormat: calendarTimeFormat,
       slotLabelFormat: calendarTimeFormat,
@@ -585,6 +588,14 @@
         now.setHours(now.getHours() + 1);
         const end = new Date(now.getTime() + 60 * 60 * 1000);
         openCreateForDay(now, end, false);
+      });
+    }
+
+    const openTalkBtn = document.getElementById('calOpenTalkBtn');
+    if (openTalkBtn) {
+      openTalkBtn.addEventListener('click', function() {
+        const today = new Date();
+        openCreateForDay(today, today, true, null, { tab: 'cal-tab-talk' });
       });
     }
   });

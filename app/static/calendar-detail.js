@@ -126,8 +126,13 @@
       setText(modalEl.querySelector(".cal-detail-subtitle"), subtitle);
 
       const metaParts = [];
-      if (props.kind === "talk" && props.topic) {
-        metaParts.push(metaRow("Topic", props.topic));
+      if (props.kind === "talk") {
+        if (props.sortOrder && props.sortOrder > 0) {
+          metaParts.push(metaRow("Order", "#" + props.sortOrder));
+        }
+        if (props.topic) {
+          metaParts.push(metaRow("Topic", props.topic));
+        }
       }
       if (props.kind === "suggested_talk") {
         if (props.sortOrder && props.sortOrder > 0) {

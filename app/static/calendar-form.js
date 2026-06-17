@@ -208,6 +208,55 @@
     });
   }
 
+  function showCalTalkError(message) {
+    const el = document.querySelector(".cal-talk-form-error");
+    if (!el) return;
+    if (!message) {
+      el.classList.add("d-none");
+      el.textContent = "";
+      return;
+    }
+    el.textContent = message;
+    el.classList.remove("d-none");
+  }
+
+  function bindCalTalkFormSubmit() {
+    const form = document.getElementById("calTalkForm");
+    if (!form || form.dataset.bound) return;
+    form.dataset.bound = "1";
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      showCalTalkError("");
+      const submitBtn = form.querySelector('[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
+      try {
+        const res = await fetch(form.action, {
+          method: "POST",
+          body: new FormData(form),
+        });
+        const data = await res.json().catch(function () {
+          return {};
+        });
+        if (!res.ok || !data.ok) {
+          showCalTalkError(data.error || "Could not save talk.");
+          return;
+        }
+        if (CalCreateForm.modal) CalCreateForm.modal.hide();
+        if (window.branchCalendar && window.branchCalendar.refetchEvents) {
+          window.branchCalendar.refetchEvents();
+        }
+        if (window.SuggestedTalks && window.SuggestedTalks.refresh) {
+          window.SuggestedTalks.refresh();
+        }
+        resetCreateForms();
+      } catch (e) {
+        showCalTalkError("Could not save talk.");
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+      }
+    });
+  }
+
   const CalCreateForm = {
     modal: null,
     modalTitleEl: null,
@@ -218,6 +267,7 @@
       if (!modalEl) return;
       bindRecurrenceControls(modalEl);
       bindAllDayControls(modalEl);
+      bindCalTalkFormSubmit();
       setAllDayState(modalEl.querySelector("#cal-pane-event"), false);
       setAllDayState(modalEl.querySelector("#cal-pane-interview"), false);
     },
@@ -255,6 +305,7 @@
       let end = opts.end instanceof Date ? new Date(opts.end) : new Date(start.getTime() + 60 * 60 * 1000);
 
       resetCreateForms();
+      showCalTalkError("");
 
       const dateValue = resolveDateValue(start, allDay, opts.dateStr);
       syncDates(dateValue);
