@@ -208,8 +208,8 @@
     });
   }
 
-  function showCalTalkError(message) {
-    const el = document.querySelector(".cal-talk-form-error");
+  function showFormError(selector, message) {
+    const el = document.querySelector(selector);
     if (!el) return;
     if (!message) {
       el.classList.add("d-none");
@@ -220,13 +220,37 @@
     el.classList.remove("d-none");
   }
 
-  function bindCalTalkFormSubmit() {
-    const form = document.getElementById("calTalkForm");
-    if (!form || form.dataset.bound) return;
-    form.dataset.bound = "1";
+  function showCalTalkError(message) {
+    showFormError(".cal-talk-form-error", message);
+  }
+
+  function clearCalendarFormErrors() {
+    showFormError(".cal-talk-form-error", "");
+    showFormError(".cal-event-form-error", "");
+    showFormError(".cal-interview-form-error", "");
+    showCalSuggestedError("");
+  }
+
+  function afterCalendarSaveSuccess() {
+    if (window.CalCreateForm && window.CalCreateForm.modal) {
+      window.CalCreateForm.modal.hide();
+    }
+    if (window.branchCalendar && window.branchCalendar.refetchEvents) {
+      window.branchCalendar.refetchEvents();
+    }
+    if (window.SuggestedTalks && window.SuggestedTalks.refresh) {
+      window.SuggestedTalks.refresh();
+    }
+    resetCreateForms();
+  }
+
+  function bindCalendarAjaxForm(form, errorSelector) {
+    if (!form || form.dataset.ajaxBound) return;
+    if (!form.querySelector('[name="respond_json"]')) return;
+    form.dataset.ajaxBound = "1";
     form.addEventListener("submit", async function (event) {
       event.preventDefault();
-      showCalTalkError("");
+      showFormError(errorSelector, "");
       const submitBtn = form.querySelector('[type="submit"]');
       if (submitBtn) submitBtn.disabled = true;
       try {
@@ -238,23 +262,22 @@
           return {};
         });
         if (!res.ok || !data.ok) {
-          showCalTalkError(data.error || "Could not save talk.");
+          showFormError(errorSelector, data.error || "Could not save.");
           return;
         }
-        if (CalCreateForm.modal) CalCreateForm.modal.hide();
-        if (window.branchCalendar && window.branchCalendar.refetchEvents) {
-          window.branchCalendar.refetchEvents();
-        }
-        if (window.SuggestedTalks && window.SuggestedTalks.refresh) {
-          window.SuggestedTalks.refresh();
-        }
-        resetCreateForms();
+        afterCalendarSaveSuccess();
       } catch (e) {
-        showCalTalkError("Could not save talk.");
+        showFormError(errorSelector, "Could not save.");
       } finally {
         if (submitBtn) submitBtn.disabled = false;
       }
     });
+  }
+
+  function bindCalendarAjaxForms() {
+    bindCalendarAjaxForm(document.getElementById("calTalkForm"), ".cal-talk-form-error");
+    bindCalendarAjaxForm(document.getElementById("calEventForm"), ".cal-event-form-error");
+    bindCalendarAjaxForm(document.getElementById("calInterviewForm"), ".cal-interview-form-error");
   }
 
   const CalCreateForm = {
@@ -267,7 +290,7 @@
       if (!modalEl) return;
       bindRecurrenceControls(modalEl);
       bindAllDayControls(modalEl);
-      bindCalTalkFormSubmit();
+      bindCalendarAjaxForms();
       setAllDayState(modalEl.querySelector("#cal-pane-event"), false);
       setAllDayState(modalEl.querySelector("#cal-pane-interview"), false);
     },
@@ -305,7 +328,7 @@
       let end = opts.end instanceof Date ? new Date(opts.end) : new Date(start.getTime() + 60 * 60 * 1000);
 
       resetCreateForms();
-      showCalTalkError("");
+      clearCalendarFormErrors();
 
       const dateValue = resolveDateValue(start, allDay, opts.dateStr);
       syncDates(dateValue);

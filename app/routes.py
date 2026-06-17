@@ -104,6 +104,10 @@ def _talk_speaker_name(t: Talk) -> str:
     return (t.speaker_text or "").strip() or "—"
 
 
+def _calendar_timed_order(starts_at: datetime) -> int:
+    return starts_at.hour * 60 + starts_at.minute
+
+
 def _calendar_event_order(*, sort_order: int = 0, is_special: bool = False) -> int:
     if is_special:
         return 0
@@ -424,6 +428,24 @@ def _redirect_after_event_action():
     if (request.form.get("return_to") or "").strip() == "calendar":
         return redirect(url_for("main.calendar"))
     return redirect(url_for("main.events"))
+
+
+def _form_wants_json() -> bool:
+    return (request.form.get("respond_json") or "").strip() == "1"
+
+
+def _calendar_form_error(message: str, redirect_fn):
+    if _form_wants_json():
+        return jsonify({"ok": False, "error": message}), 400
+    flash(message, "warning")
+    return redirect_fn()
+
+
+def _calendar_form_success(message: str, redirect_fn):
+    if _form_wants_json():
+        return jsonify({"ok": True, "message": message})
+    flash(message, "success")
+    return redirect_fn()
 
 
 def _parse_event_times_from_form():
@@ -819,21 +841,15 @@ def _redirect_after_talk_action():
 
 
 def _talk_add_wants_json() -> bool:
-    return (request.form.get("respond_json") or "").strip() == "1"
+    return _form_wants_json()
 
 
 def _talk_add_error(message: str):
-    if _talk_add_wants_json():
-        return jsonify({"ok": False, "error": message}), 400
-    flash(message, "warning")
-    return _redirect_after_talk_action()
+    return _calendar_form_error(message, _redirect_after_talk_action)
 
 
 def _talk_add_success(message: str):
-    if _talk_add_wants_json():
-        return jsonify({"ok": True, "message": message})
-    flash(message, "success")
-    return _redirect_after_talk_action()
+    return _calendar_form_success(message, _redirect_after_talk_action)
 
 
 @main_bp.post("/talks/add")
@@ -1005,11 +1021,9 @@ def add_interview():
     notes = (request.form.get("notes") or "").strip() or None
 
     if err:
-        flash(err, "warning")
-        return _redirect_after_interview_action()
+        return _calendar_form_error(err, _redirect_after_interview_action)
     if starts_at is None or duration_minutes is None:
-        flash("Start date & time is required.", "warning")
-        return _redirect_after_interview_action()
+        return _calendar_form_error("Start date & time is required.", _redirect_after_interview_action)
     i = Interview(
         member_id=member_id,
         who_text=who_text,
@@ -1020,8 +1034,7 @@ def add_interview():
     )
     db.session.add(i)
     db.session.commit()
-    flash("Interview saved.", "success")
-    return _redirect_after_interview_action()
+    return _calendar_form_success("Interview saved.", _redirect_after_interview_action)
 
 
 @main_bp.get("/interviews/<int:interview_id>/edit")
@@ -1093,8 +1106,7 @@ def add_event():
     category = normalize_event_category(request.form.get("category"))
     starts_at, end_at, all_day, err = _parse_event_times_from_form()
     if err:
-        flash(err, "warning")
-        return _redirect_after_event_action()
+        return _calendar_form_error(err, _redirect_after_event_action)
 
     freq, interval, byweekday, until = parse_recurrence_form(request.form)
     if freq == "weekly" and not byweekday:
@@ -1115,8 +1127,7 @@ def add_event():
     )
     db.session.add(event)
     db.session.commit()
-    flash("Event saved.", "success")
-    return _redirect_after_event_action()
+    return _calendar_form_success("Event saved.", _redirect_after_event_action)
 
 
 @main_bp.get("/events/<int:event_id>/edit")
@@ -1349,6 +1360,7 @@ def api_events():
                 "start": i.starts_at.isoformat(),
                 "end": end.isoformat(),
                 "allDay": False,
+                "order": _calendar_timed_order(i.starts_at),
                 "backgroundColor": interview_bg,
                 "borderColor": interview_border,
                 "extendedProps": {
@@ -1376,6 +1388,7 @@ def api_events():
                 "title": _short_calendar_title(event.title),
                 "start": occ_start.date().isoformat() if event.all_day else occ_start.isoformat(),
                 "allDay": event.all_day,
+                "order": 0 if event.all_day else _calendar_timed_order(occ_start),
                 "backgroundColor": bg,
                 "borderColor": border,
                 "extendedProps": {

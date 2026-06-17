@@ -251,6 +251,7 @@
           <div class="tab-pane fade show active" id="cal-pane-event" role="tabpanel">
             <form method="post" action="{{ url_for('main.add_event') }}" id="calEventForm" class="cal-create-form">
               <input type="hidden" name="return_to" value="calendar" />
+              <input type="hidden" name="respond_json" value="1" />
               <div class="mb-3">
                 <label class="form-label big-label" for="event_title">Title</label>
                 <input class="form-control form-control-lg" type="text" id="event_title" name="title" placeholder="Branch council, youth night, etc." required />
@@ -314,6 +315,7 @@
                 <label class="form-label big-label" for="event_notes">Notes (optional)</label>
                 <textarea class="form-control" id="event_notes" name="notes" rows="2"></textarea>
               </div>
+              <div class="cal-event-form-error alert alert-warning py-2 px-3 small d-none" role="alert"></div>
               <button class="btn btn-primary btn-lg" type="submit">Save event</button>
             </form>
           </div>
@@ -321,6 +323,7 @@
           <div class="tab-pane fade" id="cal-pane-interview" role="tabpanel">
             <form method="post" action="{{ url_for('main.add_interview') }}" id="calInterviewForm" class="cal-create-form">
               <input type="hidden" name="return_to" value="calendar" />
+              <input type="hidden" name="respond_json" value="1" />
               <div class="mb-3">
                 <label class="form-label big-label" for="interview_purpose">Purpose</label>
                 <input class="form-control form-control-lg" type="text" id="interview_purpose" name="purpose" value="Interview" required />
@@ -366,6 +369,7 @@
                 <label class="form-label big-label" for="interview_notes">Notes (optional)</label>
                 <textarea class="form-control" id="interview_notes" name="notes" rows="2"></textarea>
               </div>
+              <div class="cal-interview-form-error alert alert-warning py-2 px-3 small d-none" role="alert"></div>
               <button class="btn btn-success btn-lg" type="submit">Save interview</button>
             </form>
           </div>
@@ -525,7 +529,7 @@
       navLinks: true,
       dayMaxEvents: 6,
       expandRows: true,
-      eventOrder: "order,title",
+      eventOrder: "allDay,order,start,title",
       slotEventOverlap: false,
       eventTimeFormat: calendarTimeFormat,
       slotLabelFormat: calendarTimeFormat,

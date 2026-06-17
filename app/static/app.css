@@ -552,13 +552,39 @@ body {
 
 .calendar-page .fc .fc-event-time {
   font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .calendar-page .fc .fc-daygrid-block-event .fc-event-main {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: 0.25rem;
+  flex-direction: column;
+  align-items: flex-start;
+  row-gap: 1px;
+}
+
+.calendar-page .fc .fc-daygrid-block-event .fc-event-time {
+  max-width: 100%;
+}
+
+.calendar-page .fc .fc-list-event-time {
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 4.75rem;
+}
+
+.calendar-page .fc .fc-list-event-title {
+  min-width: 0;
+  white-space: normal;
+}
+
+.calendar-page .fc .fc-timegrid-event .fc-event-main {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.calendar-page .fc .fc-timegrid-event .fc-event-time {
+  white-space: nowrap;
 }
 
 .calendar-page .fc .fc-daygrid-event.cal-suggested-event,
