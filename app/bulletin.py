@@ -556,11 +556,13 @@ SPEAKERS_MODE_TALKS = "talks"
 SPEAKERS_MODE_FAST_TESTIMONY = "fast_testimony"
 SPEAKERS_MODE_BRANCH_CONFERENCE = "branch_conference"
 SPEAKERS_MODE_STAKE_CONFERENCE = "stake_conference"
+SPEAKERS_MODE_GENERAL_CONFERENCE = "general_conference"
 
 TALK_KIND_ASSIGNED = "assigned"
 TALK_KIND_FAST_TESTIMONY = "fast_testimony"
 TALK_KIND_BRANCH_CONFERENCE = "branch_conference"
 TALK_KIND_STAKE_CONFERENCE = "stake_conference"
+TALK_KIND_GENERAL_CONFERENCE = "general_conference"
 
 SPECIAL_MEETINGS = {
     TALK_KIND_FAST_TESTIMONY: {
@@ -587,6 +589,14 @@ SPECIAL_MEETINGS = {
         "calendar_kind": "stake_conference",
         "calendar_label": "Stake Conference",
     },
+    TALK_KIND_GENERAL_CONFERENCE: {
+        "label": "General Conference",
+        "short_label": "General Conference",
+        "speakers_text": "Today we will view General Conference.",
+        "speakers_mode": SPEAKERS_MODE_GENERAL_CONFERENCE,
+        "calendar_kind": "general_conference",
+        "calendar_label": "General Conference",
+    },
 }
 
 SPECIAL_TALK_KINDS = frozenset(SPECIAL_MEETINGS.keys())
@@ -596,6 +606,7 @@ FAST_TESTIMONY_LABEL = SPECIAL_MEETINGS[TALK_KIND_FAST_TESTIMONY]["label"]
 FAST_TESTIMONY_SPEAKERS_TEXT = SPECIAL_MEETINGS[TALK_KIND_FAST_TESTIMONY]["speakers_text"]
 BRANCH_CONFERENCE_LABEL = SPECIAL_MEETINGS[TALK_KIND_BRANCH_CONFERENCE]["label"]
 STAKE_CONFERENCE_LABEL = SPECIAL_MEETINGS[TALK_KIND_STAKE_CONFERENCE]["label"]
+GENERAL_CONFERENCE_LABEL = SPECIAL_MEETINGS[TALK_KIND_GENERAL_CONFERENCE]["label"]
 
 
 def is_special_talk_kind(kind: str) -> bool:
@@ -631,6 +642,10 @@ def is_branch_conference_talk(talk) -> bool:
 
 def is_stake_conference_talk(talk) -> bool:
     return special_meeting_kind(talk) == TALK_KIND_STAKE_CONFERENCE
+
+
+def is_general_conference_talk(talk) -> bool:
+    return special_meeting_kind(talk) == TALK_KIND_GENERAL_CONFERENCE
 
 
 def _special_meeting_mode_from_data(speakers_mode: str, talks) -> bool:

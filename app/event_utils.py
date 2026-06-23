@@ -67,6 +67,11 @@ CALENDAR_ITEM_STYLES = {
         "color": "#c2410c",
         "border": "#9a3412",
     },
+    "general_conference": {
+        "label": "General Conference",
+        "color": "#4338ca",
+        "border": "#3730a3",
+    },
     "interview": {
         "label": "Interviews",
         "color": "#16a34a",

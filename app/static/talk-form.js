@@ -10,6 +10,9 @@
     stake_conference: {
       selectedHint: "Stake Conference for this sacrament Sunday. No assigned speakers.",
     },
+    general_conference: {
+      selectedHint: "General Conference for this sacrament Sunday. No assigned speakers.",
+    },
   };
 
   function isFirstSacramentSunday(iso) {

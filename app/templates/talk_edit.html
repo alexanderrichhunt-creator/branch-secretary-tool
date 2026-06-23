@@ -5,12 +5,23 @@
     <h1 class="h2 fw-bold mb-1">Edit talk</h1>
     <div class="muted">Fix mistakes or add notes.</div>
   </div>
-  <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.talks') }}">Back</a>
+  {% if return_to == 'calendar' %}
+    <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.calendar') }}">Back to calendar</a>
+  {% elif return_to == 'dashboard' %}
+    <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.dashboard') }}">Back to dashboard</a>
+  {% elif return_to == 'speaker_pool' %}
+    <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.speaker_pool') }}">Back to speaker pool</a>
+  {% else %}
+    <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.talks') }}">Back</a>
+  {% endif %}
 </div>
 
 <div class="card shadow-sm">
   <div class="card-body">
         <form method="post" action="{{ url_for('main.edit_talk_post', talk_id=talk.id) }}" class="talk-add-form">
+      {% if return_to %}
+        <input type="hidden" name="return_to" value="{{ return_to }}" />
+      {% endif %}
       {% set selected_talk_kind = selected_talk_kind %}{% set id_prefix = '' %}{% include 'partials/talk_kind_selector.html' %}
       <div class="talk-assigned-fields">
         <div class="mb-3">
@@ -49,6 +60,9 @@
       </div>
     </form>
     <form class="mt-3" method="post" action="{{ url_for('main.delete_talk', talk_id=talk.id) }}" onsubmit="return confirm('Delete this talk?');">
+      {% if return_to %}
+        <input type="hidden" name="return_to" value="{{ return_to }}" />
+      {% endif %}
       <button class="btn btn-outline-danger btn-lg" type="submit">Delete talk</button>
     </form>
   </div>

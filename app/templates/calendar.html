@@ -13,7 +13,7 @@
 </div>
 
 <div class="d-flex flex-wrap gap-2 mb-3 cal-legend">
-  {% for key in ['talk', 'fast_testimony', 'branch_conference', 'stake_conference', 'suggested_talk', 'interview', 'general'] %}
+  {% for key in ['talk', 'fast_testimony', 'branch_conference', 'stake_conference', 'general_conference', 'suggested_talk', 'interview', 'general'] %}
     {% set meta = CALENDAR_ITEM_STYLES[key] %}
     <span class="badge cal-legend-item" style="background:{{ meta.color }};">{{ meta.label }}</span>
   {% endfor %}
@@ -529,7 +529,7 @@
       navLinks: true,
       dayMaxEvents: 6,
       expandRows: true,
-      eventOrder: "allDay,order,start,title",
+      eventOrder: "-allDay,order,start,title",
       slotEventOverlap: false,
       eventTimeFormat: calendarTimeFormat,
       slotLabelFormat: calendarTimeFormat,

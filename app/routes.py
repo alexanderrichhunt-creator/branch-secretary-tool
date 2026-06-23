@@ -852,6 +852,29 @@ def _talk_add_success(message: str):
     return _calendar_form_success(message, _redirect_after_talk_action)
 
 
+def _talk_edit_return_to() -> str:
+    return (request.form.get("return_to") or request.args.get("return_to") or "").strip()
+
+
+def _redirect_after_talk_edit(talk_id: int):
+    return_to = _talk_edit_return_to()
+    if return_to == "calendar":
+        return redirect(url_for("main.calendar"))
+    if return_to == "dashboard":
+        return redirect(url_for("main.dashboard"))
+    if return_to == "speaker_pool":
+        return redirect(url_for("main.speaker_pool"))
+    return redirect(url_for("main.talks"))
+
+
+def _edit_talk_form_error(talk_id: int, message: str):
+    flash(message, "warning")
+    return_to = _talk_edit_return_to()
+    if return_to:
+        return redirect(url_for("main.edit_talk", talk_id=talk_id, return_to=return_to))
+    return redirect(url_for("main.edit_talk", talk_id=talk_id))
+
+
 @main_bp.post("/talks/add")
 @login_required
 def add_talk():
@@ -920,11 +943,13 @@ def edit_talk(talk_id: int):
     from .bulletin import TALK_KIND_ASSIGNED, special_meeting_kind
 
     selected = talk.member_id or ""
+    return_to = (request.args.get("return_to") or "").strip()
     return render_template(
         "talk_edit.html",
         talk=talk,
         selected_member_id=selected,
         selected_talk_kind=special_meeting_kind(talk) or TALK_KIND_ASSIGNED,
+        return_to=return_to,
         **_talk_member_select_context(exclude_talk_id=talk.id),
     )
 
@@ -932,7 +957,13 @@ def edit_talk(talk_id: int):
 @main_bp.post("/talks/<int:talk_id>/edit")
 @login_required
 def edit_talk_post(talk_id: int):
-    from .bulletin import TALK_KIND_ASSIGNED, is_special_talk_kind, label_for_talk_kind
+    from .bulletin import (
+        SPECIAL_MEETINGS,
+        TALK_KIND_ASSIGNED,
+        is_special_meeting_talk,
+        is_special_talk_kind,
+        label_for_talk_kind,
+    )
 
     talk = Talk.query.get_or_404(talk_id)
 
@@ -944,22 +975,18 @@ def edit_talk_post(talk_id: int):
     notes = (request.form.get("notes") or "").strip() or None
 
     if not talk_date_raw:
-        flash("Date is required.", "warning")
-        return redirect(url_for("main.edit_talk", talk_id=talk_id))
+        return _edit_talk_form_error(talk_id, "Date is required.")
     if not is_special and not member_id and not speaker_text:
-        flash("Choose a speaker or enter a name under “Speaker (free text)”.", "warning")
-        return redirect(url_for("main.edit_talk", talk_id=talk_id))
+        return _edit_talk_form_error(talk_id, "Choose a speaker or enter a name under “Speaker (free text)”.")
 
     try:
         talk_date = datetime.strptime(talk_date_raw, "%Y-%m-%d").date()
     except Exception:
-        flash("Invalid date.", "warning")
-        return redirect(url_for("main.edit_talk", talk_id=talk_id))
+        return _edit_talk_form_error(talk_id, "Invalid date.")
 
     week_error = _validate_talk_week(talk_date, talk_kind, exclude_talk_id=talk.id)
     if week_error:
-        flash(week_error, "warning")
-        return redirect(url_for("main.edit_talk", talk_id=talk_id))
+        return _edit_talk_form_error(talk_id, week_error)
 
     if is_special:
         member_id = None
@@ -980,8 +1007,11 @@ def edit_talk_post(talk_id: int):
         )
     db.session.commit()
 
-    flash("Talk updated.", "success")
-    return redirect(url_for("main.talks"))
+    if is_special_meeting_talk(talk):
+        flash(f"{SPECIAL_MEETINGS[talk_kind]['short_label']} updated.", "success")
+    else:
+        flash("Talk updated.", "success")
+    return _redirect_after_talk_edit(talk_id)
 
 
 @main_bp.post("/talks/<int:talk_id>/delete")
@@ -991,7 +1021,7 @@ def delete_talk(talk_id: int):
     db.session.delete(talk)
     db.session.commit()
     flash("Talk deleted.", "success")
-    return redirect(url_for("main.talks"))
+    return _redirect_after_talk_edit(talk_id)
 
 
 @main_bp.get("/interviews")
@@ -1340,7 +1370,7 @@ def api_events():
                     "kind": talk_kind if special_kind else "talk",
                     "kindLabel": kind_label,
                     "accentColor": bg,
-                    "editUrl": url_for("main.edit_talk", talk_id=t.id),
+                    "editUrl": url_for("main.edit_talk", talk_id=t.id, return_to="calendar"),
                     "fullTitle": full_title,
                     "topic": topic,
                     "notes": (t.notes or "").strip(),

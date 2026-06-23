@@ -11,7 +11,8 @@
   const MODE_FAST = "fast_testimony";
   const MODE_BRANCH = "branch_conference";
   const MODE_STAKE = "stake_conference";
-  const SPECIAL_MODES = [MODE_FAST, MODE_BRANCH, MODE_STAKE];
+  const MODE_GENERAL = "general_conference";
+  const SPECIAL_MODES = [MODE_FAST, MODE_BRANCH, MODE_STAKE, MODE_GENERAL];
   const MODE_HINTS = {
     fast_testimony: {
       firstSunday: "First Sunday of the month — Fast & Testimony Meeting selected automatically.",
@@ -22,6 +23,9 @@
     },
     stake_conference: {
       selected: "Stake Conference selected. You can still edit the text below.",
+    },
+    general_conference: {
+      selected: "General Conference selected. You can still edit the text below.",
     },
   };
   const URL_PATTERN = /https?:\/\/[^\s<>"']+/g;
@@ -113,6 +117,10 @@
     }
     if (mode === MODE_STAKE) {
       speakersHint.textContent = MODE_HINTS.stake_conference.selected;
+      return;
+    }
+    if (mode === MODE_GENERAL) {
+      speakersHint.textContent = MODE_HINTS.general_conference.selected;
       return;
     }
     speakersHint.textContent = isFirstSunday

@@ -7,6 +7,7 @@
     <option value="fast_testimony" {% if kind == 'fast_testimony' %}selected{% endif %}>Fast &amp; Testimony Meeting</option>
     <option value="branch_conference" {% if kind == 'branch_conference' %}selected{% endif %}>Branch Conference</option>
     <option value="stake_conference" {% if kind == 'stake_conference' %}selected{% endif %}>Stake Conference</option>
+    <option value="general_conference" {% if kind == 'general_conference' %}selected{% endif %}>General Conference</option>
   </select>
   <div class="form-text talk-kind-hint small mb-0"></div>
 </div>
@@ -56,6 +57,17 @@
         {% if kind == 'stake_conference' %}checked{% endif %}
       />
       <label class="form-check-label" for="{{ id_prefix }}talk_kind_stake">Stake Conference</label>
+    </div>
+    <div class="form-check">
+      <input
+        class="form-check-input talk-kind-input"
+        type="radio"
+        name="talk_kind"
+        id="{{ id_prefix }}talk_kind_general"
+        value="general_conference"
+        {% if kind == 'general_conference' %}checked{% endif %}
+      />
+      <label class="form-check-label" for="{{ id_prefix }}talk_kind_general">General Conference</label>
     </div>
   </div>
   <div class="form-text talk-kind-hint"></div>
