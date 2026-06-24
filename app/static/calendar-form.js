@@ -378,6 +378,9 @@
       }
 
       dispatchTalkDateChange();
+      if (window.MemberSelectFilter && window.MemberSelectFilter.refreshWithin) {
+        window.MemberSelectFilter.refreshWithin(document.getElementById("calCreateModal"));
+      }
       this.modal.show();
     },
   };

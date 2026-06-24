@@ -96,6 +96,9 @@
     const editMember = document.getElementById("suggested_edit_member_id");
     if (editMember) editMember.dispatchEvent(new Event("change", { bubbles: true }));
     showFormError(editForm.querySelector(".cal-suggested-edit-error"), "");
+    if (window.MemberSelectFilter && window.MemberSelectFilter.refreshWithin && editModalEl) {
+      window.MemberSelectFilter.refreshWithin(editModalEl);
+    }
     if (editModal) editModal.show();
   }
 

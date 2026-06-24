@@ -1,8 +1,22 @@
 (function () {
-  function bindMemberSelectFilter(filterInput, selectEl) {
-    if (!filterInput || !selectEl || selectEl.dataset.memberFilterBound) return;
-    selectEl.dataset.memberFilterBound = "1";
+  function optionSearchText(opt) {
+    const explicit = (opt.getAttribute("data-member-name") || "").trim();
+    if (explicit) return explicit.toLowerCase();
+    const text = (opt.textContent || "").trim();
+    return text.split("·")[0].trim().toLowerCase();
+  }
 
+  function matchesQuery(text, query) {
+    const q = (query || "").trim().toLowerCase();
+    if (!q) return true;
+    const tokens = q.split(/\s+/).filter(Boolean);
+    if (!tokens.length) return true;
+    return tokens.every(function (token) {
+      return text.includes(token);
+    });
+  }
+
+  function captureStructure(selectEl) {
     const structure = [];
     let firstOption = null;
 
@@ -24,29 +38,52 @@
       }
     }
 
-    function renderFiltered(query) {
+    return { firstOption: firstOption, structure: structure };
+  }
+
+  function bindMemberSelectFilter(filterInput, selectEl) {
+    if (!filterInput || !selectEl) return;
+
+    if (!filterInput._memberFilterState) {
+      filterInput._memberFilterState = captureStructure(selectEl);
+    }
+
+    const state = filterInput._memberFilterState;
+
+    function renderFiltered() {
       const selected = selectEl.value;
-      const q = (query || "").trim().toLowerCase();
+      const q = (filterInput.value || "").trim();
+      const qLower = q.toLowerCase();
+      let visibleCount = 0;
+      let singleMatchValue = null;
+      let matchCount = 0;
+
       selectEl.innerHTML = "";
-      if (firstOption) {
-        selectEl.appendChild(firstOption.cloneNode(true));
+      if (state.firstOption) {
+        selectEl.appendChild(state.firstOption.cloneNode(true));
       }
 
-      for (const item of structure) {
+      for (const item of state.structure) {
         if (item.type === "option") {
-          const text = (item.option.textContent || "").toLowerCase();
-          if (!q || text.includes(q)) {
+          const text = optionSearchText(item.option);
+          if (matchesQuery(text, qLower)) {
             selectEl.appendChild(item.option.cloneNode(true));
+            visibleCount += 1;
+            matchCount += 1;
+            singleMatchValue = item.option.value;
           }
         } else if (item.type === "group") {
           const group = document.createElement("optgroup");
           group.label = item.label;
           let added = 0;
           for (const opt of item.options) {
-            const text = (opt.textContent || "").toLowerCase();
-            if (!q || text.includes(q)) {
+            const text = optionSearchText(opt);
+            if (matchesQuery(text, qLower)) {
               group.appendChild(opt.cloneNode(true));
               added += 1;
+              visibleCount += 1;
+              matchCount += 1;
+              singleMatchValue = opt.value;
             }
           }
           if (added) {
@@ -55,21 +92,36 @@
         }
       }
 
-      if (selected && Array.from(selectEl.options).some(function (o) { return o.value === selected; })) {
+      if (q && matchCount === 1 && singleMatchValue) {
+        selectEl.value = singleMatchValue;
+        selectEl.dispatchEvent(new Event("change", { bubbles: true }));
+      } else if (selected && Array.from(selectEl.options).some(function (o) { return o.value === selected; })) {
         selectEl.value = selected;
+      } else if (q) {
+        selectEl.value = "";
+      }
+
+      if (q && visibleCount > 0) {
+        selectEl.size = Math.min(8, visibleCount + 1);
+        selectEl.classList.add("member-filter-listbox");
+      } else {
+        selectEl.removeAttribute("size");
+        selectEl.classList.remove("member-filter-listbox");
       }
     }
 
-    filterInput.addEventListener("input", function () {
-      renderFiltered(filterInput.value);
-    });
-    selectEl._memberFilterApply = function () {
-      renderFiltered(filterInput.value);
-    };
+    if (!filterInput.dataset.memberFilterBound) {
+      filterInput.dataset.memberFilterBound = "1";
+      filterInput.addEventListener("input", renderFiltered);
+    }
+
+    filterInput._memberFilterApply = renderFiltered;
+    renderFiltered();
   }
 
-  function init() {
-    document.querySelectorAll("[data-member-filter-target]").forEach(function (input) {
+  function bindWithin(root) {
+    const scope = root || document;
+    scope.querySelectorAll("[data-member-filter-target]").forEach(function (input) {
       const id = input.getAttribute("data-member-filter-target");
       const select = id ? document.getElementById(id) : null;
       bindMemberSelectFilter(input, select);
@@ -79,23 +131,31 @@
   function resetAll() {
     document.querySelectorAll("[data-member-filter-target]").forEach(function (input) {
       input.value = "";
-      const id = input.getAttribute("data-member-filter-target");
-      const select = id ? document.getElementById(id) : null;
-      if (select && typeof select._memberFilterApply === "function") {
-        select._memberFilterApply();
+      if (typeof input._memberFilterApply === "function") {
+        input._memberFilterApply();
       }
     });
   }
 
+  function refreshWithin(root) {
+    bindWithin(root);
+  }
+
   window.MemberSelectFilter = {
     bind: bindMemberSelectFilter,
-    init: init,
+    init: function () {
+      bindWithin(document);
+    },
+    bindWithin: bindWithin,
+    refreshWithin: refreshWithin,
     resetAll: resetAll,
   };
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", function () {
+      window.MemberSelectFilter.init();
+    });
   } else {
-    init();
+    window.MemberSelectFilter.init();
   }
 })();

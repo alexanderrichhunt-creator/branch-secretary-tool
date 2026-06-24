@@ -1167,3 +1167,8 @@ body {
 .dashboard-week-form .form-select-sm {
   font-size: 0.9rem;
 }
+
+.member-filter-listbox {
+  height: auto;
+  min-height: 6rem;
+}
