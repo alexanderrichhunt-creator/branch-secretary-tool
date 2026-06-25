@@ -1,9 +1,19 @@
 (function () {
   function optionSearchText(opt) {
     const explicit = (opt.getAttribute("data-member-name") || "").trim();
-    if (explicit) return explicit.toLowerCase();
-    const text = (opt.textContent || "").trim();
-    return text.split("·")[0].trim().toLowerCase();
+    let text = explicit || (opt.textContent || "").trim().split("·")[0].trim();
+    const parts = [];
+    if (text) parts.push(text);
+    const comma = text.indexOf(",");
+    if (comma > 0) {
+      const last = text.slice(0, comma).trim();
+      const first = text.slice(comma + 1).replace(/\(\d+\)\s*$/, "").trim();
+      if (first && last) {
+        parts.push(first + " " + last);
+        parts.push(last + " " + first);
+      }
+    }
+    return parts.join(" ").toLowerCase();
   }
 
   function matchesQuery(text, query) {
@@ -63,13 +73,15 @@
   function bindMemberSelectFilter(filterInput, selectEl) {
     if (!filterInput || !selectEl) return;
 
-    if (!filterInput._memberFilterState) {
-      filterInput._memberFilterState = captureStructure(selectEl);
+    function ensureState() {
+      if (!filterInput._memberFilterState) {
+        filterInput._memberFilterState = captureStructure(selectEl);
+      }
+      return filterInput._memberFilterState;
     }
 
-    const state = filterInput._memberFilterState;
-
     function renderFiltered() {
+      const state = ensureState();
       const selected = selectEl.value;
       const q = (filterInput.value || "").trim();
       const qLower = q.toLowerCase();
@@ -149,6 +161,25 @@
     filterInput._memberFilterApply = renderFiltered;
   }
 
+  function recaptureWithin(root) {
+    const scope = root || document;
+    scope.querySelectorAll("[data-member-filter-target]").forEach(function (input) {
+      const id = input.getAttribute("data-member-filter-target");
+      const select = id ? document.getElementById(id) : null;
+      if (!select) return;
+
+      if (select.dataset.memberFilterDirty === "1" && input._memberFilterState) {
+        appendStructure(select, input._memberFilterState);
+        select.removeAttribute("size");
+        select.classList.remove("member-filter-listbox");
+        delete select.dataset.memberFilterDirty;
+      }
+
+      delete input._memberFilterState;
+      bindMemberSelectFilter(input, select);
+    });
+  }
+
   function bindWithin(root) {
     const scope = root || document;
     scope.querySelectorAll("[data-member-filter-target]").forEach(function (input) {
@@ -181,6 +212,7 @@
     },
     bindWithin: bindWithin,
     refreshWithin: bindWithin,
+    recaptureWithin: recaptureWithin,
     resetWithin: resetWithin,
     resetAll: resetAll,
   };

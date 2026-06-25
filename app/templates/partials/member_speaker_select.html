@@ -17,7 +17,7 @@
     </optgroup>
   {% endif %}
   {% if other_members %}
-    <optgroup label="Other members">
+    <optgroup label="{% if speaker_pool %}Other members{% else %}All members{% endif %}">
       {% for m in other_members %}
         <option
           value="{{ m.id }}"

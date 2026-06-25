@@ -1,0 +1,32 @@
+{# Searchable speaker picker — shared by Talks page and calendar talk tab. #}
+<div class="mb-3">
+  <label class="form-label{% if big_label %} big-label{% endif %}" for="{{ filter_id }}">
+    Speaker{% if optional %} (optional){% endif %}
+  </label>
+  <input
+    class="form-control{% if input_lg %} form-control-lg{% endif %} mb-2 member-filter-input"
+    type="text"
+    id="{{ filter_id }}"
+    data-member-filter-target="{{ select_id }}"
+    placeholder="Type a name to search..."
+    autocomplete="off"
+  />
+  {% with select_id=select_id, select_class=select_class, placeholder=placeholder %}
+    {% include 'partials/member_speaker_select.html' %}
+  {% endwith %}
+  <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
+  {% if show_help | default(true) %}
+    <div class="form-text">Regular attendees appear first, sorted by who is available to speak. Type a name to search everyone.</div>
+  {% endif %}
+  {% if speaker_text_id %}
+    <input
+      class="form-control{% if input_lg %} form-control-lg{% endif %} mt-2"
+      type="text"
+      id="{{ speaker_text_id }}"
+      name="speaker_text"
+      value="{{ speaker_text_value | default('') }}"
+      placeholder="{{ speaker_text_placeholder | default('Visitor, stake rep, youth speaker…') }}"
+      autocomplete="off"
+    />
+  {% endif %}
+</div>

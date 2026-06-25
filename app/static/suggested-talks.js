@@ -14,6 +14,15 @@
 
   const editModal = editModalEl && window.bootstrap ? new bootstrap.Modal(editModalEl) : null;
 
+  if (editModalEl && !editModalEl.dataset.memberFilterRecaptureBound) {
+    editModalEl.dataset.memberFilterRecaptureBound = "1";
+    editModalEl.addEventListener("shown.bs.modal", function () {
+      if (window.MemberSelectFilter && window.MemberSelectFilter.recaptureWithin) {
+        window.MemberSelectFilter.recaptureWithin(editModalEl);
+      }
+    });
+  }
+
   function escapeHtml(text) {
     return String(text || "")
       .replace(/&/g, "&amp;")

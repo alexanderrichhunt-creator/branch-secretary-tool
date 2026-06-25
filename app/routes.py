@@ -38,6 +38,36 @@ def _short_calendar_title(text: str, max_len: int = 40) -> str:
     return text[: max_len - 1].rstrip() + "…"
 
 
+def _daygrid_list_title(kind: str, full_title: str) -> str:
+    text = (full_title or "").strip()
+    if kind == "talk":
+        if "Talk: " in text:
+            text = text.replace("Talk: ", "", 1)
+    elif kind == "interview":
+        if text.startswith("Interview: "):
+            text = text[11:]
+    elif kind == "suggested_talk":
+        if "Suggested: " in text:
+            text = text.replace("Suggested: ", "Sug: ", 1)
+        elif "Suggested topic: " in text:
+            text = text.replace("Suggested topic: ", "Sug topic: ", 1)
+        elif "Suggested talk" in text:
+            text = text.replace("Suggested talk", "Sug talk", 1)
+    return _short_calendar_title(text, 26)
+
+
+def _apply_compact_daygrid_event(event: dict, kind: str) -> dict:
+    classes = list(event.get("classNames") or [])
+    for cls in ("cal-compact-event", f"cal-event-{kind}"):
+        if cls not in classes:
+            classes.append(cls)
+    event["classNames"] = classes
+    accent = event.get("borderColor") or event.get("backgroundColor")
+    if accent and kind != "suggested_talk":
+        event["textColor"] = accent
+    return event
+
+
 def _parse_talk_speaker_submission():
     from .bulletin import label_for_talk_kind, is_special_talk_kind
 
@@ -1354,29 +1384,33 @@ def api_events():
         bg, border = calendar_item_colors(talk_kind)
         topic = (t.topic or "").strip()
         talk_sort_order = getattr(t, "sort_order", 0) or 0
+        talk_kind_key = talk_kind if special_kind else "talk"
         events.append(
-            {
-                "id": f"talk-{t.id}",
-                "title": _short_calendar_title(full_title),
-                "start": t.talk_date.isoformat(),
-                "allDay": True,
-                "order": _calendar_event_order(
-                    sort_order=talk_sort_order,
-                    is_special=bool(special_kind),
-                ),
-                "backgroundColor": bg,
-                "borderColor": border,
-                "extendedProps": {
-                    "kind": talk_kind if special_kind else "talk",
-                    "kindLabel": kind_label,
-                    "accentColor": bg,
-                    "editUrl": url_for("main.edit_talk", talk_id=t.id, return_to="calendar"),
-                    "fullTitle": full_title,
-                    "topic": topic,
-                    "notes": (t.notes or "").strip(),
-                    "sortOrder": talk_sort_order,
+            _apply_compact_daygrid_event(
+                {
+                    "id": f"talk-{t.id}",
+                    "title": _daygrid_list_title(talk_kind_key, full_title),
+                    "start": t.talk_date.isoformat(),
+                    "allDay": True,
+                    "order": _calendar_event_order(
+                        sort_order=talk_sort_order,
+                        is_special=bool(special_kind),
+                    ),
+                    "backgroundColor": bg,
+                    "borderColor": border,
+                    "extendedProps": {
+                        "kind": talk_kind_key,
+                        "kindLabel": kind_label,
+                        "accentColor": bg,
+                        "editUrl": url_for("main.edit_talk", talk_id=t.id, return_to="calendar"),
+                        "fullTitle": full_title,
+                        "topic": topic,
+                        "notes": (t.notes or "").strip(),
+                        "sortOrder": talk_sort_order,
+                    },
                 },
-            }
+                talk_kind_key,
+            )
         )
     for i in interviews:
         subject = _interview_subject_name(i)
@@ -1384,27 +1418,30 @@ def api_events():
         end = i.starts_at + timedelta(minutes=i.duration_minutes)
         interview_bg, interview_border = calendar_item_colors("interview")
         events.append(
-            {
-                "id": f"interview-{i.id}",
-                "title": _short_calendar_title(title_line),
-                "start": i.starts_at.isoformat(),
-                "end": end.isoformat(),
-                "allDay": False,
-                "order": _calendar_timed_order(i.starts_at),
-                "backgroundColor": interview_bg,
-                "borderColor": interview_border,
-                "extendedProps": {
-                    "kind": "interview",
-                    "kindLabel": "Interview",
-                    "accentColor": interview_bg,
-                    "editUrl": url_for("main.edit_interview", interview_id=i.id),
-                    "fullTitle": title_line,
-                    "interviewSubject": subject,
-                    "interviewPurpose": i.purpose,
-                    "durationMinutes": i.duration_minutes,
-                    "notes": (i.notes or "").strip(),
+            _apply_compact_daygrid_event(
+                {
+                    "id": f"interview-{i.id}",
+                    "title": _daygrid_list_title("interview", title_line),
+                    "start": i.starts_at.isoformat(),
+                    "end": end.isoformat(),
+                    "allDay": False,
+                    "order": _calendar_timed_order(i.starts_at),
+                    "backgroundColor": interview_bg,
+                    "borderColor": interview_border,
+                    "extendedProps": {
+                        "kind": "interview",
+                        "kindLabel": "Interview",
+                        "accentColor": interview_bg,
+                        "editUrl": url_for("main.edit_interview", interview_id=i.id),
+                        "fullTitle": title_line,
+                        "interviewSubject": subject,
+                        "interviewPurpose": i.purpose,
+                        "durationMinutes": i.duration_minutes,
+                        "notes": (i.notes or "").strip(),
+                    },
                 },
-            }
+                "interview",
+            )
         )
 
     for event in branch_events:
@@ -1413,27 +1450,30 @@ def api_events():
         bg, border = event_category_colors(getattr(event, "category", None))
         for occ_start, occ_end in iter_event_occurrences(event, range_start, range_end):
             occ_id = f"event-{event.id}-{occ_start.strftime('%Y%m%d%H%M')}"
-            fc_event = {
-                "id": occ_id,
-                "title": _short_calendar_title(event.title),
-                "start": occ_start.date().isoformat() if event.all_day else occ_start.isoformat(),
-                "allDay": event.all_day,
-                "order": 0 if event.all_day else _calendar_timed_order(occ_start),
-                "backgroundColor": bg,
-                "borderColor": border,
-                "extendedProps": {
-                    "kind": "event",
-                    "kindLabel": category_label,
-                    "accentColor": bg,
-                    "category": getattr(event, "category", None),
-                    "categoryLabel": category_label,
-                    "editUrl": url_for("main.edit_event", event_id=event.id),
-                    "fullTitle": event.title,
-                    "location": (event.location or "").strip(),
-                    "recurrence": repeat,
-                    "notes": (event.notes or "").strip(),
+            fc_event = _apply_compact_daygrid_event(
+                {
+                    "id": occ_id,
+                    "title": _daygrid_list_title("event", event.title),
+                    "start": occ_start.date().isoformat() if event.all_day else occ_start.isoformat(),
+                    "allDay": event.all_day,
+                    "order": 0 if event.all_day else _calendar_timed_order(occ_start),
+                    "backgroundColor": bg,
+                    "borderColor": border,
+                    "extendedProps": {
+                        "kind": "event",
+                        "kindLabel": category_label,
+                        "accentColor": bg,
+                        "category": getattr(event, "category", None),
+                        "categoryLabel": category_label,
+                        "editUrl": url_for("main.edit_event", event_id=event.id),
+                        "fullTitle": event.title,
+                        "location": (event.location or "").strip(),
+                        "recurrence": repeat,
+                        "notes": (event.notes or "").strip(),
+                    },
                 },
-            }
+                "event",
+            )
             if event.all_day:
                 fc_event["end"] = occ_end.date().isoformat()
             else:
@@ -1450,31 +1490,33 @@ def api_events():
         topic = (st.topic or "").strip()
         suggested_sort_order = st.sort_order or 0
         events.append(
-            {
-                "id": f"suggested-{st.id}",
-                "title": _short_calendar_title(full_title),
-                "start": st.suggested_date.isoformat(),
-                "allDay": True,
-                "display": "list-item",
-                "classNames": ["cal-suggested-event"],
-                "order": _calendar_event_order(sort_order=suggested_sort_order),
-                "backgroundColor": bg,
-                "borderColor": border,
-                "textColor": border,
-                "extendedProps": {
-                    "kind": "suggested_talk",
-                    "kindLabel": "Suggested talk",
-                    "accentColor": bg,
-                    "suggestionId": st.id,
-                    "fullTitle": full_title,
-                    "speakerLabel": _suggested_talk_speaker_label(st),
-                    "memberId": st.member_id,
-                    "speakerText": st.speaker_text or "",
-                    "topic": topic,
-                    "notes": (st.notes or "").strip(),
-                    "sortOrder": st.sort_order or 0,
+            _apply_compact_daygrid_event(
+                {
+                    "id": f"suggested-{st.id}",
+                    "title": _daygrid_list_title("suggested_talk", full_title),
+                    "start": st.suggested_date.isoformat(),
+                    "allDay": True,
+                    "classNames": ["cal-suggested-event"],
+                    "order": _calendar_event_order(sort_order=suggested_sort_order),
+                    "backgroundColor": bg,
+                    "borderColor": border,
+                    "textColor": border,
+                    "extendedProps": {
+                        "kind": "suggested_talk",
+                        "kindLabel": "Suggested talk",
+                        "accentColor": bg,
+                        "suggestionId": st.id,
+                        "fullTitle": full_title,
+                        "speakerLabel": _suggested_talk_speaker_label(st),
+                        "memberId": st.member_id,
+                        "speakerText": st.speaker_text or "",
+                        "topic": topic,
+                        "notes": (st.notes or "").strip(),
+                        "sortOrder": st.sort_order or 0,
+                    },
                 },
-            }
+                "suggested_talk",
+            )
         )
 
     return jsonify(events)

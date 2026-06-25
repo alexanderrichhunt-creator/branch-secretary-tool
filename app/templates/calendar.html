@@ -4,7 +4,7 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">Calendar</h1>
-    <p class="page-subtitle">Click a day to add a suggested speaker. Purple dots are suggestions; block items are scheduled talks and events.</p>
+    <p class="page-subtitle">Click a day to add a suggested speaker. Colored dots are talks, interviews, and events — full details when you click.</p>
   </div>
   <div class="page-actions">
     <button class="btn btn-outline-secondary btn-sm" type="button" id="calOpenCreateBtn">Add event</button>
@@ -385,21 +385,12 @@
                 <input class="form-control form-control-lg cal-talk-date" type="date" id="cal_talk_date" name="talk_date" required />
               </div>
               <div class="talk-assigned-fields">
+                {% with filter_id='cal_talk_member_filter', select_id='cal_talk_member_id', select_class='form-select-lg', placeholder='— Choose speaker —', optional=true, big_label=true, input_lg=true, show_help=true %}
+                  {% include 'partials/talk_speaker_field.html' %}
+                {% endwith %}
                 <div class="mb-3">
-                  <label class="form-label big-label" for="cal_talk_member_filter">Speaker (optional)</label>
-                  <input
-                    class="form-control form-control-lg mb-2 member-filter-input"
-                    type="text"
-                    id="cal_talk_member_filter"
-                    data-member-filter-target="cal_talk_member_id"
-                    placeholder="Type a name to search..."
-                    autocomplete="off"
-                  />
-                  {% with select_id='cal_talk_member_id', select_class='form-select-lg', placeholder='— Member —' %}
-                    {% include 'partials/member_speaker_select.html' %}
-                  {% endwith %}
-                  <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
-                  <input class="form-control form-control-lg mt-2" type="text" id="cal_talk_speaker_text" name="speaker_text" placeholder="Or type name (visitor, etc.)" autocomplete="off" />
+                  <label class="form-label big-label" for="cal_talk_speaker_text">Speaker (free text)</label>
+                  <input class="form-control form-control-lg" type="text" id="cal_talk_speaker_text" name="speaker_text" placeholder="Visitor, stake rep, youth speaker…" autocomplete="off" />
                 </div>
                 {% with id_prefix='cal_', selected_sort_order=none, select_class='form-select-lg', big_label=true %}
                   {% include 'partials/talk_speaker_order.html' %}
@@ -525,7 +516,7 @@
       height: "auto",
       selectable: false,
       navLinks: true,
-      dayMaxEvents: 6,
+      dayMaxEvents: true,
       expandRows: true,
       eventOrder: "-allDay,order,start,title",
       slotEventOverlap: false,
@@ -539,7 +530,18 @@
         right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
       },
       events: '{{ url_for("main.api_events") }}',
-      eventDisplay: 'block',
+      views: {
+        dayGridMonth: {
+          dayMaxEvents: true,
+          eventDisplay: 'list-item',
+        },
+        timeGridWeek: {
+          eventDisplay: 'block',
+        },
+        timeGridDay: {
+          eventDisplay: 'block',
+        },
+      },
       eventClick: function(info) {
         info.jsEvent.preventDefault();
         if (window.CalEventDetail) {

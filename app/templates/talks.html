@@ -112,15 +112,9 @@
             <input class="form-control" type="date" id="talks_talk_date" name="talk_date" value="{{ schedule_date }}" required />
           </div>
           <div class="talk-assigned-fields">
-            <div class="mb-3">
-              <label class="form-label" for="talks_member_filter">Speaker</label>
-              <input class="form-control mb-2 member-filter-input" type="text" id="talks_member_filter" data-member-filter-target="talks_member_id" placeholder="Type a name to search..." autocomplete="off" />
-              {% with select_id='talks_member_id', select_class='form-select-lg', placeholder='— Choose speaker —' %}
-                {% include 'partials/member_speaker_select.html' %}
-              {% endwith %}
-              <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
-              <div class="form-text">Regular attendees appear first, sorted by who is available to speak.</div>
-            </div>
+            {% with filter_id='talks_member_filter', select_id='talks_member_id', select_class='form-select-lg', placeholder='— Choose speaker —', optional=false, big_label=false, input_lg=false, show_help=true %}
+              {% include 'partials/talk_speaker_field.html' %}
+            {% endwith %}
             <div class="mb-3">
               <label class="form-label" for="talks_speaker_text">Speaker (free text)</label>
               <input class="form-control" type="text" id="talks_speaker_text" name="speaker_text" placeholder="Visitor, stake rep, youth speaker…" autocomplete="off" />

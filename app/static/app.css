@@ -525,7 +525,7 @@ body {
 
 .calendar-page .fc .fc-daygrid-day-frame {
   cursor: pointer;
-  min-height: 7.25rem;
+  min-height: 6rem;
 }
 
 .calendar-page .fc .fc-daygrid-day:not(.fc-day-disabled):hover .fc-daygrid-day-frame {
@@ -554,6 +554,47 @@ body {
   font-weight: 600;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+.calendar-page .fc .fc-daygrid-event.cal-compact-event,
+.calendar-page .fc .fc-daygrid-dot-event.cal-compact-event {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none;
+  margin: 0;
+  padding: 0 1px;
+  font-size: 0.6875rem;
+  line-height: 1.15;
+}
+
+.calendar-page .fc .fc-daygrid-event.cal-compact-event .fc-event-main,
+.calendar-page .fc .fc-daygrid-dot-event.cal-compact-event .fc-event-main {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  column-gap: 2px;
+  min-width: 0;
+}
+
+.calendar-page .fc .fc-daygrid-event.cal-compact-event .fc-daygrid-event-dot,
+.calendar-page .fc .fc-daygrid-dot-event.cal-compact-event .fc-daygrid-event-dot {
+  border-width: 5px;
+}
+
+.calendar-page .fc .fc-daygrid-event.cal-compact-event .fc-event-time {
+  font-size: 0.625rem;
+  font-weight: 600;
+  margin-right: 1px;
+}
+
+.calendar-page .fc .fc-daygrid-event.cal-compact-event .fc-event-title {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .calendar-page .fc .fc-daygrid-block-event .fc-event-main {
@@ -587,14 +628,6 @@ body {
   white-space: nowrap;
 }
 
-.calendar-page .fc .fc-daygrid-event.cal-suggested-event,
-.calendar-page .fc .fc-daygrid-dot-event.cal-suggested-event {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none;
-  margin-top: 1px;
-}
-
 .calendar-page .fc .fc-daygrid-event.cal-suggested-event .fc-daygrid-event-dot,
 .calendar-page .fc .fc-daygrid-dot-event.cal-suggested-event .fc-daygrid-event-dot {
   border-color: #7c3aed;
@@ -606,9 +639,6 @@ body {
   color: #5b21b6;
   font-style: italic;
   font-weight: 600;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
 }
 
 .calendar-page .fc .fc-daygrid-block-event .fc-event-title {

@@ -300,6 +300,14 @@
       bindCalendarAjaxForms();
       setAllDayState(modalEl.querySelector("#cal-pane-event"), false);
       setAllDayState(modalEl.querySelector("#cal-pane-interview"), false);
+      if (!modalEl.dataset.memberFilterRecaptureBound) {
+        modalEl.dataset.memberFilterRecaptureBound = "1";
+        modalEl.addEventListener("shown.bs.modal", function () {
+          if (window.MemberSelectFilter && window.MemberSelectFilter.recaptureWithin) {
+            window.MemberSelectFilter.recaptureWithin(modalEl);
+          }
+        });
+      }
     },
 
     openFromCalendar: function (start, end, allDay, dateStr, extra) {
