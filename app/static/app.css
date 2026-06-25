@@ -573,7 +573,7 @@ body {
   flex-direction: row;
   align-items: center;
   flex-wrap: nowrap;
-  column-gap: 0.4rem;
+  column-gap: 0.25rem;
   min-width: 0;
 }
 
@@ -585,14 +585,13 @@ body {
 .calendar-page .fc .fc-daygrid-event.cal-compact-event .fc-event-time,
 .calendar-page .fc .fc-daygrid-event.cal-compact-event .cal-event-time-badge {
   display: inline-block;
-  min-width: 4.35rem;
-  margin-right: 0.4rem;
-  padding: 0 0.35rem 0 0;
-  border-right: 1px solid rgba(0, 0, 0, 0.18);
+  min-width: 3rem;
+  margin-right: 0.2rem;
+  padding-right: 0.25rem;
+  border-right: 1px solid rgba(0, 0, 0, 0.12);
   font-size: 0.625rem;
-  font-weight: 700;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
   line-height: 1.2;
   flex-shrink: 0;
 }
@@ -1247,6 +1246,12 @@ body {
 }
 
 .cal-speaker-slots .cal-speaker-slot + .cal-speaker-slot {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--app-border);
+}
+
+.cal-suggested-slots .cal-suggested-slot + .cal-suggested-slot {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid var(--app-border);

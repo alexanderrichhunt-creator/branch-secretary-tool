@@ -1,0 +1,39 @@
+{# Multi-speaker suggested talk slots — requires id_prefix (e.g. suggested_ or cal_suggested_). #}
+<p class="small muted mb-2">Add up to four suggested speakers for this sacrament. Type a name to search.</p>
+<div class="cal-suggested-slots">
+  {% for slot in range(1, 5) %}
+  <div class="cal-suggested-slot{% if slot > 1 %} d-none{% endif %}" data-slot="{{ slot }}">
+    <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+      <div class="fw-semibold{% if big_label %} big-label{% endif %}">Speaker {{ slot }}</div>
+      {% if slot > 1 %}
+      <button type="button" class="btn btn-link btn-sm p-0 cal-remove-suggested-slot">Remove</button>
+      {% endif %}
+    </div>
+    {% with filter_id=id_prefix ~ 'member_filter_' ~ slot, select_id=id_prefix ~ 'member_id_' ~ slot, select_class=select_class | default(''), placeholder='— Member —', optional=true, big_label=false, input_lg=input_lg | default(false), show_help=false, show_label=false, omit_name=true %}
+      {% include 'partials/talk_speaker_field.html' %}
+    {% endwith %}
+    <div class="mb-2">
+      <label class="form-label{% if big_label %} big-label{% endif %}" for="{{ id_prefix }}speaker_text_{{ slot }}">Speaker (free text)</label>
+      <input
+        class="form-control{% if input_lg %} form-control-lg{% endif %} cal-suggested-speaker-text"
+        type="text"
+        id="{{ id_prefix }}speaker_text_{{ slot }}"
+        data-slot="{{ slot }}"
+        placeholder="Visitor, stake rep, youth speaker…"
+        autocomplete="off"
+      />
+    </div>
+    <div class="mb-2">
+      <label class="form-label{% if big_label %} big-label{% endif %}" for="{{ id_prefix }}topic_{{ slot }}">Topic <span class="text-muted fw-normal">(optional)</span></label>
+      <input
+        class="form-control{% if input_lg %} form-control-lg{% endif %} cal-suggested-topic-input"
+        type="text"
+        id="{{ id_prefix }}topic_{{ slot }}"
+        data-slot="{{ slot }}"
+        placeholder="Talk topic or theme"
+      />
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<button type="button" class="btn btn-outline-secondary btn-sm mb-2 cal-add-suggested-slot">Add another speaker</button>

@@ -1413,6 +1413,75 @@ def api_create_suggested_talk():
     return jsonify({"suggestion": _suggested_talk_payload(st)})
 
 
+@main_bp.post("/api/suggested-talks/batch")
+@login_required
+def api_create_suggested_talks_batch():
+    payload = request.get_json(silent=True) or {}
+    suggested_date_raw = (payload.get("suggested_date") or "").strip()
+    notes = (payload.get("notes") or "").strip() or None
+    speakers = payload.get("speakers") or []
+
+    if not suggested_date_raw:
+        return jsonify({"ok": False, "error": "Choose a sacrament date."}), 400
+    try:
+        suggested_date = datetime.strptime(suggested_date_raw, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid date."}), 400
+
+    cleaned: list[dict] = []
+    for speaker in speakers:
+        member_raw = speaker.get("member_id")
+        member_id = int(member_raw) if member_raw else None
+        speaker_text = (speaker.get("speaker_text") or "").strip() or None
+        topic = (speaker.get("topic") or "").strip()
+        sort_raw = speaker.get("sort_order")
+        sort_order = int(sort_raw) if sort_raw else 0
+        if member_id:
+            speaker_text = None
+        if not member_id and not speaker_text and not topic:
+            continue
+        cleaned.append(
+            {
+                "member_id": member_id,
+                "speaker_text": speaker_text,
+                "topic": topic,
+                "sort_order": sort_order,
+            }
+        )
+
+    if not cleaned:
+        return jsonify({"ok": False, "error": "Add at least one speaker or topic."}), 400
+
+    existing = SuggestedTalk.query.filter_by(suggested_date=suggested_date).count()
+    if existing + len(cleaned) > MAX_TALKS_PER_SACRAMENT_WEEK:
+        return jsonify(
+            {
+                "ok": False,
+                "error": f"That date can only have {MAX_TALKS_PER_SACRAMENT_WEEK} suggested speakers.",
+            }
+        ), 400
+
+    created = 0
+    for speaker in cleaned:
+        sort_order = speaker["sort_order"]
+        if sort_order not in range(1, MAX_TALKS_PER_SACRAMENT_WEEK + 1):
+            sort_order = _resolve_suggested_sort_order(suggested_date, 0)
+        st = SuggestedTalk(
+            suggested_date=suggested_date,
+            member_id=speaker["member_id"],
+            speaker_text=speaker["speaker_text"],
+            topic=speaker["topic"],
+            notes=notes if created == 0 else None,
+            sort_order=sort_order,
+        )
+        db.session.add(st)
+        created += 1
+
+    db.session.commit()
+    message = "Suggestion saved." if created == 1 else f"{created} suggestions saved."
+    return jsonify({"ok": True, "message": message, "count": created})
+
+
 @main_bp.post("/api/suggested-talks/<int:suggestion_id>/edit")
 @login_required
 def api_edit_suggested_talk(suggestion_id: int):

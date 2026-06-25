@@ -47,24 +47,8 @@
             <label class="form-label big-label" for="suggested_date">Sacrament date</label>
             <input class="form-control" type="date" id="suggested_date" name="suggested_date" value="{{ schedule_date }}" required />
           </div>
-          <div class="mb-2">
-            <label class="form-label big-label" for="suggested_member_filter">Speaker (optional)</label>
-            <input
-              class="form-control mb-2 member-filter-input"
-              type="text"
-              id="suggested_member_filter"
-              data-member-filter-target="suggested_member_id"
-              placeholder="Type a name to search..."
-              autocomplete="off"
-            />
-            {% with select_id='suggested_member_id', select_class='', placeholder='— Member —' %}
-              {% include 'partials/member_speaker_select.html' %}
-            {% endwith %}
-            <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
-            <input class="form-control mt-2" type="text" name="speaker_text" placeholder="Or type a name (visitor, etc.)" autocomplete="off" />
-          </div>
-          {% with id_prefix='suggested_', selected_sort_order=none, order_label='Speaker order', help_text='Order speakers for this sacrament (1 = first, before the hymn).', big_label=true %}
-            {% include 'partials/talk_speaker_order.html' %}
+          {% with id_prefix='suggested_', big_label=true, input_lg=false, select_class='' %}
+            {% include 'partials/suggested_speaker_slots.html' %}
           {% endwith %}
           <div class="mb-2">
             <label class="form-label big-label" for="suggested_topic">Topic (optional)</label>
@@ -75,7 +59,7 @@
             <textarea class="form-control" id="suggested_notes" name="notes" rows="2" placeholder="Reminders, council notes, etc."></textarea>
           </div>
               <div class="cal-suggested-form-error alert alert-warning py-2 px-3 small d-none" role="alert"></div>
-              <button class="btn btn-outline-primary w-100" type="submit">Add suggested speaker</button>
+              <button class="btn btn-outline-primary w-100" type="submit">Add suggested speaker(s)</button>
             </form>
           </div>
 
@@ -426,35 +410,15 @@
                 <label class="form-label big-label" for="cal_suggested_date">Sacrament date</label>
                 <input class="form-control form-control-lg cal-suggested-date" type="date" id="cal_suggested_date" name="suggested_date" required />
               </div>
-              <div class="mb-3">
-                <label class="form-label big-label" for="cal_suggested_member_filter">Speaker (optional)</label>
-                <input
-                  class="form-control form-control-lg mb-2 member-filter-input"
-                  type="text"
-                  id="cal_suggested_member_filter"
-                  data-member-filter-target="cal_suggested_member_id"
-                  placeholder="Type a name to search..."
-                  autocomplete="off"
-                />
-                {% with select_id='cal_suggested_member_id', select_class='form-select-lg', placeholder='— Member —' %}
-                  {% include 'partials/member_speaker_select.html' %}
-                {% endwith %}
-                <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
-                <input class="form-control form-control-lg mt-2" type="text" id="cal_suggested_speaker_text" name="speaker_text" placeholder="Or type a name (visitor, etc.)" autocomplete="off" />
-              </div>
-              {% with id_prefix='cal_suggested_', selected_sort_order=none, order_label='Speaker order', help_text='Order speakers for this sacrament (1 = first, before the hymn).', select_class='form-select-lg', big_label=true %}
-                {% include 'partials/talk_speaker_order.html' %}
+              {% with id_prefix='cal_suggested_', big_label=true, input_lg=true, select_class='form-select-lg' %}
+                {% include 'partials/suggested_speaker_slots.html' %}
               {% endwith %}
-              <div class="mb-3">
-                <label class="form-label big-label" for="cal_suggested_topic">Topic (optional)</label>
-                <input class="form-control form-control-lg" type="text" id="cal_suggested_topic" name="topic" placeholder="Talk topic or theme" />
-              </div>
               <div class="mb-3">
                 <label class="form-label big-label" for="cal_suggested_notes">Notes (optional)</label>
                 <textarea class="form-control" id="cal_suggested_notes" name="notes" rows="2" placeholder="Reminders, council notes, etc."></textarea>
               </div>
               <div class="cal-suggested-modal-error alert alert-warning py-2 px-3 small d-none" role="alert"></div>
-              <button class="btn btn-primary btn-lg" type="submit">Add suggested speaker</button>
+              <button class="btn btn-primary btn-lg" type="submit">Add suggested speaker(s)</button>
             </form>
           </div>
         </div>
@@ -578,6 +542,13 @@
     });
     cal.render();
     window.branchCalendar = cal;
+    window.refreshBranchCalendar = function () {
+      if (!cal || !cal.refetchEvents) return Promise.resolve();
+      const anchor = cal.getDate();
+      return cal.refetchEvents().then(function () {
+        cal.gotoDate(anchor);
+      });
+    };
 
     const scheduleSuggestionBtn = eventModalEl ? eventModalEl.querySelector(".cal-schedule-suggestion-btn") : null;
     const editLink = eventModalEl ? eventModalEl.querySelector(".cal-edit-link") : null;

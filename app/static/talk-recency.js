@@ -29,7 +29,7 @@
   }
 
   function bindForm(form) {
-    const selects = form.querySelectorAll('[name="member_id"], select[id^="cal_talk_member_id_"]');
+    const selects = form.querySelectorAll('[name="member_id"], select[id^="cal_talk_member_id_"], select[id^="suggested_member_id_"], select[id^="cal_suggested_member_id_"]');
     selects.forEach(function (select) {
       const container = select.closest(".mb-3") || select.closest(".cal-speaker-slot") || form;
       const alertEl = container.querySelector(".speaker-recency-alert");

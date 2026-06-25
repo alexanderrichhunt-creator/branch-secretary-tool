@@ -80,9 +80,23 @@
     if (suggestedTalkId) suggestedTalkId.value = "";
     const calSuggestedForm = document.getElementById("cal-suggested-talk-add-form");
     if (calSuggestedForm) {
-      calSuggestedForm.reset();
+      resetSuggestedSlots(calSuggestedForm);
+      calSuggestedForm.querySelectorAll(".cal-suggested-speaker-text, .cal-suggested-topic-input").forEach(function (el) {
+        el.value = "";
+      });
+      const calSuggestedNotes = document.getElementById("cal_suggested_notes");
+      if (calSuggestedNotes) calSuggestedNotes.value = "";
       showCalSuggestedError("");
     }
+  }
+
+  function resetSuggestedSlots(form) {
+    if (!form) return;
+    form.querySelectorAll(".cal-suggested-slot").forEach(function (slot, index) {
+      slot.classList.toggle("d-none", index > 0);
+    });
+    const addBtn = form.querySelector(".cal-add-suggested-slot");
+    if (addBtn) addBtn.classList.remove("d-none");
   }
 
   function showCalSuggestedError(message) {
@@ -325,7 +339,9 @@
     if (window.CalCreateForm && window.CalCreateForm.modal) {
       window.CalCreateForm.modal.hide();
     }
-    if (window.branchCalendar && window.branchCalendar.refetchEvents) {
+    if (window.refreshBranchCalendar) {
+      window.refreshBranchCalendar();
+    } else if (window.branchCalendar && window.branchCalendar.refetchEvents) {
       window.branchCalendar.refetchEvents();
     }
     if (window.SuggestedTalks && window.SuggestedTalks.refresh) {

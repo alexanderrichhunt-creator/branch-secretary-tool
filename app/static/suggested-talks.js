@@ -51,21 +51,128 @@
   }
 
   function refreshCalendar() {
-    if (window.branchCalendar && window.branchCalendar.refetchEvents) {
+    if (window.refreshBranchCalendar) {
+      window.refreshBranchCalendar();
+    } else if (window.branchCalendar && window.branchCalendar.refetchEvents) {
       window.branchCalendar.refetchEvents();
     }
   }
 
-  async function submitSuggestedForm(form, errorSelector, onSuccess) {
+  function resetSuggestedSlots(form) {
+    if (!form) return;
+    form.querySelectorAll(".cal-suggested-slot").forEach(function (slot, index) {
+      slot.classList.toggle("d-none", index > 0);
+    });
+    const addBtn = form.querySelector(".cal-add-suggested-slot");
+    if (addBtn) addBtn.classList.remove("d-none");
+  }
+
+  function visibleSuggestedSlots(form) {
+    return Array.from(form.querySelectorAll(".cal-suggested-slot")).filter(function (slot) {
+      return !slot.classList.contains("d-none");
+    });
+  }
+
+  function bindSuggestedSlotControls(form) {
+    if (!form || form.dataset.suggestedSlotsBound) return;
+    form.dataset.suggestedSlotsBound = "1";
+
+    const addBtn = form.querySelector(".cal-add-suggested-slot");
+    if (addBtn) {
+      addBtn.addEventListener("click", function () {
+        const hidden = form.querySelector(".cal-suggested-slot.d-none");
+        if (!hidden) {
+          addBtn.classList.add("d-none");
+          return;
+        }
+        hidden.classList.remove("d-none");
+        if (window.MemberSelectFilter) {
+          window.MemberSelectFilter.bindWithin(hidden);
+        }
+        if (!form.querySelector(".cal-suggested-slot.d-none")) {
+          addBtn.classList.add("d-none");
+        }
+      });
+    }
+
+    form.querySelectorAll(".cal-remove-suggested-slot").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const slot = btn.closest(".cal-suggested-slot");
+        if (!slot) return;
+        slot.querySelectorAll(".member-filter-input").forEach(function (input) {
+          if (typeof input._memberFilterReset === "function") {
+            input._memberFilterReset();
+          } else {
+            input.value = "";
+          }
+        });
+        slot.querySelectorAll(".cal-suggested-speaker-text, .cal-suggested-topic-input").forEach(function (el) {
+          el.value = "";
+        });
+        const slots = Array.from(form.querySelectorAll(".cal-suggested-slot"));
+        if (slots.indexOf(slot) <= 0) return;
+        slot.classList.add("d-none");
+        if (addBtn) addBtn.classList.remove("d-none");
+      });
+    });
+  }
+
+  function collectSuggestedSpeakers(form) {
+    const speakers = [];
+    visibleSuggestedSlots(form).forEach(function (slot) {
+      const slotNum = Number(slot.getAttribute("data-slot") || "0");
+      const memberSelect = slot.querySelector("select");
+      const speakerText = slot.querySelector(".cal-suggested-speaker-text");
+      const topic = slot.querySelector(".cal-suggested-topic-input");
+      const memberId = memberSelect ? memberSelect.value : "";
+      const text = speakerText ? speakerText.value.trim() : "";
+      const topicText = topic ? topic.value.trim() : "";
+      if (!memberId && !text && !topicText) return;
+      speakers.push({
+        member_id: memberId || null,
+        speaker_text: text || null,
+        topic: topicText,
+        sort_order: slotNum,
+      });
+    });
+    return speakers;
+  }
+
+  function notesFieldForForm(form) {
+    if (form.id === "cal-suggested-talk-add-form") {
+      return document.getElementById("cal_suggested_notes");
+    }
+    return document.getElementById("suggested_notes");
+  }
+
+  function dateFieldForForm(form) {
+    if (form.id === "cal-suggested-talk-add-form") {
+      return document.getElementById("cal_suggested_date");
+    }
+    return document.getElementById("suggested_date");
+  }
+
+  async function submitSuggestedBatch(form, errorSelector, onSuccess) {
     const errorEl = form.querySelector(errorSelector);
     showFormError(errorEl, "");
+    const dateInput = dateFieldForForm(form);
+    const notesInput = notesFieldForForm(form);
+    const speakers = collectSuggestedSpeakers(form);
+
     try {
-      const res = await fetch("/api/suggested-talks", {
+      const res = await fetch("/api/suggested-talks/batch", {
         method: "POST",
-        body: new FormData(form),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          suggested_date: dateInput ? dateInput.value : "",
+          notes: notesInput ? notesInput.value : "",
+          speakers: speakers,
+        }),
       });
-      const data = await res.json();
-      if (!res.ok) {
+      const data = await res.json().catch(function () {
+        return {};
+      });
+      if (!res.ok || !data.ok) {
         showFormError(errorEl, data.error || "Could not save.");
         return;
       }
@@ -187,16 +294,23 @@
   function resetAddForm() {
     if (!addForm) return;
     const keepDate = addDateEl ? addDateEl.value : "";
-    addForm.reset();
+    const keepNotes = document.getElementById("suggested_notes")?.value || "";
+    resetSuggestedSlots(addForm);
+    addForm.querySelectorAll(".cal-suggested-speaker-text, .cal-suggested-topic-input").forEach(function (el) {
+      el.value = "";
+    });
     if (addDateEl && keepDate) addDateEl.value = keepDate;
+    const notesEl = document.getElementById("suggested_notes");
+    if (notesEl) notesEl.value = keepNotes;
     showFormError(addForm.querySelector(".cal-suggested-form-error"), "");
-    if (window.MemberSelectFilter) window.MemberSelectFilter.resetAll();
+    if (window.MemberSelectFilter) window.MemberSelectFilter.resetWithin(addForm);
   }
 
   if (addForm) {
+    bindSuggestedSlotControls(addForm);
     addForm.addEventListener("submit", async function (event) {
       event.preventDefault();
-      await submitSuggestedForm(addForm, ".cal-suggested-form-error", async function () {
+      await submitSuggestedBatch(addForm, ".cal-suggested-form-error", async function () {
         if (dateFilterEl && addDateEl && addDateEl.value) {
           dateFilterEl.value = addDateEl.value;
         }
@@ -207,16 +321,22 @@
   }
 
   if (calAddForm) {
+    bindSuggestedSlotControls(calAddForm);
     calAddForm.addEventListener("submit", async function (event) {
       event.preventDefault();
-      await submitSuggestedForm(calAddForm, ".cal-suggested-modal-error", async function () {
+      await submitSuggestedBatch(calAddForm, ".cal-suggested-modal-error", async function () {
         const dateInput = document.getElementById("cal_suggested_date");
         const dateValue = dateInput ? dateInput.value : "";
-        calAddForm.reset();
+        resetSuggestedSlots(calAddForm);
+        calAddForm.querySelectorAll(".cal-suggested-speaker-text, .cal-suggested-topic-input").forEach(function (el) {
+          el.value = "";
+        });
+        const notesEl = document.getElementById("cal_suggested_notes");
+        if (notesEl) notesEl.value = "";
         if (dateInput && dateValue) dateInput.value = dateValue;
         if (dateFilterEl && dateValue) dateFilterEl.value = dateValue;
         if (addDateEl && dateValue) addDateEl.value = dateValue;
-        if (window.MemberSelectFilter) window.MemberSelectFilter.resetAll();
+        if (window.MemberSelectFilter) window.MemberSelectFilter.resetWithin(calAddForm);
         await refreshList();
         if (window.CalCreateForm && window.CalCreateForm.modal) {
           window.CalCreateForm.modal.hide();
