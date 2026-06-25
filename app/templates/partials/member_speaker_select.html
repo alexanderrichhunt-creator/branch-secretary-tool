@@ -2,7 +2,7 @@
 <select
   class="form-select {{ select_class }}"
   id="{{ select_id }}"
-  name="{{ name | default('member_id') }}"
+  {% if omit_name is not defined or not omit_name %}name="{{ name | default('member_id') }}"{% endif %}
 >
   <option value="">{{ placeholder | default('— Choose speaker —') }}</option>
   {% if speaker_pool %}

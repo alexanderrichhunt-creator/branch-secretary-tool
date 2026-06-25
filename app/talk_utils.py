@@ -200,3 +200,52 @@ def members_for_talk_select() -> tuple[list[dict], list[Member]]:
         .all()
     )
     return pool, others
+
+
+def member_display_label(member) -> str:
+    name = getattr(member, "full_name", None) or ""
+    bday = getattr(member, "birthdate", None)
+    if not name:
+        return ""
+    if not bday:
+        return name
+    today = date.today()
+    age = today.year - bday.year - ((today.month, today.day) < (bday.month, bday.day))
+    return f"{name} ({age})"
+
+
+def build_member_select_options() -> list[dict]:
+    """Flat member list for searchable speaker pickers."""
+    pool, others = members_for_talk_select()
+    options: list[dict] = []
+    for row in pool:
+        options.append(
+            {
+                "id": row["member_id"],
+                "name": member_display_label(row["member"]),
+                "group": "pool",
+                "hint": row.get("last_talk_summary") or "",
+            }
+        )
+    for member in others:
+        options.append(
+            {
+                "id": member.id,
+                "name": member_display_label(member),
+                "group": "other",
+                "hint": "",
+            }
+        )
+    return options
+
+
+def build_all_member_filter_options() -> list[dict]:
+    return [
+        {
+            "id": member.id,
+            "name": member_display_label(member),
+            "group": "other",
+            "hint": "",
+        }
+        for member in Member.query.order_by(Member.full_name.asc()).all()
+    ]

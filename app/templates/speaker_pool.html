@@ -106,6 +106,7 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='member-select-filter.js') }}"></script>
+{% include 'partials/member_select_options_data.html' %}
 <script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
 <script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
 <script src="{{ url_for('static', filename='talk-form.js') }}"></script>

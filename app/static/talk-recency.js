@@ -29,9 +29,11 @@
   }
 
   function bindForm(form) {
-    const select = form.querySelector('[name="member_id"]');
-    const alertEl = form.querySelector(".speaker-recency-alert");
-    if (!select || !alertEl) return;
+    const selects = form.querySelectorAll('[name="member_id"], select[id^="cal_talk_member_id_"]');
+    selects.forEach(function (select) {
+      const container = select.closest(".mb-3") || select.closest(".cal-speaker-slot") || form;
+      const alertEl = container.querySelector(".speaker-recency-alert");
+      if (!alertEl) return;
 
     function showAlert(level, message) {
       alertEl.className = "speaker-recency-alert alert alert-" + level + " py-1 px-2 small mt-1 mb-0";
@@ -80,6 +82,7 @@
 
     select.addEventListener("change", updateRecencyAlert);
     updateRecencyAlert();
+    });
   }
 
   document.querySelectorAll(".talk-add-form, .speaker-select-form").forEach(bindForm);

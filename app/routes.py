@@ -10,7 +10,14 @@ from flask_login import current_user, login_required
 
 from . import db
 from .models import Event, Interview, Member, SuggestedTalk, Talk, User, parse_us_date
-from .talk_utils import build_speaker_pool, member_talk_recency, members_for_talk_select, split_speaker_pool_by_group
+from .talk_utils import (
+    build_all_member_filter_options,
+    build_member_select_options,
+    build_speaker_pool,
+    member_talk_recency,
+    members_for_talk_select,
+    split_speaker_pool_by_group,
+)
 
 
 def _talk_member_select_context(*, exclude_talk_id: int | None = None, **extra):
@@ -19,6 +26,7 @@ def _talk_member_select_context(*, exclude_talk_id: int | None = None, **extra):
         "speaker_pool": pool,
         "other_members": others,
         "member_talk_recency": member_talk_recency(exclude_talk_id),
+        "member_select_options": build_member_select_options(),
         "members": Member.query.order_by(Member.full_name.asc()).all(),
     }
     ctx.update(extra)
@@ -966,6 +974,108 @@ def add_talk():
     return _talk_add_success("Talk saved.")
 
 
+@main_bp.post("/api/calendar/talks")
+@login_required
+def api_add_calendar_talks():
+    from .bulletin import TALK_KIND_ASSIGNED, is_special_talk_kind, label_for_talk_kind
+
+    payload = request.get_json(silent=True) or {}
+    talk_date_raw = (payload.get("talk_date") or "").strip()
+    talk_kind = (payload.get("talk_kind") or TALK_KIND_ASSIGNED).strip()
+    is_special = is_special_talk_kind(talk_kind)
+    notes = (payload.get("notes") or "").strip() or None
+    speakers = payload.get("speakers") or []
+
+    if not talk_date_raw:
+        return jsonify({"ok": False, "error": "Date is required."}), 400
+    try:
+        talk_date = datetime.strptime(talk_date_raw, "%Y-%m-%d").date()
+    except Exception:
+        return jsonify({"ok": False, "error": "Invalid date."}), 400
+
+    if is_special:
+        week_error = _validate_talk_week(talk_date, talk_kind)
+        if week_error:
+            return jsonify({"ok": False, "error": week_error}), 400
+        t = Talk(
+            member_id=None,
+            speaker_text=label_for_talk_kind(talk_kind),
+            talk_date=talk_date,
+            topic="",
+            notes=notes,
+            sort_order=0,
+        )
+        db.session.add(t)
+        db.session.commit()
+        return jsonify({"ok": True, "message": f"{label_for_talk_kind(talk_kind)} saved.", "count": 1})
+
+    cleaned: list[dict] = []
+    for speaker in speakers:
+        member_raw = speaker.get("member_id")
+        member_id = int(member_raw) if member_raw else None
+        speaker_text = (speaker.get("speaker_text") or "").strip() or None
+        topic = (speaker.get("topic") or "").strip()
+        sort_raw = speaker.get("sort_order")
+        sort_order = int(sort_raw) if sort_raw else 0
+        if member_id:
+            speaker_text = None
+        if not member_id and not speaker_text:
+            continue
+        cleaned.append(
+            {
+                "member_id": member_id,
+                "speaker_text": speaker_text,
+                "topic": topic,
+                "sort_order": sort_order,
+            }
+        )
+
+    if not cleaned:
+        return jsonify({"ok": False, "error": "Add at least one speaker."}), 400
+
+    existing = _talks_in_week(talk_date)
+    if existing + len(cleaned) > MAX_TALKS_PER_SACRAMENT_WEEK:
+        return jsonify(
+            {
+                "ok": False,
+                "error": f"That week can only have {MAX_TALKS_PER_SACRAMENT_WEEK} assigned talks.",
+            }
+        ), 400
+
+    week_error = _validate_talk_week(talk_date, talk_kind)
+    if week_error:
+        return jsonify({"ok": False, "error": week_error}), 400
+
+    created = 0
+    for speaker in cleaned:
+        sort_order = speaker["sort_order"]
+        if sort_order not in range(1, MAX_TALKS_PER_SACRAMENT_WEEK + 1):
+            sort_order = _resolve_talk_sort_order(talk_date, 0)
+        t = Talk(
+            member_id=speaker["member_id"],
+            speaker_text=speaker["speaker_text"],
+            talk_date=talk_date,
+            topic=speaker["topic"],
+            notes=notes if created == 0 else None,
+            sort_order=sort_order,
+        )
+        db.session.add(t)
+        created += 1
+
+    suggested_id_raw = (payload.get("suggested_talk_id") or "")
+    if suggested_id_raw:
+        try:
+            suggested = SuggestedTalk.query.get(int(suggested_id_raw))
+            if suggested:
+                db.session.delete(suggested)
+        except (TypeError, ValueError):
+            pass
+
+    db.session.commit()
+    message = "Talk saved." if created == 1 else f"{created} talks saved."
+    return jsonify({"ok": True, "message": message, "count": created})
+
+
 @main_bp.get("/talks/<int:talk_id>/edit")
 @login_required
 def edit_talk(talk_id: int):
@@ -1059,7 +1169,7 @@ def delete_talk(talk_id: int):
 def interviews():
     interviews = Interview.query.order_by(Interview.starts_at.desc()).limit(200).all()
     members = Member.query.order_by(Member.full_name.asc()).all()
-    return render_template("interviews.html", interviews=interviews, members=members)
+    return render_template("interviews.html", interviews=interviews, members=members, member_select_options=build_all_member_filter_options())
 
 
 @main_bp.get("/admin/users")
@@ -1102,7 +1212,7 @@ def add_interview():
 def edit_interview(interview_id: int):
     interview = Interview.query.get_or_404(interview_id)
     members = Member.query.order_by(Member.full_name.asc()).all()
-    return render_template("interview_edit.html", interview=interview, members=members)
+    return render_template("interview_edit.html", interview=interview, members=members, member_select_options=build_all_member_filter_options())
 
 
 @main_bp.post("/interviews/<int:interview_id>/edit")

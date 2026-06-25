@@ -1,8 +1,10 @@
 {# Searchable speaker picker — shared by Talks page and calendar talk tab. #}
 <div class="mb-3">
+  {% if show_label is not defined or show_label %}
   <label class="form-label{% if big_label %} big-label{% endif %}" for="{{ filter_id }}">
     Speaker{% if optional %} (optional){% endif %}
   </label>
+  {% endif %}
   <input
     class="form-control{% if input_lg %} form-control-lg{% endif %} mb-2 member-filter-input"
     type="text"

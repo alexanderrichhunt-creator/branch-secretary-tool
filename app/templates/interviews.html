@@ -94,6 +94,7 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='member-select-filter.js') }}"></script>
+{% include 'partials/member_select_options_data.html' %}
 <script>
   (function () {
     var params = new URLSearchParams(window.location.search);

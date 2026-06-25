@@ -385,27 +385,38 @@
                 <input class="form-control form-control-lg cal-talk-date" type="date" id="cal_talk_date" name="talk_date" required />
               </div>
               <div class="talk-assigned-fields">
-                {% with filter_id='cal_talk_member_filter', select_id='cal_talk_member_id', select_class='form-select-lg', placeholder='— Choose speaker —', optional=true, big_label=true, input_lg=true, show_help=true %}
-                  {% include 'partials/talk_speaker_field.html' %}
-                {% endwith %}
-                <div class="mb-3">
-                  <label class="form-label big-label" for="cal_talk_speaker_text">Speaker (free text)</label>
-                  <input class="form-control form-control-lg" type="text" id="cal_talk_speaker_text" name="speaker_text" placeholder="Visitor, stake rep, youth speaker…" autocomplete="off" />
+                <p class="small muted mb-2">Add up to four speakers for this sacrament. Type a name to search the member list.</p>
+                <div id="cal-speaker-slots" class="cal-speaker-slots">
+                  {% for slot in range(1, 5) %}
+                  <div class="cal-speaker-slot{% if slot > 1 %} d-none{% endif %}" data-slot="{{ slot }}">
+                    <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                      <div class="fw-semibold">Speaker {{ slot }}</div>
+                      {% if slot > 1 %}
+                      <button type="button" class="btn btn-link btn-sm p-0 cal-remove-speaker-slot">Remove</button>
+                      {% endif %}
+                    </div>
+                    {% with filter_id='cal_talk_member_filter_' ~ slot, select_id='cal_talk_member_id_' ~ slot, select_class='form-select-lg', placeholder='— Choose speaker —', optional=true, big_label=false, input_lg=true, show_help=false, show_label=false, omit_name=true %}
+                      {% include 'partials/talk_speaker_field.html' %}
+                    {% endwith %}
+                    <div class="mb-3">
+                      <label class="form-label" for="cal_talk_speaker_text_{{ slot }}">Speaker (free text)</label>
+                      <input class="form-control form-control-lg cal-speaker-text" type="text" id="cal_talk_speaker_text_{{ slot }}" data-slot="{{ slot }}" placeholder="Visitor, stake rep, youth speaker…" autocomplete="off" />
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label" for="cal_talk_topic_{{ slot }}">Topic <span class="text-muted fw-normal">(optional)</span></label>
+                      <input class="form-control form-control-lg cal-speaker-topic" type="text" id="cal_talk_topic_{{ slot }}" data-slot="{{ slot }}" placeholder="Topic" />
+                    </div>
+                  </div>
+                  {% endfor %}
                 </div>
-                {% with id_prefix='cal_', selected_sort_order=none, select_class='form-select-lg', big_label=true %}
-                  {% include 'partials/talk_speaker_order.html' %}
-                {% endwith %}
-                <div class="mb-3">
-                  <label class="form-label big-label" for="cal_talk_topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
-                  <input class="form-control form-control-lg" type="text" id="cal_talk_topic" name="topic" placeholder="Topic" />
-                </div>
+                <button type="button" class="btn btn-outline-secondary btn-sm mb-3" id="calAddSpeakerSlot">Add another speaker</button>
               </div>
               <div class="mb-3">
                 <label class="form-label big-label" for="cal_talk_notes">Notes (optional)</label>
                 <textarea class="form-control" id="cal_talk_notes" name="notes" rows="2"></textarea>
               </div>
               <div class="cal-talk-form-error alert alert-warning py-2 px-3 small d-none" role="alert"></div>
-              <button class="btn btn-primary btn-lg" type="submit">Save to calendar</button>
+              <button class="btn btn-primary btn-lg" type="submit">Save speaker(s) to calendar</button>
             </form>
           </div>
 
@@ -464,6 +475,7 @@
 <script src="{{ url_for('static', filename='calendar-form.js') }}"></script>
 <script src="{{ url_for('static', filename='calendar-detail.js') }}"></script>
 <script src="{{ url_for('static', filename='member-select-filter.js') }}"></script>
+{% include 'partials/member_select_options_data.html' %}
 <script src="{{ url_for('static', filename='suggested-talks.js') }}"></script>
 <script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
 <script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
@@ -548,6 +560,11 @@
           window.CalEventDetail.render(eventModalEl, info.event);
         }
         eventModal.show();
+      },
+      eventDidMount: function(info) {
+        if (info.view.type !== 'dayGridMonth' || info.event.allDay) return;
+        const timeEl = info.el.querySelector('.fc-event-time');
+        if (timeEl) timeEl.classList.add('cal-event-time-badge');
       },
       navLinkDayClick: function(date, jsEvent) {
         openCreateForDay(date, date, true, null, { tab: "cal-tab-suggested" });

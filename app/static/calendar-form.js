@@ -66,13 +66,12 @@
     });
     const talkForm = document.getElementById("calTalkForm");
     if (talkForm) {
-      talkForm.querySelectorAll('input[type="text"]:not(.member-filter-input)').forEach(function (el) {
+      talkForm.querySelectorAll(".cal-speaker-text, .cal-speaker-topic").forEach(function (el) {
         el.value = "";
       });
-      const talkMember = talkForm.querySelector('[name="member_id"]');
-      if (talkMember) talkMember.value = "";
       const assigned = talkForm.querySelector("#cal_talk_kind_assigned");
       if (assigned) assigned.checked = true;
+      resetSpeakerSlots(talkForm);
     }
     if (window.MemberSelectFilter) {
       window.MemberSelectFilter.resetWithin(document.getElementById("calCreateModal"));
@@ -112,6 +111,87 @@
     tabBtn.click();
   }
 
+  function resetSpeakerSlots(form) {
+    if (!form) return;
+    const slots = form.querySelectorAll(".cal-speaker-slot");
+    slots.forEach(function (slot, index) {
+      slot.classList.toggle("d-none", index > 0);
+    });
+    const addBtn = form.querySelector("#calAddSpeakerSlot");
+    if (addBtn) addBtn.classList.remove("d-none");
+  }
+
+  function visibleSpeakerSlots(form) {
+    return Array.from(form.querySelectorAll(".cal-speaker-slot")).filter(function (slot) {
+      return !slot.classList.contains("d-none");
+    });
+  }
+
+  function bindSpeakerSlotControls(form) {
+    if (!form || form.dataset.speakerSlotsBound) return;
+    form.dataset.speakerSlotsBound = "1";
+
+    const addBtn = form.querySelector("#calAddSpeakerSlot");
+    if (addBtn) {
+      addBtn.addEventListener("click", function () {
+        const hidden = form.querySelector(".cal-speaker-slot.d-none");
+        if (!hidden) {
+          addBtn.classList.add("d-none");
+          return;
+        }
+        hidden.classList.remove("d-none");
+        if (window.MemberSelectFilter) {
+          window.MemberSelectFilter.bindWithin(hidden);
+        }
+        const nextHidden = form.querySelector(".cal-speaker-slot.d-none");
+        if (!nextHidden) addBtn.classList.add("d-none");
+      });
+    }
+
+    form.querySelectorAll(".cal-remove-speaker-slot").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const slot = btn.closest(".cal-speaker-slot");
+        if (!slot) return;
+        slot.querySelectorAll(".member-filter-input").forEach(function (input) {
+          if (typeof input._memberFilterReset === "function") {
+            input._memberFilterReset();
+          } else {
+            input.value = "";
+          }
+        });
+        slot.querySelectorAll(".cal-speaker-text, .cal-speaker-topic").forEach(function (el) {
+          el.value = "";
+        });
+        const slots = Array.from(form.querySelectorAll(".cal-speaker-slot"));
+        const index = slots.indexOf(slot);
+        if (index <= 0) return;
+        slot.classList.add("d-none");
+        if (addBtn) addBtn.classList.remove("d-none");
+      });
+    });
+  }
+
+  function collectCalendarSpeakers(form) {
+    const speakers = [];
+    visibleSpeakerSlots(form).forEach(function (slot) {
+      const slotNum = Number(slot.getAttribute("data-slot") || "0");
+      const memberSelect = slot.querySelector('select[id^="cal_talk_member_id_"]');
+      const speakerText = slot.querySelector(".cal-speaker-text");
+      const topic = slot.querySelector(".cal-speaker-topic");
+      const memberId = memberSelect ? memberSelect.value : "";
+      const text = speakerText ? speakerText.value.trim() : "";
+      const topicText = topic ? topic.value.trim() : "";
+      if (!memberId && !text) return;
+      speakers.push({
+        member_id: memberId || null,
+        speaker_text: text || null,
+        topic: topicText,
+        sort_order: slotNum,
+      });
+    });
+    return speakers;
+  }
+
   function fillTalkFromSuggestion(suggestion) {
     const form = document.getElementById("calTalkForm");
     if (!form || !suggestion) return;
@@ -119,26 +199,29 @@
     const idField = document.getElementById("cal_suggested_talk_id");
     if (idField) idField.value = suggestion.id ? String(suggestion.id) : "";
 
-    const member = form.querySelector('[name="member_id"]');
+    resetSpeakerSlots(form);
+    const slot = form.querySelector('.cal-speaker-slot[data-slot="1"]');
+    if (!slot) return;
+
+    const member = slot.querySelector('select[id^="cal_talk_member_id_"]');
+    const filterInput = slot.querySelector(".member-filter-input");
     if (member) {
       member.value = suggestion.member_id ? String(suggestion.member_id) : "";
+      if (filterInput && suggestion.member_id) {
+        const selected = member.options[member.selectedIndex];
+        filterInput.value = selected ? selected.getAttribute("data-member-name") || selected.textContent.split("·")[0].trim() : "";
+      }
       member.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
-    const speakerText = document.getElementById("cal_talk_speaker_text");
+    const speakerText = slot.querySelector(".cal-speaker-text");
     if (speakerText) speakerText.value = suggestion.speaker_text || "";
 
-    const topic = document.getElementById("cal_talk_topic");
+    const topic = slot.querySelector(".cal-speaker-topic");
     if (topic) topic.value = suggestion.topic || "";
 
     const notes = document.getElementById("cal_talk_notes");
     if (notes) notes.value = suggestion.notes || "";
-
-    const sortOrder = form.querySelector('[name="sort_order"]');
-    if (sortOrder) {
-      sortOrder.value =
-        suggestion.sort_order && suggestion.sort_order > 0 ? String(suggestion.sort_order) : "";
-    }
 
     const assigned = form.querySelector("#cal_talk_kind_assigned");
     if (assigned) assigned.checked = true;
@@ -251,6 +334,52 @@
     resetCreateForms();
   }
 
+  function bindCalendarTalkForm(form) {
+    if (!form || form.dataset.ajaxBound) return;
+    form.dataset.ajaxBound = "1";
+    bindSpeakerSlotControls(form);
+
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      showFormError(".cal-talk-form-error", "");
+      const submitBtn = form.querySelector('[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
+
+      const talkKindInput = form.querySelector('input[name="talk_kind"]:checked');
+      const talkKind = talkKindInput ? talkKindInput.value : "assigned";
+      const talkDate = form.querySelector('[name="talk_date"]')?.value || "";
+      const notes = form.querySelector('[name="notes"]')?.value || "";
+      const suggestedTalkId = document.getElementById("cal_suggested_talk_id")?.value || "";
+      const speakers = collectCalendarSpeakers(form);
+
+      try {
+        const res = await fetch("/api/calendar/talks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            talk_date: talkDate,
+            talk_kind: talkKind,
+            notes: notes,
+            suggested_talk_id: suggestedTalkId || null,
+            speakers: speakers,
+          }),
+        });
+        const data = await res.json().catch(function () {
+          return {};
+        });
+        if (!res.ok || !data.ok) {
+          showFormError(".cal-talk-form-error", data.error || "Could not save.");
+          return;
+        }
+        afterCalendarSaveSuccess();
+      } catch (e) {
+        showFormError(".cal-talk-form-error", "Could not save.");
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+      }
+    });
+  }
+
   function bindCalendarAjaxForm(form, errorSelector) {
     if (!form || form.dataset.ajaxBound) return;
     if (!form.querySelector('[name="respond_json"]')) return;
@@ -282,7 +411,7 @@
   }
 
   function bindCalendarAjaxForms() {
-    bindCalendarAjaxForm(document.getElementById("calTalkForm"), ".cal-talk-form-error");
+    bindCalendarTalkForm(document.getElementById("calTalkForm"));
     bindCalendarAjaxForm(document.getElementById("calEventForm"), ".cal-event-form-error");
     bindCalendarAjaxForm(document.getElementById("calInterviewForm"), ".cal-interview-form-error");
   }
@@ -306,6 +435,13 @@
           if (window.MemberSelectFilter && window.MemberSelectFilter.recaptureWithin) {
             window.MemberSelectFilter.recaptureWithin(modalEl);
           }
+        });
+        modalEl.querySelectorAll('[data-bs-toggle="tab"]').forEach(function (tabBtn) {
+          tabBtn.addEventListener("shown.bs.tab", function () {
+            if (window.MemberSelectFilter && window.MemberSelectFilter.recaptureWithin) {
+              window.MemberSelectFilter.recaptureWithin(modalEl);
+            }
+          });
         });
       }
     },

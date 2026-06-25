@@ -1,9 +1,29 @@
 (function () {
-  function optionSearchText(opt) {
-    const explicit = (opt.getAttribute("data-member-name") || "").trim();
-    let text = explicit || (opt.textContent || "").trim().split("·")[0].trim();
-    const parts = [];
-    if (text) parts.push(text);
+  let memberOptions = null;
+
+  function loadOptions() {
+    if (memberOptions) return memberOptions;
+    const el = document.getElementById("member-select-options-data");
+    if (!el) return [];
+    try {
+      memberOptions = JSON.parse(el.textContent || "[]");
+    } catch (e) {
+      memberOptions = [];
+    }
+    return memberOptions;
+  }
+
+  function escapeHtml(text) {
+    return String(text || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function searchText(name) {
+    const text = (name || "").trim();
+    const parts = [text];
     const comma = text.indexOf(",");
     if (comma > 0) {
       const last = text.slice(0, comma).trim();
@@ -26,177 +46,178 @@
     });
   }
 
-  function captureStructure(selectEl) {
-    const structure = [];
-    let firstOption = null;
+  function populateSelect(selectEl, options, placeholder) {
+    selectEl.innerHTML = "";
+    const first = document.createElement("option");
+    first.value = "";
+    first.textContent = placeholder;
+    selectEl.appendChild(first);
 
-    for (const node of selectEl.children) {
-      if (node.tagName === "OPTION" && !firstOption) {
-        firstOption = node.cloneNode(true);
-        continue;
-      }
-      if (node.tagName === "OPTION") {
-        structure.push({ type: "option", option: node.cloneNode(true) });
-      } else if (node.tagName === "OPTGROUP") {
-        structure.push({
-          type: "group",
-          label: node.label,
-          options: Array.from(node.options).map(function (opt) {
-            return opt.cloneNode(true);
-          }),
-        });
-      }
+    const pool = options.filter(function (opt) {
+      return opt.group === "pool";
+    });
+    const other = options.filter(function (opt) {
+      return opt.group !== "pool";
+    });
+
+    function appendGroup(label, items) {
+      if (!items.length) return;
+      const group = document.createElement("optgroup");
+      group.label = label;
+      items.forEach(function (opt) {
+        const option = document.createElement("option");
+        option.value = String(opt.id);
+        option.textContent = opt.hint ? opt.name + " · " + opt.hint : opt.name;
+        option.setAttribute("data-member-name", opt.name);
+        group.appendChild(option);
+      });
+      selectEl.appendChild(group);
     }
 
-    return { firstOption: firstOption, structure: structure };
+    appendGroup("Regular attendees (speaker pool)", pool);
+    appendGroup(pool.length ? "Other members" : "All members", other);
   }
 
-  function appendStructure(selectEl, state) {
-    selectEl.innerHTML = "";
-    if (state.firstOption) {
-      selectEl.appendChild(state.firstOption.cloneNode(true));
+  function ensureResultsEl(filterInput, selectEl) {
+    let resultsEl = filterInput.nextElementSibling;
+    if (!resultsEl || !resultsEl.classList.contains("member-filter-results")) {
+      resultsEl = document.createElement("div");
+      resultsEl.className = "member-filter-results list-group d-none";
+      resultsEl.setAttribute("role", "listbox");
+      filterInput.insertAdjacentElement("afterend", resultsEl);
     }
-    for (const item of state.structure) {
-      if (item.type === "option") {
-        selectEl.appendChild(item.option.cloneNode(true));
-      } else if (item.type === "group") {
-        const group = document.createElement("optgroup");
-        group.label = item.label;
-        for (const opt of item.options) {
-          group.appendChild(opt.cloneNode(true));
-        }
-        selectEl.appendChild(group);
-      }
-    }
+    selectEl.classList.add("member-filter-select-hidden");
+    return resultsEl;
+  }
+
+  function hideResults(resultsEl) {
+    if (!resultsEl) return;
+    resultsEl.classList.add("d-none");
+    resultsEl.innerHTML = "";
   }
 
   function bindMemberSelectFilter(filterInput, selectEl) {
-    if (!filterInput || !selectEl) return;
+    if (!filterInput || !selectEl || filterInput.dataset.memberFilterBound) return;
+    filterInput.dataset.memberFilterBound = "1";
 
-    function ensureState() {
-      if (!filterInput._memberFilterState) {
-        filterInput._memberFilterState = captureStructure(selectEl);
-      }
-      return filterInput._memberFilterState;
+    const options = loadOptions();
+    const placeholder =
+      selectEl.querySelector('option[value=""]')?.textContent || "— Choose speaker —";
+    if (options.length && !selectEl.dataset.optionsLoaded) {
+      populateSelect(selectEl, options, placeholder);
+      selectEl.dataset.optionsLoaded = "1";
     }
 
-    function renderFiltered() {
-      const state = ensureState();
-      const selected = selectEl.value;
-      const q = (filterInput.value || "").trim();
-      const qLower = q.toLowerCase();
-      let visibleCount = 0;
-      let singleMatchValue = null;
-      let matchCount = 0;
+    const resultsEl = ensureResultsEl(filterInput, selectEl);
 
+    function chooseOption(opt) {
+      selectEl.value = String(opt.id);
+      filterInput.value = opt.name;
+      hideResults(resultsEl);
+      selectEl.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    function renderResults() {
+      const q = (filterInput.value || "").trim();
       if (!q) {
-        appendStructure(selectEl, state);
-        selectEl.removeAttribute("size");
-        selectEl.classList.remove("member-filter-listbox");
-        delete selectEl.dataset.memberFilterDirty;
-        if (selected && Array.from(selectEl.options).some(function (o) { return o.value === selected; })) {
-          selectEl.value = selected;
-        }
+        hideResults(resultsEl);
         return;
       }
 
-      selectEl.dataset.memberFilterDirty = "1";
-      selectEl.innerHTML = "";
-      if (state.firstOption) {
-        selectEl.appendChild(state.firstOption.cloneNode(true));
+      const matches = options
+        .filter(function (opt) {
+          return matchesQuery(searchText(opt.name), q);
+        })
+        .slice(0, 12);
+
+      if (!matches.length) {
+        resultsEl.innerHTML =
+          '<div class="list-group-item small text-muted py-2">No members match that search.</div>';
+        resultsEl.classList.remove("d-none");
+        return;
       }
 
-      for (const item of state.structure) {
-        if (item.type === "option") {
-          const text = optionSearchText(item.option);
-          if (matchesQuery(text, qLower)) {
-            selectEl.appendChild(item.option.cloneNode(true));
-            visibleCount += 1;
-            matchCount += 1;
-            singleMatchValue = item.option.value;
-          }
-        } else if (item.type === "group") {
-          const group = document.createElement("optgroup");
-          group.label = item.label;
-          let added = 0;
-          for (const opt of item.options) {
-            const text = optionSearchText(opt);
-            if (matchesQuery(text, qLower)) {
-              group.appendChild(opt.cloneNode(true));
-              added += 1;
-              visibleCount += 1;
-              matchCount += 1;
-              singleMatchValue = opt.value;
-            }
-          }
-          if (added) {
-            selectEl.appendChild(group);
-          }
-        }
-      }
-
-      if (matchCount === 1 && singleMatchValue) {
-        selectEl.value = singleMatchValue;
-        selectEl.dispatchEvent(new Event("change", { bubbles: true }));
-      } else if (selected && Array.from(selectEl.options).some(function (o) { return o.value === selected; })) {
-        selectEl.value = selected;
-      } else {
-        selectEl.value = "";
-      }
-
-      if (visibleCount > 0) {
-        selectEl.size = Math.min(8, visibleCount + 1);
-        selectEl.classList.add("member-filter-listbox");
-      } else {
-        selectEl.removeAttribute("size");
-        selectEl.classList.remove("member-filter-listbox");
-      }
+      resultsEl.innerHTML = matches
+        .map(function (opt) {
+          return (
+            '<button type="button" class="list-group-item list-group-item-action py-2 member-filter-result" role="option" data-member-id="' +
+            escapeHtml(String(opt.id)) +
+            '">' +
+            '<div class="fw-semibold">' +
+            escapeHtml(opt.name) +
+            "</div>" +
+            (opt.hint
+              ? '<div class="small text-muted">' + escapeHtml(opt.hint) + "</div>"
+              : "") +
+            "</button>"
+          );
+        })
+        .join("");
+      resultsEl.classList.remove("d-none");
     }
 
-    if (!filterInput.dataset.memberFilterBound) {
-      filterInput.dataset.memberFilterBound = "1";
-      filterInput.addEventListener("input", renderFiltered);
-    }
+    filterInput.addEventListener("input", renderResults);
+    filterInput.addEventListener("focus", renderResults);
 
-    filterInput._memberFilterApply = renderFiltered;
-  }
-
-  function recaptureWithin(root) {
-    const scope = root || document;
-    scope.querySelectorAll("[data-member-filter-target]").forEach(function (input) {
-      const id = input.getAttribute("data-member-filter-target");
-      const select = id ? document.getElementById(id) : null;
-      if (!select) return;
-
-      if (select.dataset.memberFilterDirty === "1" && input._memberFilterState) {
-        appendStructure(select, input._memberFilterState);
-        select.removeAttribute("size");
-        select.classList.remove("member-filter-listbox");
-        delete select.dataset.memberFilterDirty;
+    filterInput.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        hideResults(resultsEl);
       }
-
-      delete input._memberFilterState;
-      bindMemberSelectFilter(input, select);
     });
+
+    resultsEl.addEventListener("mousedown", function (event) {
+      event.preventDefault();
+    });
+
+    resultsEl.addEventListener("click", function (event) {
+      const btn = event.target.closest(".member-filter-result");
+      if (!btn) return;
+      const id = btn.getAttribute("data-member-id");
+      const opt = options.find(function (item) {
+        return String(item.id) === String(id);
+      });
+      if (opt) chooseOption(opt);
+    });
+
+    document.addEventListener("click", function (event) {
+      if (!filterInput.contains(event.target) && !resultsEl.contains(event.target)) {
+        hideResults(resultsEl);
+      }
+    });
+
+    filterInput._memberFilterReset = function () {
+      filterInput.value = "";
+      selectEl.value = "";
+      hideResults(resultsEl);
+    };
+
+    filterInput._memberFilterApply = renderResults;
   }
 
   function bindWithin(root) {
     const scope = root || document;
     scope.querySelectorAll("[data-member-filter-target]").forEach(function (input) {
+      if (input.dataset.memberFilterBound) return;
       const id = input.getAttribute("data-member-filter-target");
       const select = id ? document.getElementById(id) : null;
       bindMemberSelectFilter(input, select);
     });
   }
 
+  function recaptureWithin(root) {
+    bindWithin(root);
+  }
+
   function resetWithin(root) {
     const scope = root || document;
     scope.querySelectorAll("[data-member-filter-target]").forEach(function (input) {
-      input.value = "";
-      const id = input.getAttribute("data-member-filter-target");
-      const select = id ? document.getElementById(id) : null;
-      if (select && select.dataset.memberFilterDirty === "1" && typeof input._memberFilterApply === "function") {
-        input._memberFilterApply();
+      if (typeof input._memberFilterReset === "function") {
+        input._memberFilterReset();
+      } else {
+        input.value = "";
+        const id = input.getAttribute("data-member-filter-target");
+        const select = id ? document.getElementById(id) : null;
+        if (select) select.value = "";
       }
     });
   }
