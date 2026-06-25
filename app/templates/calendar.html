@@ -523,9 +523,7 @@
     const cal = new FullCalendar.Calendar(el, {
       initialView: "dayGridMonth",
       height: "auto",
-      selectable: true,
-      selectMirror: true,
-      unselectAuto: true,
+      selectable: false,
       navLinks: true,
       dayMaxEvents: 6,
       expandRows: true,
@@ -557,10 +555,6 @@
         if (window.SuggestedTalks && window.SuggestedTalks.setSelectedDate) {
           window.SuggestedTalks.setSelectedDate(info.dateStr);
         }
-      },
-      select: function(info) {
-        openCreateForDay(info.start, info.end, info.allDay, info.startStr);
-        cal.unselect();
       }
     });
     cal.render();

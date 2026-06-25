@@ -41,6 +41,25 @@
     return { firstOption: firstOption, structure: structure };
   }
 
+  function appendStructure(selectEl, state) {
+    selectEl.innerHTML = "";
+    if (state.firstOption) {
+      selectEl.appendChild(state.firstOption.cloneNode(true));
+    }
+    for (const item of state.structure) {
+      if (item.type === "option") {
+        selectEl.appendChild(item.option.cloneNode(true));
+      } else if (item.type === "group") {
+        const group = document.createElement("optgroup");
+        group.label = item.label;
+        for (const opt of item.options) {
+          group.appendChild(opt.cloneNode(true));
+        }
+        selectEl.appendChild(group);
+      }
+    }
+  }
+
   function bindMemberSelectFilter(filterInput, selectEl) {
     if (!filterInput || !selectEl) return;
 
@@ -58,6 +77,18 @@
       let singleMatchValue = null;
       let matchCount = 0;
 
+      if (!q) {
+        appendStructure(selectEl, state);
+        selectEl.removeAttribute("size");
+        selectEl.classList.remove("member-filter-listbox");
+        delete selectEl.dataset.memberFilterDirty;
+        if (selected && Array.from(selectEl.options).some(function (o) { return o.value === selected; })) {
+          selectEl.value = selected;
+        }
+        return;
+      }
+
+      selectEl.dataset.memberFilterDirty = "1";
       selectEl.innerHTML = "";
       if (state.firstOption) {
         selectEl.appendChild(state.firstOption.cloneNode(true));
@@ -92,16 +123,16 @@
         }
       }
 
-      if (q && matchCount === 1 && singleMatchValue) {
+      if (matchCount === 1 && singleMatchValue) {
         selectEl.value = singleMatchValue;
         selectEl.dispatchEvent(new Event("change", { bubbles: true }));
       } else if (selected && Array.from(selectEl.options).some(function (o) { return o.value === selected; })) {
         selectEl.value = selected;
-      } else if (q) {
+      } else {
         selectEl.value = "";
       }
 
-      if (q && visibleCount > 0) {
+      if (visibleCount > 0) {
         selectEl.size = Math.min(8, visibleCount + 1);
         selectEl.classList.add("member-filter-listbox");
       } else {
@@ -116,7 +147,6 @@
     }
 
     filterInput._memberFilterApply = renderFiltered;
-    renderFiltered();
   }
 
   function bindWithin(root) {
@@ -128,17 +158,20 @@
     });
   }
 
-  function resetAll() {
-    document.querySelectorAll("[data-member-filter-target]").forEach(function (input) {
+  function resetWithin(root) {
+    const scope = root || document;
+    scope.querySelectorAll("[data-member-filter-target]").forEach(function (input) {
       input.value = "";
-      if (typeof input._memberFilterApply === "function") {
+      const id = input.getAttribute("data-member-filter-target");
+      const select = id ? document.getElementById(id) : null;
+      if (select && select.dataset.memberFilterDirty === "1" && typeof input._memberFilterApply === "function") {
         input._memberFilterApply();
       }
     });
   }
 
-  function refreshWithin(root) {
-    bindWithin(root);
+  function resetAll() {
+    resetWithin(document);
   }
 
   window.MemberSelectFilter = {
@@ -147,7 +180,8 @@
       bindWithin(document);
     },
     bindWithin: bindWithin,
-    refreshWithin: refreshWithin,
+    refreshWithin: bindWithin,
+    resetWithin: resetWithin,
     resetAll: resetAll,
   };
 

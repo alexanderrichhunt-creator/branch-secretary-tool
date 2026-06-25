@@ -75,7 +75,7 @@
       if (assigned) assigned.checked = true;
     }
     if (window.MemberSelectFilter) {
-      window.MemberSelectFilter.resetAll();
+      window.MemberSelectFilter.resetWithin(document.getElementById("calCreateModal"));
     }
     const suggestedTalkId = document.getElementById("cal_suggested_talk_id");
     if (suggestedTalkId) suggestedTalkId.value = "";
@@ -100,9 +100,16 @@
 
   function activateCreateTab(tabId) {
     const tabBtn = document.getElementById(tabId);
-    if (tabBtn && window.bootstrap) {
-      bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+    if (!tabBtn) return;
+    if (window.bootstrap && bootstrap.Tab) {
+      try {
+        bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+        return;
+      } catch (e) {
+        /* fall through to native click */
+      }
     }
+    tabBtn.click();
   }
 
   function fillTalkFromSuggestion(suggestion) {
@@ -378,9 +385,6 @@
       }
 
       dispatchTalkDateChange();
-      if (window.MemberSelectFilter && window.MemberSelectFilter.refreshWithin) {
-        window.MemberSelectFilter.refreshWithin(document.getElementById("calCreateModal"));
-      }
       this.modal.show();
     },
   };
