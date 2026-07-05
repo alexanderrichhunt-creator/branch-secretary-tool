@@ -3,7 +3,7 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">Branch bulletin</h1>
-    <p class="page-subtitle">Build a sacrament meeting bulletin. Speakers load from talks on the calendar.</p>
+    <p class="page-subtitle">Build a sacrament meeting bulletin. Your work saves automatically for each meeting date.</p>
     {% if has_saved_defaults %}
       <p class="page-note text-success">Branch defaults saved — they load automatically each week.</p>
     {% else %}
@@ -24,6 +24,13 @@
           <div class="mb-3">
             <label class="form-label big-label" for="meeting_date">Sacrament meeting date</label>
             <input class="form-control form-control-lg" type="date" id="meeting_date" name="meeting_date" value="{{ defaults.meeting_date }}" required />
+            <div class="form-text" id="bulletin-save-status">
+              {% if defaults.saved %}
+                Saved work loaded for this date.
+              {% else %}
+                Changes save automatically for this meeting date.
+              {% endif %}
+            </div>
             <div class="form-text">Speakers are loaded from talks logged for this Sunday (or that week).</div>
           </div>
           <div class="mb-3">

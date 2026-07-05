@@ -73,6 +73,20 @@ SAVABLE_BULLETIN_KEYS = (
     "benediction",
 )
 
+# All bulletin form fields stored per meeting date (meeting_date is the key).
+BULLETIN_DRAFT_KEYS = SAVABLE_BULLETIN_KEYS + (
+    "branch_business",
+    "speakers_mode",
+    "speakers_text",
+)
+
+_HYMN_TITLE_KEYS = (
+    ("opening_hymn_num", "opening_hymn_title"),
+    ("sacrament_hymn_num", "sacrament_hymn_title"),
+    ("intermediate_hymn_num", "intermediate_hymn_title"),
+    ("closing_hymn_num", "closing_hymn_title"),
+)
+
 
 def get_branch_bulletin_defaults() -> dict:
     """Built-in template merged with saved branch defaults from the database."""
@@ -105,6 +119,29 @@ def save_branch_bulletin_defaults(form) -> None:
         setattr(row, key, (form.get(key) or "").strip())
     row.updated_at = datetime.utcnow()
     db.session.commit()
+
+
+def save_bulletin_draft(form):
+    from . import db
+    from .models import BulletinDraft
+
+    meeting_date_raw = (form.get("meeting_date") or "").strip()
+    if not meeting_date_raw:
+        raise ValueError("Meeting date is required.")
+    try:
+        meeting_date = datetime.strptime(meeting_date_raw, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise ValueError("Invalid meeting date.") from exc
+
+    row = BulletinDraft.query.filter_by(meeting_date=meeting_date).first()
+    if not row:
+        row = BulletinDraft(meeting_date=meeting_date)
+        db.session.add(row)
+    for key in BULLETIN_DRAFT_KEYS:
+        setattr(row, key, (form.get(key) or "").strip())
+    row.updated_at = datetime.utcnow()
+    db.session.commit()
+    return row
 
 
 def default_sacrament_sunday(today: date | None = None) -> date:
@@ -568,7 +605,10 @@ SPECIAL_MEETINGS = {
     TALK_KIND_FAST_TESTIMONY: {
         "label": "Fast and Testimony Meeting",
         "short_label": "Fast & Testimony Meeting",
-        "speakers_text": "Today we will hold a Fast and Testimony Meeting.",
+        "speakers_text": (
+            "Today we will hold a Fast and Testimony Meeting. "
+            "Testimonies should end 8 minutes before the end of the hour."
+        ),
         "speakers_mode": SPEAKERS_MODE_FAST_TESTIMONY,
         "calendar_kind": "fast_testimony",
         "calendar_label": "Fast & Testimony Meeting",
@@ -695,6 +735,37 @@ def resolved_hymn_title(defaults: dict, num_key: str, title_key: str) -> str:
     if saved:
         return saved
     return hymn_title(_parse_hymn_num(defaults.get(num_key)))
+
+
+def compose_bulletin_defaults_for_date(meeting_date: date, talks, *, saved_row=None) -> dict:
+    """Branch defaults or a saved draft for one sacrament meeting date."""
+    if saved_row is not None:
+        data = {key: getattr(saved_row, key) or "" for key in BULLETIN_DRAFT_KEYS}
+        data["meeting_date"] = meeting_date.isoformat()
+        data["is_first_sacrament_sunday"] = is_first_sacrament_sunday(meeting_date)
+        data["saved"] = True
+        data["updated_at"] = saved_row.updated_at.isoformat() + "Z" if saved_row.updated_at else None
+        return data
+
+    defaults = get_branch_bulletin_defaults()
+    defaults["meeting_date"] = meeting_date.isoformat()
+    defaults["branch_business"] = ""
+    for num_key, title_key in _HYMN_TITLE_KEYS:
+        defaults[title_key] = resolved_hymn_title(defaults, num_key, title_key)
+    defaults["is_first_sacrament_sunday"] = is_first_sacrament_sunday(meeting_date)
+    has_intermediate = bool(
+        (defaults.get("intermediate_hymn_num") or "").strip()
+        or (defaults.get("intermediate_hymn_title") or "").strip()
+    )
+    defaults["speakers_mode"] = default_speakers_mode(meeting_date, talks)
+    defaults["speakers_text"] = speakers_text_for_mode(
+        defaults["speakers_mode"],
+        talks,
+        split_for_intermediate=has_intermediate,
+    )
+    defaults["saved"] = False
+    defaults["updated_at"] = None
+    return defaults
 
 
 def bulletin_person_name(name: str) -> str:

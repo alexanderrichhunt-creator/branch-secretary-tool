@@ -1716,39 +1716,18 @@ def _talks_for_bulletin_date(talk_date: date) -> list[Talk]:
 @login_required
 def bulletin_builder():
     from .bulletin import (
+        compose_bulletin_defaults_for_date,
         default_sacrament_sunday,
-        default_speakers_mode,
-        get_branch_bulletin_defaults,
         has_saved_branch_defaults,
-        is_first_sacrament_sunday,
-        resolved_hymn_title,
-        speakers_text_for_mode,
     )
+    from .models import BulletinDraft
 
     meeting_date = default_sacrament_sunday()
-    defaults = get_branch_bulletin_defaults()
-    defaults["meeting_date"] = meeting_date.isoformat()
-    defaults["branch_business"] = ""
-    defaults["opening_hymn_title"] = resolved_hymn_title(defaults, "opening_hymn_num", "opening_hymn_title")
-    defaults["sacrament_hymn_title"] = resolved_hymn_title(defaults, "sacrament_hymn_num", "sacrament_hymn_title")
-    defaults["intermediate_hymn_title"] = resolved_hymn_title(
-        defaults, "intermediate_hymn_num", "intermediate_hymn_title"
-    )
-    defaults["closing_hymn_title"] = resolved_hymn_title(defaults, "closing_hymn_num", "closing_hymn_title")
-    defaults["speakers_mode"] = default_speakers_mode(
+    saved_row = BulletinDraft.query.filter_by(meeting_date=meeting_date).first()
+    defaults = compose_bulletin_defaults_for_date(
         meeting_date,
         _talks_for_bulletin_date(meeting_date),
-    )
-    defaults["is_first_sacrament_sunday"] = is_first_sacrament_sunday(meeting_date)
-    week_talks = _talks_for_bulletin_date(meeting_date)
-    has_intermediate = bool(
-        (defaults.get("intermediate_hymn_num") or "").strip()
-        or (defaults.get("intermediate_hymn_title") or "").strip()
-    )
-    defaults["speakers_text"] = speakers_text_for_mode(
-        defaults["speakers_mode"],
-        week_talks,
-        split_for_intermediate=has_intermediate,
+        saved_row=saved_row,
     )
 
     return render_template(
@@ -1766,6 +1745,41 @@ def bulletin_save_defaults():
     save_branch_bulletin_defaults(request.form)
     flash("Branch bulletin defaults saved. They will load automatically next time.", "success")
     return redirect(url_for("main.bulletin_builder"))
+
+
+@main_bp.get("/api/bulletin/draft")
+@login_required
+def api_bulletin_draft_get():
+    from .bulletin import compose_bulletin_defaults_for_date
+    from .models import BulletinDraft
+
+    raw = (request.args.get("date") or "").strip()
+    if not raw:
+        return jsonify({"error": "date required"}), 400
+    try:
+        talk_date = datetime.strptime(raw, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"error": "invalid date"}), 400
+
+    saved_row = BulletinDraft.query.filter_by(meeting_date=talk_date).first()
+    data = compose_bulletin_defaults_for_date(
+        talk_date,
+        _talks_for_bulletin_date(talk_date),
+        saved_row=saved_row,
+    )
+    return jsonify(data)
+
+
+@main_bp.post("/api/bulletin/draft")
+@login_required
+def api_bulletin_draft_save():
+    from .bulletin import save_bulletin_draft
+
+    try:
+        row = save_bulletin_draft(request.form)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"ok": True, "updated_at": row.updated_at.isoformat() + "Z"})
 
 
 @main_bp.get("/api/bulletin/speakers")
@@ -1903,7 +1917,12 @@ def baptism_export(fmt: str):
 @main_bp.post("/bulletin/export/<fmt>")
 @login_required
 def bulletin_export(fmt: str):
-    from .bulletin import bulletin_from_form, build_bulletin_text, export_docx
+    from .bulletin import bulletin_from_form, build_bulletin_text, export_docx, save_bulletin_draft
+
+    try:
+        save_bulletin_draft(request.form)
+    except ValueError:
+        pass
 
     data = bulletin_from_form(request.form)
     meeting_date = data.get("meeting_date")

@@ -4,6 +4,7 @@
   const meetingDate = document.getElementById("meeting_date");
   const speakersField = document.getElementById("speakers_text");
   const speakersHint = document.getElementById("speakers_mode_hint");
+  const saveStatus = document.getElementById("bulletin-save-status");
   const modeInputs = document.querySelectorAll('input[name="speakers_mode"]');
   if (!form || !preview) return;
 
@@ -13,6 +14,27 @@
   const MODE_STAKE = "stake_conference";
   const MODE_GENERAL = "general_conference";
   const SPECIAL_MODES = [MODE_FAST, MODE_BRANCH, MODE_STAKE, MODE_GENERAL];
+  const DRAFT_FIELD_IDS = [
+    "presiding",
+    "conducting",
+    "on_the_stand",
+    "welcome_text",
+    "opening_hymn_num",
+    "opening_hymn_title",
+    "invocation",
+    "branch_business",
+    "stake_business",
+    "announcements",
+    "sacrament_notes",
+    "sacrament_hymn_num",
+    "sacrament_hymn_title",
+    "intermediate_hymn_num",
+    "intermediate_hymn_title",
+    "closing_hymn_num",
+    "closing_hymn_title",
+    "benediction",
+    "speakers_text",
+  ];
   const MODE_HINTS = {
     fast_testimony: {
       firstSunday: "First Sunday of the month — Fast & Testimony Meeting selected automatically.",
@@ -29,6 +51,11 @@
     },
   };
   const URL_PATTERN = /https?:\/\/[^\s<>"']+/g;
+  const SAVE_DELAY_MS = 800;
+
+  let saveTimer = null;
+  let isLoadingDraft = false;
+  let previousMeetingDate = meetingDate ? meetingDate.value : "";
 
   function escapeHtml(text) {
     return text
@@ -103,6 +130,104 @@
 
   function isSpecialSpeakersMode(mode) {
     return SPECIAL_MODES.indexOf(mode) !== -1;
+  }
+
+  function setSaveStatus(message, tone) {
+    if (!saveStatus) return;
+    saveStatus.textContent = message;
+    saveStatus.classList.remove("text-success", "text-danger", "text-muted");
+    if (tone) {
+      saveStatus.classList.add(tone);
+    }
+  }
+
+  function formDataForDate(dateIso) {
+    const fd = new FormData(form);
+    if (dateIso) {
+      fd.set("meeting_date", dateIso);
+    }
+    fd.set("speakers_mode", selectedSpeakersMode());
+    return fd;
+  }
+
+  function scheduleSave() {
+    if (isLoadingDraft) return;
+    setSaveStatus("Unsaved changes…", "text-muted");
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveDraftNow, SAVE_DELAY_MS);
+  }
+
+  async function saveDraftNow(dateIso) {
+    const targetDate = dateIso || (meetingDate && meetingDate.value);
+    if (!targetDate || isLoadingDraft) return;
+    clearTimeout(saveTimer);
+    setSaveStatus("Saving…", "text-muted");
+    try {
+      const res = await fetch("/api/bulletin/draft", {
+        method: "POST",
+        body: formDataForDate(targetDate),
+      });
+      if (!res.ok) {
+        setSaveStatus("Could not save changes.", "text-danger");
+        return;
+      }
+      if (!dateIso || dateIso === meetingDate.value) {
+        setSaveStatus("Saved for this meeting date.", "text-success");
+      }
+    } catch (e) {
+      setSaveStatus("Could not save changes.", "text-danger");
+    }
+  }
+
+  function applyDraftData(data) {
+    DRAFT_FIELD_IDS.forEach(function (id) {
+      const el = document.getElementById(id);
+      if (!el || typeof data[id] !== "string") return;
+      el.value = data[id];
+    });
+    if (data.speakers_mode) {
+      setSpeakersMode(data.speakers_mode);
+    }
+    document.querySelectorAll(".hymn-num-input").forEach(function (input) {
+      const numRaw = (input.value || "").trim();
+      if (numRaw) {
+        input.setAttribute("data-last-hymn-num", String(parseInt(numRaw.replace(/^#/, ""), 10) || ""));
+      } else {
+        input.removeAttribute("data-last-hymn-num");
+      }
+    });
+    updateSpeakersHint(Boolean(data.is_first_sacrament_sunday), selectedSpeakersMode());
+    if (data.saved) {
+      setSaveStatus("Saved work loaded for this date.", "text-success");
+    } else {
+      setSaveStatus("Changes save automatically for this meeting date.", "text-muted");
+    }
+  }
+
+  async function loadBulletinForDate() {
+    if (!meetingDate || !meetingDate.value) return;
+    isLoadingDraft = true;
+    clearTimeout(saveTimer);
+    setSaveStatus("Loading…", "text-muted");
+    try {
+      const res = await fetch("/api/bulletin/draft?date=" + encodeURIComponent(meetingDate.value));
+      if (!res.ok) {
+        setSaveStatus("Could not load saved work for this date.", "text-danger");
+        return;
+      }
+      const data = await res.json();
+      applyDraftData(data);
+      await Promise.all(
+        Array.from(document.querySelectorAll(".hymn-num-input")).map(function (input) {
+          return lookupHymn(input, { skipSave: true });
+        })
+      );
+    } catch (e) {
+      setSaveStatus("Could not load saved work for this date.", "text-danger");
+    } finally {
+      isLoadingDraft = false;
+      updatePreview();
+    }
   }
 
   function updateSpeakersHint(isFirstSunday, mode) {
@@ -221,23 +346,27 @@
     preview.innerHTML = renderPreviewLines(lines).trim() + "\n";
   }
 
-  async function lookupHymn(input) {
+  async function lookupHymn(input, options) {
+    const skipSave = options && options.skipSave;
     const targetId = input.getAttribute("data-title-target");
     const target = targetId ? document.getElementById(targetId) : null;
     const numRaw = (input.value || "").trim();
     if (!target) {
       updatePreview();
+      if (!skipSave) scheduleSave();
       return;
     }
     if (!numRaw) {
       target.value = "";
       input.removeAttribute("data-last-hymn-num");
       updatePreview();
+      if (!skipSave) scheduleSave();
       return;
     }
     const n = parseInt(numRaw.replace(/^#/, ""), 10);
     if (!n) {
       updatePreview();
+      if (!skipSave) scheduleSave();
       return;
     }
     const lastNum = input.getAttribute("data-last-hymn-num");
@@ -255,6 +384,7 @@
       input.setAttribute("data-last-hymn-num", String(n));
     }
     updatePreview();
+    if (!skipSave) scheduleSave();
   }
 
   async function loadSpeakers(modeOverride) {
@@ -285,6 +415,7 @@
       /* ignore */
     }
     updatePreview();
+    scheduleSave();
   }
 
   document.querySelectorAll(".hymn-title-display").forEach(function (input) {
@@ -303,8 +434,14 @@
   });
 
   form.querySelectorAll("input, textarea, select").forEach(function (el) {
-    el.addEventListener("input", updatePreview);
-    el.addEventListener("change", updatePreview);
+    el.addEventListener("input", function () {
+      updatePreview();
+      scheduleSave();
+    });
+    el.addEventListener("change", function () {
+      updatePreview();
+      scheduleSave();
+    });
   });
 
   modeInputs.forEach(function (input) {
@@ -314,8 +451,18 @@
   });
 
   if (meetingDate) {
-    meetingDate.addEventListener("change", function () {
-      loadSpeakers();
+    meetingDate.addEventListener("focus", function () {
+      previousMeetingDate = meetingDate.value;
+    });
+    meetingDate.addEventListener("change", async function () {
+      const newDate = meetingDate.value;
+      const oldDate = previousMeetingDate;
+      clearTimeout(saveTimer);
+      if (oldDate && oldDate !== newDate) {
+        await saveDraftNow(oldDate);
+      }
+      previousMeetingDate = newDate;
+      await loadBulletinForDate();
     });
   }
 
@@ -345,13 +492,11 @@
     });
   }
 
-  document.querySelectorAll(".hymn-num-input").forEach(function (input) {
-    const numRaw = (input.value || "").trim();
-    if (numRaw) {
-      input.setAttribute("data-last-hymn-num", String(parseInt(numRaw.replace(/^#/, ""), 10) || ""));
-    }
-    lookupHymn(input);
+  window.addEventListener("beforeunload", function () {
+    if (isLoadingDraft || !meetingDate || !meetingDate.value) return;
+    clearTimeout(saveTimer);
+    navigator.sendBeacon("/api/bulletin/draft", formDataForDate(meetingDate.value));
   });
-  loadSpeakers();
-  updatePreview();
+
+  loadBulletinForDate();
 })();

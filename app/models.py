@@ -132,6 +132,36 @@ class BulletinDefaults(db.Model):
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 
+class BulletinDraft(db.Model):
+    """Saved bulletin work-in-progress for a specific sacrament meeting date."""
+
+    __tablename__ = "bulletin_draft"
+
+    id = db.Column(db.Integer, primary_key=True)
+    meeting_date = db.Column(db.Date, nullable=False, unique=True, index=True)
+    presiding = db.Column(db.String(512), nullable=False, default="")
+    conducting = db.Column(db.String(512), nullable=False, default="")
+    on_the_stand = db.Column(db.String(512), nullable=False, default="")
+    welcome_text = db.Column(db.Text, nullable=False, default="")
+    opening_hymn_num = db.Column(db.String(8), nullable=False, default="")
+    opening_hymn_title = db.Column(db.String(256), nullable=False, default="")
+    invocation = db.Column(db.String(256), nullable=False, default="")
+    branch_business = db.Column(db.Text, nullable=False, default="")
+    stake_business = db.Column(db.String(256), nullable=False, default="")
+    announcements = db.Column(db.Text, nullable=False, default="")
+    sacrament_notes = db.Column(db.Text, nullable=False, default="")
+    sacrament_hymn_num = db.Column(db.String(8), nullable=False, default="")
+    sacrament_hymn_title = db.Column(db.String(256), nullable=False, default="")
+    intermediate_hymn_num = db.Column(db.String(8), nullable=False, default="")
+    intermediate_hymn_title = db.Column(db.String(256), nullable=False, default="")
+    closing_hymn_num = db.Column(db.String(8), nullable=False, default="")
+    closing_hymn_title = db.Column(db.String(256), nullable=False, default="")
+    benediction = db.Column(db.String(256), nullable=False, default="")
+    speakers_mode = db.Column(db.String(32), nullable=False, default="talks")
+    speakers_text = db.Column(db.Text, nullable=False, default="")
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
 class BaptismDefaults(db.Model):
     """Single-row branch defaults for the baptism program builder (id=1)."""
 
