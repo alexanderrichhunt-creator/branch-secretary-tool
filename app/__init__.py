@@ -17,6 +17,8 @@ def create_app():
 
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
+    # Machine key for OBS / stream controller (optional). When unset, /api/stream/* returns 503.
+    app.config["STREAM_API_KEY"] = (os.environ.get("STREAM_API_KEY") or "").strip()
     database_url = os.environ.get("DATABASE_URL", "sqlite:///data.db")
     # Render/Neon commonly provide "postgres://" or "postgresql://".
     # SQLAlchemy defaults those to the psycopg2 driver, but this project uses psycopg (v3).
@@ -34,9 +36,11 @@ def create_app():
     from . import models  # noqa: F401
     from .routes import main_bp
     from .auth import auth_bp
+    from .stream import stream_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix="/auth")
+    app.register_blueprint(stream_bp)
 
     with app.app_context():
         db.create_all()
