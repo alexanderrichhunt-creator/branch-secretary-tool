@@ -29,6 +29,15 @@ def create_app():
 
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    # Render/Neon/cloud Postgres close idle connections. Without these options the
+    # first request after idle often gets a 500 (stale SSL socket); refresh works.
+    if database_url.startswith("postgresql"):
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_pre_ping": True,  # discard dead connections before use
+            "pool_recycle": 280,  # recycle before typical idle timeouts (~5 min)
+            "pool_size": 5,
+            "max_overflow": 5,
+        }
 
     db.init_app(app)
     login_manager.init_app(app)
