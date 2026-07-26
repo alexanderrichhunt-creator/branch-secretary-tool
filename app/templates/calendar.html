@@ -200,6 +200,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-outline-danger cal-delete-suggestion-btn d-none">Delete</button>
         <button type="button" class="btn btn-primary cal-schedule-suggestion-btn d-none">Schedule as talk</button>
         <a class="btn btn-outline-primary cal-edit-link" href="#">Edit</a>
       </div>
@@ -542,16 +543,37 @@
     });
     cal.render();
     window.branchCalendar = cal;
+    function calendarAnchorDate() {
+      // Prefer the visible month/week start, not grid padding from the previous month
+      const view = cal.view;
+      if (view && view.currentStart) return view.currentStart;
+      return cal.getDate();
+    }
+    function rememberCalendarDate(d) {
+      try {
+        sessionStorage.setItem("branchCalendarDate", (d || calendarAnchorDate()).toISOString());
+      } catch (e) { /* ignore */ }
+    }
+    // Restore month after page reloads (e.g. after some form saves)
+    try {
+      const savedView = sessionStorage.getItem("branchCalendarDate");
+      if (savedView) cal.gotoDate(savedView);
+    } catch (e) { /* ignore */ }
     window.refreshBranchCalendar = function () {
-      if (!cal || !cal.refetchEvents) return Promise.resolve();
-      const anchor = cal.getDate();
-      return cal.refetchEvents().then(function () {
-        cal.gotoDate(anchor);
-      });
+      if (!cal || !cal.refetchEvents) return;
+      const anchor = calendarAnchorDate();
+      rememberCalendarDate(anchor);
+      cal.refetchEvents();
+      // FullCalendar refetch does not return a Promise; keep the same month after edits
+      cal.gotoDate(anchor);
     };
+    cal.on("datesSet", function () {
+      rememberCalendarDate();
+    });
 
     const scheduleSuggestionBtn = eventModalEl ? eventModalEl.querySelector(".cal-schedule-suggestion-btn") : null;
     const editLink = eventModalEl ? eventModalEl.querySelector(".cal-edit-link") : null;
+    const deleteSuggestionBtn = eventModalEl ? eventModalEl.querySelector(".cal-delete-suggestion-btn") : null;
     if (scheduleSuggestionBtn) {
       scheduleSuggestionBtn.addEventListener("click", function () {
         const props = window.CalEventDetail && window.CalEventDetail.lastProps;
@@ -564,6 +586,27 @@
         if (props && props.kind === "suggested_talk") {
           event.preventDefault();
           openSuggestedEdit(props);
+        }
+      });
+    }
+    if (deleteSuggestionBtn) {
+      deleteSuggestionBtn.addEventListener("click", async function () {
+        const props = window.CalEventDetail && window.CalEventDetail.lastProps;
+        if (!props || props.kind !== "suggested_talk" || !props.suggestionId) return;
+        if (!window.confirm("Remove this suggested speaker?")) return;
+        try {
+          const res = await fetch(
+            "/api/suggested-talks/" + encodeURIComponent(props.suggestionId) + "/delete",
+            { method: "POST" }
+          );
+          if (!res.ok) return;
+          if (eventModal) eventModal.hide();
+          if (window.SuggestedTalks && window.SuggestedTalks.refresh) {
+            await window.SuggestedTalks.refresh();
+          }
+          if (window.refreshBranchCalendar) window.refreshBranchCalendar();
+        } catch (e) {
+          /* ignore */
         }
       });
     }

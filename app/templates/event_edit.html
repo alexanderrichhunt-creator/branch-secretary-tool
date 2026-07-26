@@ -5,12 +5,19 @@
     <h1 class="h2 fw-bold mb-1">Edit event</h1>
     <div class="muted">Update times, location, or repeat settings.</div>
   </div>
-  <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.events') }}">Back</a>
+  {% if return_to == 'calendar' %}
+    <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.calendar') }}">Back to calendar</a>
+  {% else %}
+    <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.events') }}">Back</a>
+  {% endif %}
 </div>
 
 <div class="card shadow-sm">
   <div class="card-body">
     <form method="post" action="{{ url_for('main.edit_event_post', event_id=event.id) }}">
+      {% if return_to %}
+        <input type="hidden" name="return_to" value="{{ return_to }}" />
+      {% endif %}
       <div class="mb-3">
         <label class="form-label big-label" for="title">Title</label>
         <input class="form-control form-control-lg" type="text" id="title" name="title" value="{{ event.title }}" required />
@@ -81,6 +88,9 @@
       <button class="btn btn-primary btn-lg" type="submit">Save changes</button>
     </form>
     <form class="mt-3" method="post" action="{{ url_for('main.delete_event', event_id=event.id) }}" onsubmit="return confirm('Delete this event{% if event.recurrence_freq %} series{% endif %}?');">
+      {% if return_to %}
+        <input type="hidden" name="return_to" value="{{ return_to }}" />
+      {% endif %}
       <button class="btn btn-outline-danger btn-lg" type="submit">Delete event</button>
     </form>
   </div>

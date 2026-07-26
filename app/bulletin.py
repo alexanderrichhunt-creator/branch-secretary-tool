@@ -222,6 +222,16 @@ def bulletin_from_form(form) -> dict:
     }
 
 
+# Blank underlined lines under Branch Business for handwritten notes after printing.
+BRANCH_BUSINESS_HANDWRITE_LINES = 2
+BRANCH_BUSINESS_HANDWRITE_LINE = "_" * 52
+
+
+def branch_business_handwrite_lines() -> list[str]:
+    """Empty lines reserved for branch business written by hand on the printed bulletin."""
+    return [BRANCH_BUSINESS_HANDWRITE_LINE for _ in range(BRANCH_BUSINESS_HANDWRITE_LINES)]
+
+
 def build_bulletin_text(data: dict, talks=None) -> str:
     lines = [
         "Sacrament Meeting",
@@ -244,7 +254,11 @@ def build_bulletin_text(data: dict, talks=None) -> str:
         lines.append(f"Invocation: {data['invocation']}")
     lines.append("")
     lines.append("Branch Business:")
-    lines.append(data.get("branch_business") or "")
+    branch_business = (data.get("branch_business") or "").strip()
+    if branch_business:
+        lines.extend(part for part in branch_business.splitlines() if part.strip())
+    # Always leave blank lines so announcements can be written by hand after printing
+    lines.extend(branch_business_handwrite_lines())
     lines.append("")
     lines.append(f"Stake Business: {data.get('stake_business') or ''}")
     lines.append("")
@@ -436,7 +450,13 @@ def export_docx(data: dict, talks=None) -> bytes:
     add_labeled_line("Invocation", data.get("invocation") or "", after=section_after)
 
     add_line("Branch Business:", bold=True, after=2)
-    add_multiline(data.get("branch_business") or "", after_last=section_after)
+    branch_business = (data.get("branch_business") or "").strip()
+    if branch_business:
+        add_multiline(branch_business, after_last=body_after)
+    # Blank lines for handwritten branch business on the printed page
+    for i, blank in enumerate(branch_business_handwrite_lines()):
+        is_last = i == BRANCH_BUSINESS_HANDWRITE_LINES - 1
+        add_line(blank, after=section_after if is_last else body_after)
 
     add_labeled_line(
         "Stake Business",

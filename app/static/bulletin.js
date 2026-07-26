@@ -317,7 +317,15 @@
     if (val("invocation")) lines.push("Invocation: " + val("invocation"));
     lines.push("");
     lines.push("Branch Business:");
-    lines.push(val("branch_business"));
+    var branchBusiness = val("branch_business");
+    if (branchBusiness) {
+      branchBusiness.split(/\r?\n/).forEach(function (part) {
+        if (part.trim()) lines.push(part);
+      });
+    }
+    // Blank lines for handwritten notes after printing (matches Word/text download)
+    lines.push("____________________________________________________");
+    lines.push("____________________________________________________");
     lines.push("");
     lines.push("Stake Business: " + val("stake_business"));
     lines.push("");

@@ -468,6 +468,41 @@ def _redirect_after_event_action():
     return redirect(url_for("main.events"))
 
 
+def _edit_return_to() -> str:
+    """Shared return_to for edit pages opened from calendar / dashboard / etc."""
+    return (request.form.get("return_to") or request.args.get("return_to") or "").strip()
+
+
+def _redirect_after_interview_edit(interview_id: int | None = None):
+    return_to = _edit_return_to()
+    if return_to == "calendar":
+        return redirect(url_for("main.calendar"))
+    return redirect(url_for("main.interviews"))
+
+
+def _redirect_after_event_edit(event_id: int | None = None):
+    return_to = _edit_return_to()
+    if return_to == "calendar":
+        return redirect(url_for("main.calendar"))
+    return redirect(url_for("main.events"))
+
+
+def _edit_interview_form_error(interview_id: int, message: str):
+    flash(message, "warning")
+    return_to = _edit_return_to()
+    if return_to:
+        return redirect(url_for("main.edit_interview", interview_id=interview_id, return_to=return_to))
+    return redirect(url_for("main.edit_interview", interview_id=interview_id))
+
+
+def _edit_event_form_error(event_id: int, message: str):
+    flash(message, "warning")
+    return_to = _edit_return_to()
+    if return_to:
+        return redirect(url_for("main.edit_event", event_id=event_id, return_to=return_to))
+    return redirect(url_for("main.edit_event", event_id=event_id))
+
+
 def _form_wants_json() -> bool:
     return (request.form.get("respond_json") or "").strip() == "1"
 
@@ -1212,7 +1247,14 @@ def add_interview():
 def edit_interview(interview_id: int):
     interview = Interview.query.get_or_404(interview_id)
     members = Member.query.order_by(Member.full_name.asc()).all()
-    return render_template("interview_edit.html", interview=interview, members=members, member_select_options=build_all_member_filter_options())
+    return_to = _edit_return_to()
+    return render_template(
+        "interview_edit.html",
+        interview=interview,
+        members=members,
+        member_select_options=build_all_member_filter_options(),
+        return_to=return_to,
+    )
 
 
 @main_bp.post("/interviews/<int:interview_id>/edit")
@@ -1227,14 +1269,12 @@ def edit_interview_post(interview_id: int):
     notes = (request.form.get("notes") or "").strip() or None
 
     if not starts_at_raw:
-        flash("Start date & time is required.", "warning")
-        return redirect(url_for("main.edit_interview", interview_id=interview_id))
+        return _edit_interview_form_error(interview_id, "Start date & time is required.")
 
     try:
         starts_at = datetime.strptime(starts_at_raw, "%Y-%m-%dT%H:%M")
     except Exception:
-        flash("Invalid start date & time.", "warning")
-        return redirect(url_for("main.edit_interview", interview_id=interview_id))
+        return _edit_interview_form_error(interview_id, "Invalid start date & time.")
 
     interview.starts_at = starts_at
     interview.duration_minutes = max(5, min(duration_minutes, 180))
@@ -1245,7 +1285,7 @@ def edit_interview_post(interview_id: int):
     db.session.commit()
 
     flash("Interview updated.", "success")
-    return redirect(url_for("main.interviews"))
+    return _redirect_after_interview_edit(interview_id)
 
 
 @main_bp.post("/interviews/<int:interview_id>/delete")
@@ -1255,7 +1295,7 @@ def delete_interview(interview_id: int):
     db.session.delete(interview)
     db.session.commit()
     flash("Interview deleted.", "success")
-    return redirect(url_for("main.interviews"))
+    return _redirect_after_interview_edit(interview_id)
 
 
 @main_bp.get("/events")
@@ -1306,7 +1346,13 @@ def edit_event(event_id: int):
     from .event_utils import WEEKDAY_CODES
 
     event = Event.query.get_or_404(event_id)
-    return render_template("event_edit.html", event=event, weekday_codes=WEEKDAY_CODES)
+    return_to = _edit_return_to()
+    return render_template(
+        "event_edit.html",
+        event=event,
+        weekday_codes=WEEKDAY_CODES,
+        return_to=return_to,
+    )
 
 
 @main_bp.post("/events/<int:event_id>/edit")
@@ -1321,8 +1367,7 @@ def edit_event_post(event_id: int):
     category = normalize_event_category(request.form.get("category"))
     starts_at, end_at, all_day, err = _parse_event_times_from_form()
     if err or not title:
-        flash(err or "Title is required.", "warning")
-        return redirect(url_for("main.edit_event", event_id=event_id))
+        return _edit_event_form_error(event_id, err or "Title is required.")
 
     freq, interval, byweekday, until = parse_recurrence_form(request.form)
     if freq == "weekly" and not byweekday:
@@ -1341,7 +1386,7 @@ def edit_event_post(event_id: int):
     event.category = category
     db.session.commit()
     flash("Event updated.", "success")
-    return redirect(url_for("main.events"))
+    return _redirect_after_event_edit(event_id)
 
 
 @main_bp.post("/events/<int:event_id>/delete")
@@ -1351,7 +1396,7 @@ def delete_event(event_id: int):
     db.session.delete(event)
     db.session.commit()
     flash("Event deleted.", "success")
-    return redirect(url_for("main.events"))
+    return _redirect_after_event_edit(event_id)
 
 
 @main_bp.get("/calendar")
@@ -1611,7 +1656,7 @@ def api_events():
                         "kind": "interview",
                         "kindLabel": "Interview",
                         "accentColor": interview_bg,
-                        "editUrl": url_for("main.edit_interview", interview_id=i.id),
+                        "editUrl": url_for("main.edit_interview", interview_id=i.id, return_to="calendar"),
                         "fullTitle": title_line,
                         "interviewSubject": subject,
                         "interviewPurpose": i.purpose,
@@ -1644,7 +1689,7 @@ def api_events():
                         "accentColor": bg,
                         "category": getattr(event, "category", None),
                         "categoryLabel": category_label,
-                        "editUrl": url_for("main.edit_event", event_id=event.id),
+                        "editUrl": url_for("main.edit_event", event_id=event.id, return_to="calendar"),
                         "fullTitle": event.title,
                         "location": (event.location or "").strip(),
                         "recurrence": repeat,

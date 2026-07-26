@@ -5,12 +5,19 @@
     <h1 class="h2 fw-bold mb-1">Edit interview</h1>
     <div class="muted">Fix mistakes or adjust the schedule.</div>
   </div>
-  <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.interviews') }}">Back</a>
+  {% if return_to == 'calendar' %}
+    <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.calendar') }}">Back to calendar</a>
+  {% else %}
+    <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.interviews') }}">Back</a>
+  {% endif %}
 </div>
 
 <div class="card shadow-sm">
   <div class="card-body">
     <form method="post" action="{{ url_for('main.edit_interview_post', interview_id=interview.id) }}">
+      {% if return_to %}
+        <input type="hidden" name="return_to" value="{{ return_to }}" />
+      {% endif %}
       <div class="mb-3">
         <label class="form-label big-label" for="starts_at">Start date & time</label>
         <input class="form-control form-control-lg" type="datetime-local" id="starts_at" name="starts_at" value="{{ interview.starts_at.strftime('%Y-%m-%dT%H:%M') }}" required />
@@ -48,9 +55,11 @@
       </div>
     </form>
     <form class="mt-3" method="post" action="{{ url_for('main.delete_interview', interview_id=interview.id) }}" onsubmit="return confirm('Delete this interview?');">
+      {% if return_to %}
+        <input type="hidden" name="return_to" value="{{ return_to }}" />
+      {% endif %}
       <button class="btn btn-outline-danger btn-lg" type="submit">Delete interview</button>
     </form>
   </div>
 </div>
 {% endblock %}
-
