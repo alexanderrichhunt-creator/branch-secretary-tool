@@ -222,14 +222,13 @@ def bulletin_from_form(form) -> dict:
     }
 
 
-# Blank underlined lines under Branch Business for handwritten notes after printing.
+# Blank lines under Branch Business for handwritten notes after printing (no underline characters).
 BRANCH_BUSINESS_HANDWRITE_LINES = 2
-BRANCH_BUSINESS_HANDWRITE_LINE = "_" * 52
 
 
 def branch_business_handwrite_lines() -> list[str]:
     """Empty lines reserved for branch business written by hand on the printed bulletin."""
-    return [BRANCH_BUSINESS_HANDWRITE_LINE for _ in range(BRANCH_BUSINESS_HANDWRITE_LINES)]
+    return ["" for _ in range(BRANCH_BUSINESS_HANDWRITE_LINES)]
 
 
 def build_bulletin_text(data: dict, talks=None) -> str:

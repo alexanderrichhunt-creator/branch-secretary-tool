@@ -324,8 +324,8 @@
       });
     }
     // Blank lines for handwritten notes after printing (matches Word/text download)
-    lines.push("____________________________________________________");
-    lines.push("____________________________________________________");
+    lines.push("");
+    lines.push("");
     lines.push("");
     lines.push("Stake Business: " + val("stake_business"));
     lines.push("");
