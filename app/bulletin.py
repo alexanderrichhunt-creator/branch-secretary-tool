@@ -815,6 +815,10 @@ def bulletin_person_name(name: str) -> str:
 
 
 def _talk_display_name(t) -> str:
+    from .callings import format_speaker_with_calling
+
     if t.member_id and t.member is not None:
-        return bulletin_person_name(t.member.full_name)
-    return (getattr(t, "speaker_text", None) or "").strip() or "—"
+        name = bulletin_person_name(t.member.full_name)
+    else:
+        name = (getattr(t, "speaker_text", None) or "").strip() or "—"
+    return format_speaker_with_calling(name, getattr(t, "calling", None))

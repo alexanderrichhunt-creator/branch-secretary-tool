@@ -20,6 +20,9 @@
       if (window.MemberSelectFilter && window.MemberSelectFilter.recaptureWithin) {
         window.MemberSelectFilter.recaptureWithin(editModalEl);
       }
+      if (window.CallingSelectFilter && window.CallingSelectFilter.recaptureWithin) {
+        window.CallingSelectFilter.recaptureWithin(editModalEl);
+      }
     });
   }
 
@@ -89,6 +92,9 @@
         if (window.MemberSelectFilter) {
           window.MemberSelectFilter.bindWithin(hidden);
         }
+        if (window.CallingSelectFilter) {
+          window.CallingSelectFilter.bindWithin(hidden);
+        }
         if (!form.querySelector(".cal-suggested-slot.d-none")) {
           addBtn.classList.add("d-none");
         }
@@ -106,7 +112,7 @@
             input.value = "";
           }
         });
-        slot.querySelectorAll(".cal-suggested-speaker-text, .cal-suggested-topic-input").forEach(function (el) {
+        slot.querySelectorAll(".cal-suggested-speaker-text, .cal-suggested-topic-input, .cal-suggested-calling").forEach(function (el) {
           el.value = "";
         });
         const slots = Array.from(form.querySelectorAll(".cal-suggested-slot"));
@@ -123,14 +129,17 @@
       const slotNum = Number(slot.getAttribute("data-slot") || "0");
       const memberSelect = slot.querySelector("select");
       const speakerText = slot.querySelector(".cal-suggested-speaker-text");
+      const callingInput = slot.querySelector(".cal-suggested-calling");
       const topic = slot.querySelector(".cal-suggested-topic-input");
       const memberId = memberSelect ? memberSelect.value : "";
       const text = speakerText ? speakerText.value.trim() : "";
+      const calling = callingInput ? callingInput.value.trim() : "";
       const topicText = topic ? topic.value.trim() : "";
       if (!memberId && !text && !topicText) return;
       speakers.push({
         member_id: memberId || null,
         speaker_text: text || null,
+        calling: calling || null,
         topic: topicText,
         sort_order: slotNum,
       });
@@ -196,9 +205,6 @@
     const suggestion = await fetchSuggestion(id);
     document.getElementById("suggested_edit_id").value = suggestion.id;
     document.getElementById("suggested_edit_date").value = suggestion.suggested_date || "";
-    document.getElementById("suggested_edit_member_id").value = suggestion.member_id
-      ? String(suggestion.member_id)
-      : "";
     document.getElementById("suggested_edit_speaker_text").value = suggestion.speaker_text || "";
     document.getElementById("suggested_edit_topic").value = suggestion.topic || "";
     document.getElementById("suggested_edit_notes").value = suggestion.notes || "";
@@ -207,10 +213,27 @@
       editSortOrder.value =
         suggestion.sort_order && suggestion.sort_order > 0 ? String(suggestion.sort_order) : "";
     }
-    document.getElementById("suggested_edit_member_filter").value = "";
-    if (window.MemberSelectFilter) window.MemberSelectFilter.resetAll();
+    if (window.MemberSelectFilter) window.MemberSelectFilter.resetWithin(editForm);
+    if (window.CallingSelectFilter) window.CallingSelectFilter.resetWithin(editForm);
+
     const editMember = document.getElementById("suggested_edit_member_id");
-    if (editMember) editMember.dispatchEvent(new Event("change", { bubbles: true }));
+    const editFilter = document.getElementById("suggested_edit_member_filter");
+    if (editMember) {
+      editMember.value = suggestion.member_id ? String(suggestion.member_id) : "";
+      if (editFilter && suggestion.member_id) {
+        const selected = editMember.options[editMember.selectedIndex];
+        editFilter.value = selected
+          ? selected.getAttribute("data-member-name") || selected.textContent.split("·")[0].trim()
+          : "";
+      } else if (editFilter) {
+        editFilter.value = "";
+      }
+      editMember.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    const editCalling = document.getElementById("suggested_edit_calling");
+    if (editCalling) editCalling.value = suggestion.calling || "";
+
     showFormError(editForm.querySelector(".cal-suggested-edit-error"), "");
     if (editModal) editModal.show();
   }
@@ -296,7 +319,7 @@
     const keepDate = addDateEl ? addDateEl.value : "";
     const keepNotes = document.getElementById("suggested_notes")?.value || "";
     resetSuggestedSlots(addForm);
-    addForm.querySelectorAll(".cal-suggested-speaker-text, .cal-suggested-topic-input").forEach(function (el) {
+    addForm.querySelectorAll(".cal-suggested-speaker-text, .cal-suggested-topic-input, .cal-suggested-calling").forEach(function (el) {
       el.value = "";
     });
     if (addDateEl && keepDate) addDateEl.value = keepDate;
@@ -304,6 +327,7 @@
     if (notesEl) notesEl.value = keepNotes;
     showFormError(addForm.querySelector(".cal-suggested-form-error"), "");
     if (window.MemberSelectFilter) window.MemberSelectFilter.resetWithin(addForm);
+    if (window.CallingSelectFilter) window.CallingSelectFilter.resetWithin(addForm);
   }
 
   if (addForm) {
@@ -328,7 +352,7 @@
         const dateInput = document.getElementById("cal_suggested_date");
         const dateValue = dateInput ? dateInput.value : "";
         resetSuggestedSlots(calAddForm);
-        calAddForm.querySelectorAll(".cal-suggested-speaker-text, .cal-suggested-topic-input").forEach(function (el) {
+        calAddForm.querySelectorAll(".cal-suggested-speaker-text, .cal-suggested-topic-input, .cal-suggested-calling").forEach(function (el) {
           el.value = "";
         });
         const notesEl = document.getElementById("cal_suggested_notes");
@@ -337,6 +361,7 @@
         if (dateFilterEl && dateValue) dateFilterEl.value = dateValue;
         if (addDateEl && dateValue) addDateEl.value = dateValue;
         if (window.MemberSelectFilter) window.MemberSelectFilter.resetWithin(calAddForm);
+        if (window.CallingSelectFilter) window.CallingSelectFilter.resetWithin(calAddForm);
         await refreshList();
         if (window.CalCreateForm && window.CalCreateForm.modal) {
           window.CalCreateForm.modal.hide();

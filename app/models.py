@@ -47,6 +47,8 @@ class Talk(db.Model):
     # Link to a member, OR use speaker_text for generic/one-off entries.
     member_id = db.Column(db.Integer, db.ForeignKey("member.id"), nullable=True, index=True)
     speaker_text = db.Column(db.String(256), nullable=True)
+    # Optional calling shown on the bulletin, e.g. "Branch Executive Secretary".
+    calling = db.Column(db.String(256), nullable=True)
     sort_order = db.Column(db.Integer, nullable=False, default=0)
     member = db.relationship("Member", back_populates="talks")
 
@@ -58,6 +60,8 @@ class SuggestedTalk(db.Model):
     suggested_date = db.Column(db.Date, nullable=False, index=True)
     member_id = db.Column(db.Integer, db.ForeignKey("member.id"), nullable=True, index=True)
     speaker_text = db.Column(db.String(256), nullable=True)
+    # Optional calling shown when scheduled / on the bulletin.
+    calling = db.Column(db.String(256), nullable=True)
     topic = db.Column(db.String(256), nullable=False, default="")
     notes = db.Column(db.Text, nullable=True)
     sort_order = db.Column(db.Integer, nullable=False, default=0)
@@ -67,11 +71,14 @@ class SuggestedTalk(db.Model):
 
     def speaker_label(self) -> str:
         if self.member_id and self.member is not None:
-            return self.member.full_name
-        text = (self.speaker_text or "").strip()
-        if text:
-            return text
-        return "—"
+            name = self.member.full_name
+        else:
+            text = (self.speaker_text or "").strip()
+            name = text if text else "—"
+        calling = (self.calling or "").strip()
+        if calling and name != "—":
+            return f"{name} - {calling}"
+        return name
 
 
 class Interview(db.Model):

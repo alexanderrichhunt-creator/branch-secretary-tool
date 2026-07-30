@@ -115,19 +115,22 @@ def _speaker_display_name(talk) -> str:
 
 def _speakers_payload(talks: list) -> tuple[list[dict[str, Any]], str | None, dict | None]:
     from .bulletin import is_special_meeting_talk, sort_assigned_talks, special_meeting_kind, special_meeting_meta
+    from .callings import format_speaker_with_calling
 
     assigned = sort_assigned_talks(talks)
     speakers: list[dict[str, Any]] = []
     for index, talk in enumerate(assigned, start=1):
         order = getattr(talk, "sort_order", 0) or 0
+        calling = (getattr(talk, "calling", None) or "").strip() or None
+        name = _speaker_display_name(talk)
         speakers.append(
             {
                 "order": order if order > 0 else index,
                 "index": index,
                 "id": getattr(talk, "id", None),
-                "name": _speaker_display_name(talk),
-                # Reserved for a future Member.calling field / notes convention.
-                "calling": None,
+                "name": name,
+                "calling": calling,
+                "display_name": format_speaker_with_calling(name, calling),
                 "topic": (getattr(talk, "topic", None) or "").strip() or None,
                 "notes": (getattr(talk, "notes", None) or "").strip() or None,
                 "member_id": getattr(talk, "member_id", None),
@@ -216,13 +219,15 @@ def _build_stream_cues(
         )
     else:
         for speaker in speakers:
+            display = speaker.get("display_name") or speaker["name"]
             cues.append(
                 {
                     "id": f"speaker_{speaker['index']}",
-                    "label": f"Speaker {speaker['index']}: {speaker['name']}",
+                    "label": f"Speaker {speaker['index']}: {display}",
                     "scene_hint": "speaker",
                     "speaker_index": speaker["index"],
-                    "speaker_name": speaker["name"],
+                    "speaker_name": display,
+                    "calling": speaker.get("calling"),
                     "topic": speaker.get("topic"),
                 }
             )

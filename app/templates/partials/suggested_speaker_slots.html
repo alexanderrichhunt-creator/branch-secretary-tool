@@ -23,6 +23,9 @@
         autocomplete="off"
       />
     </div>
+    {% with input_id=id_prefix ~ 'calling_' ~ slot, omit_name=true, input_class='cal-suggested-calling', input_lg=input_lg | default(false), big_label=big_label | default(false), show_label=true, show_help=false, selected_calling='' %}
+      {% include 'partials/calling_select_field.html' %}
+    {% endwith %}
     <div class="mb-2">
       <label class="form-label{% if big_label %} big-label{% endif %}" for="{{ id_prefix }}topic_{{ slot }}">Topic <span class="text-muted fw-normal">(optional)</span></label>
       <input

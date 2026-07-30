@@ -21,12 +21,15 @@ from .talk_utils import (
 
 
 def _talk_member_select_context(*, exclude_talk_id: int | None = None, **extra):
+    from .callings import BRANCH_CALLINGS
+
     pool, others = members_for_talk_select()
     ctx = {
         "speaker_pool": pool,
         "other_members": others,
         "member_talk_recency": member_talk_recency(exclude_talk_id),
         "member_select_options": build_member_select_options(),
+        "calling_options": BRANCH_CALLINGS,
         "members": Member.query.order_by(Member.full_name.asc()).all(),
     }
     ctx.update(extra)
@@ -74,6 +77,14 @@ def _apply_compact_daygrid_event(event: dict, kind: str) -> dict:
     if accent and kind != "suggested_talk":
         event["textColor"] = accent
     return event
+
+
+def _parse_calling_submission(raw=None) -> str | None:
+    from .callings import normalize_calling
+
+    if raw is None:
+        raw = request.form.get("calling")
+    return normalize_calling(raw)
 
 
 def _parse_talk_speaker_submission():
@@ -137,9 +148,13 @@ def _parse_interview_schedule_from_form() -> tuple[datetime | None, int | None, 
 
 
 def _talk_speaker_name(t: Talk) -> str:
+    from .callings import format_speaker_with_calling
+
     if t.member_id and t.member is not None:
-        return t.member.full_name
-    return (t.speaker_text or "").strip() or "—"
+        name = t.member.full_name
+    else:
+        name = (t.speaker_text or "").strip() or "—"
+    return format_speaker_with_calling(name, getattr(t, "calling", None))
 
 
 def _calendar_timed_order(starts_at: datetime) -> int:
@@ -200,6 +215,7 @@ def _suggested_talk_payload(st: SuggestedTalk) -> dict:
         "suggested_date_display": st.suggested_date.strftime("%a, %b %d, %Y") if st.suggested_date else "",
         "member_id": st.member_id,
         "speaker_text": st.speaker_text or "",
+        "calling": (st.calling or "").strip(),
         "speaker_label": _suggested_talk_speaker_label(st),
         "topic": st.topic or "",
         "notes": st.notes or "",
@@ -214,6 +230,7 @@ def _parse_suggested_talk_submission():
     speaker_text = (request.form.get("speaker_text") or "").strip() or None
     if member_id:
         speaker_text = None
+    calling = _parse_calling_submission()
     topic = (request.form.get("topic") or "").strip()
     notes = (request.form.get("notes") or "").strip() or None
     suggested_date = None
@@ -223,7 +240,7 @@ def _parse_suggested_talk_submission():
             suggested_date = datetime.strptime(suggested_date_raw, "%Y-%m-%d").date()
         except ValueError:
             suggested_date = None
-    return member_id, speaker_text, topic, notes, suggested_date
+    return member_id, speaker_text, calling, topic, notes, suggested_date
 
 
 def _validate_suggested_talk_fields(member_id, speaker_text, topic, suggested_date) -> str | None:
@@ -962,6 +979,7 @@ def add_talk():
     talk_kind = (request.form.get("talk_kind") or TALK_KIND_ASSIGNED).strip()
     is_special = is_special_talk_kind(talk_kind)
     member_id, speaker_text = _parse_talk_speaker_submission()
+    calling = None if is_special else _parse_calling_submission()
     talk_date_raw = (request.form.get("talk_date") or "").strip()
     topic = "" if is_special else (request.form.get("topic") or "").strip()
     notes = (request.form.get("notes") or "").strip() or None
@@ -982,10 +1000,12 @@ def add_talk():
     if is_special:
         speaker_text = label_for_talk_kind(talk_kind)
         member_id = None
+        calling = None
 
     t = Talk(
         member_id=member_id,
         speaker_text=speaker_text,
+        calling=calling,
         talk_date=talk_date,
         topic=topic,
         notes=notes,
@@ -1035,6 +1055,7 @@ def api_add_calendar_talks():
         t = Talk(
             member_id=None,
             speaker_text=label_for_talk_kind(talk_kind),
+            calling=None,
             talk_date=talk_date,
             topic="",
             notes=notes,
@@ -1049,6 +1070,7 @@ def api_add_calendar_talks():
         member_raw = speaker.get("member_id")
         member_id = int(member_raw) if member_raw else None
         speaker_text = (speaker.get("speaker_text") or "").strip() or None
+        calling = _parse_calling_submission(speaker.get("calling"))
         topic = (speaker.get("topic") or "").strip()
         sort_raw = speaker.get("sort_order")
         sort_order = int(sort_raw) if sort_raw else 0
@@ -1060,6 +1082,7 @@ def api_add_calendar_talks():
             {
                 "member_id": member_id,
                 "speaker_text": speaker_text,
+                "calling": calling,
                 "topic": topic,
                 "sort_order": sort_order,
             }
@@ -1089,6 +1112,7 @@ def api_add_calendar_talks():
         t = Talk(
             member_id=speaker["member_id"],
             speaker_text=speaker["speaker_text"],
+            calling=speaker["calling"],
             talk_date=talk_date,
             topic=speaker["topic"],
             notes=notes if created == 0 else None,
@@ -1145,6 +1169,7 @@ def edit_talk_post(talk_id: int):
     talk_kind = (request.form.get("talk_kind") or TALK_KIND_ASSIGNED).strip()
     is_special = is_special_talk_kind(talk_kind)
     member_id, speaker_text = _parse_talk_speaker_submission()
+    calling = None if is_special else _parse_calling_submission()
     talk_date_raw = (request.form.get("talk_date") or "").strip()
     topic = "" if is_special else (request.form.get("topic") or "").strip()
     notes = (request.form.get("notes") or "").strip() or None
@@ -1166,10 +1191,12 @@ def edit_talk_post(talk_id: int):
     if is_special:
         member_id = None
         speaker_text = label_for_talk_kind(talk_kind)
+        calling = None
 
     talk.talk_date = talk_date
     talk.member_id = member_id
     talk.speaker_text = speaker_text
+    talk.calling = calling
     talk.topic = topic
     talk.notes = notes
     if is_special:
@@ -1440,7 +1467,7 @@ def api_suggested_talk(suggestion_id: int):
 @main_bp.post("/api/suggested-talks")
 @login_required
 def api_create_suggested_talk():
-    member_id, speaker_text, topic, notes, suggested_date = _parse_suggested_talk_submission()
+    member_id, speaker_text, calling, topic, notes, suggested_date = _parse_suggested_talk_submission()
     error = _validate_suggested_talk_fields(member_id, speaker_text, topic, suggested_date)
     if error:
         return jsonify({"error": error}), 400
@@ -1449,6 +1476,7 @@ def api_create_suggested_talk():
         suggested_date=suggested_date,
         member_id=member_id,
         speaker_text=speaker_text,
+        calling=calling,
         topic=topic,
         notes=notes,
         sort_order=_resolve_suggested_sort_order(suggested_date, _parse_talk_sort_order()),
@@ -1478,6 +1506,7 @@ def api_create_suggested_talks_batch():
         member_raw = speaker.get("member_id")
         member_id = int(member_raw) if member_raw else None
         speaker_text = (speaker.get("speaker_text") or "").strip() or None
+        calling = _parse_calling_submission(speaker.get("calling"))
         topic = (speaker.get("topic") or "").strip()
         sort_raw = speaker.get("sort_order")
         sort_order = int(sort_raw) if sort_raw else 0
@@ -1489,6 +1518,7 @@ def api_create_suggested_talks_batch():
             {
                 "member_id": member_id,
                 "speaker_text": speaker_text,
+                "calling": calling,
                 "topic": topic,
                 "sort_order": sort_order,
             }
@@ -1515,6 +1545,7 @@ def api_create_suggested_talks_batch():
             suggested_date=suggested_date,
             member_id=speaker["member_id"],
             speaker_text=speaker["speaker_text"],
+            calling=speaker["calling"],
             topic=speaker["topic"],
             notes=notes if created == 0 else None,
             sort_order=sort_order,
@@ -1531,7 +1562,7 @@ def api_create_suggested_talks_batch():
 @login_required
 def api_edit_suggested_talk(suggestion_id: int):
     st = SuggestedTalk.query.get_or_404(suggestion_id)
-    member_id, speaker_text, topic, notes, suggested_date = _parse_suggested_talk_submission()
+    member_id, speaker_text, calling, topic, notes, suggested_date = _parse_suggested_talk_submission()
     error = _validate_suggested_talk_fields(member_id, speaker_text, topic, suggested_date)
     if error:
         return jsonify({"error": error}), 400
@@ -1539,6 +1570,7 @@ def api_edit_suggested_talk(suggestion_id: int):
     st.suggested_date = suggested_date
     st.member_id = member_id
     st.speaker_text = speaker_text
+    st.calling = calling
     st.topic = topic
     st.notes = notes
     st.sort_order = _resolve_suggested_sort_order(

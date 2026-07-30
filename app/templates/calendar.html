@@ -137,6 +137,9 @@
             <div class="speaker-recency-alert alert py-1 px-2 small d-none mt-2" role="alert" aria-live="polite"></div>
             <input class="form-control mt-2" type="text" id="suggested_edit_speaker_text" name="speaker_text" placeholder="Or type a name" autocomplete="off" />
           </div>
+          {% with input_id='suggested_edit_calling', name='calling', selected_calling='', big_label=true, show_help=false %}
+            {% include 'partials/calling_select_field.html' %}
+          {% endwith %}
           {% with id_prefix='suggested_edit_', selected_sort_order=none, order_label='Speaker order', help_text='Order speakers for this sacrament (1 = first, before the hymn).', big_label=true %}
             {% include 'partials/talk_speaker_order.html' %}
           {% endwith %}
@@ -387,6 +390,9 @@
                       <label class="form-label" for="cal_talk_speaker_text_{{ slot }}">Speaker (free text)</label>
                       <input class="form-control form-control-lg cal-speaker-text" type="text" id="cal_talk_speaker_text_{{ slot }}" data-slot="{{ slot }}" placeholder="Visitor, stake rep, youth speaker…" autocomplete="off" />
                     </div>
+                    {% with input_id='cal_talk_calling_' ~ slot, omit_name=true, input_class='cal-speaker-calling', input_lg=true, show_label=true, show_help=false, selected_calling='' %}
+                      {% include 'partials/calling_select_field.html' %}
+                    {% endwith %}
                     <div class="mb-3">
                       <label class="form-label" for="cal_talk_topic_{{ slot }}">Topic <span class="text-muted fw-normal">(optional)</span></label>
                       <input class="form-control form-control-lg cal-speaker-topic" type="text" id="cal_talk_topic_{{ slot }}" data-slot="{{ slot }}" placeholder="Topic" />
@@ -440,7 +446,9 @@
 <script src="{{ url_for('static', filename='calendar-form.js') }}"></script>
 <script src="{{ url_for('static', filename='calendar-detail.js') }}"></script>
 <script src="{{ url_for('static', filename='member-select-filter.js') }}"></script>
+<script src="{{ url_for('static', filename='calling-select-filter.js') }}"></script>
 {% include 'partials/member_select_options_data.html' %}
+{% include 'partials/calling_select_options_data.html' %}
 <script src="{{ url_for('static', filename='suggested-talks.js') }}"></script>
 <script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
 <script src="{{ url_for('static', filename='talk-recency.js') }}"></script>

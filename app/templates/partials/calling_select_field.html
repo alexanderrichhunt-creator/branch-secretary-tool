@@ -1,0 +1,26 @@
+{# Searchable calling picker — optional free text is kept if not on the list. #}
+{% set calling_input_id = input_id | default('calling') %}
+{% set calling_name = name | default('calling') %}
+{% set calling_value = selected_calling | default('') %}
+<div class="mb-3{% if wrapper_class %} {{ wrapper_class }}{% endif %}">
+  {% if show_label is not defined or show_label %}
+  <label class="form-label{% if big_label %} big-label{% endif %}" for="{{ calling_input_id }}">
+    Calling <span class="text-muted fw-normal">(optional)</span>
+  </label>
+  {% endif %}
+  <div class="calling-filter-wrap member-filter-wrap">
+    <input
+      class="form-control{% if input_lg %} form-control-lg{% endif %} calling-filter-input{% if input_class %} {{ input_class }}{% endif %}"
+      type="text"
+      id="{{ calling_input_id }}"
+      {% if omit_name is not defined or not omit_name %}name="{{ calling_name }}"{% endif %}
+      value="{{ calling_value }}"
+      data-calling-filter="1"
+      placeholder="{{ placeholder | default('Type a calling to search…') }}"
+      autocomplete="off"
+    />
+  </div>
+  {% if show_help | default(false) %}
+  <div class="form-text">Shown on the bulletin as “Name - Calling”. Type to search or enter a custom calling.</div>
+  {% endif %}
+</div>

@@ -118,6 +118,12 @@ def _apply_schema_patches():
             conn.execute(
                 text("ALTER TABLE talk ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0")
             )
+            conn.execute(
+                text("ALTER TABLE talk ADD COLUMN IF NOT EXISTS calling VARCHAR(256)")
+            )
+            conn.execute(
+                text("ALTER TABLE suggested_talk ADD COLUMN IF NOT EXISTS calling VARCHAR(256)")
+            )
         elif dialect == "sqlite":
             _sqlite_patch_talk_interview_schema(conn, engine, inspect)
             _sqlite_patch_event_schema(conn, engine, inspect)
@@ -139,6 +145,9 @@ def _sqlite_patch_talk_interview_schema(conn, engine, sa_inspect):
         cols = {c["name"] for c in sa_inspect(engine).get_columns("talk")}
         if "sort_order" not in cols:
             conn.execute(text("ALTER TABLE talk ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0"))
+        cols = {c["name"] for c in sa_inspect(engine).get_columns("talk")}
+        if "calling" not in cols:
+            conn.execute(text("ALTER TABLE talk ADD COLUMN calling VARCHAR(256)"))
         cols = {c["name"]: c for c in sa_inspect(engine).get_columns("talk")}
         mcol = cols.get("member_id")
         if mcol is not None and mcol.get("nullable") is False:
@@ -154,6 +163,7 @@ def _sqlite_patch_talk_interview_schema(conn, engine, sa_inspect):
                   created_at DATETIME NOT NULL,
                   member_id INTEGER REFERENCES member(id),
                   speaker_text VARCHAR(256),
+                  calling VARCHAR(256),
                   sort_order INTEGER NOT NULL DEFAULT 0
                 )
                 """
@@ -162,8 +172,8 @@ def _sqlite_patch_talk_interview_schema(conn, engine, sa_inspect):
             conn.execute(
                 text(
                     """
-                INSERT INTO talk__new (id, talk_date, topic, notes, created_at, member_id, speaker_text, sort_order)
-                SELECT id, talk_date, topic, notes, created_at, member_id, speaker_text, 0
+                INSERT INTO talk__new (id, talk_date, topic, notes, created_at, member_id, speaker_text, calling, sort_order)
+                SELECT id, talk_date, topic, notes, created_at, member_id, speaker_text, NULL, 0
                 FROM talk
                 """
                 )
@@ -232,6 +242,9 @@ def _sqlite_patch_suggested_talk_schema(conn, engine, sa_inspect):
         conn.execute(text("ALTER TABLE suggested_talk ADD COLUMN suggested_date DATE"))
     if "sort_order" not in cols:
         conn.execute(text("ALTER TABLE suggested_talk ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0"))
+    cols = {c["name"] for c in sa_inspect(engine).get_columns("suggested_talk")}
+    if "calling" not in cols:
+        conn.execute(text("ALTER TABLE suggested_talk ADD COLUMN calling VARCHAR(256)"))
 
 
 def _backfill_suggested_talk_dates():
@@ -248,10 +261,13 @@ def _backfill_suggested_talk_dates():
 
 
 def _talk_speaker_label(talk) -> str:
+    from .callings import format_speaker_with_calling
+
     if talk.member_id and talk.member is not None:
-        return _member_label(talk.member)
-    s = (getattr(talk, "speaker_text", None) or "").strip()
-    return s or "—"
+        name = _member_label(talk.member)
+    else:
+        name = (getattr(talk, "speaker_text", None) or "").strip() or "—"
+    return format_speaker_with_calling(name, getattr(talk, "calling", None))
 
 
 def _interview_who_label(interview) -> str:

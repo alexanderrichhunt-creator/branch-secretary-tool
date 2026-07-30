@@ -119,6 +119,9 @@
               <label class="form-label" for="talks_speaker_text">Speaker (free text)</label>
               <input class="form-control" type="text" id="talks_speaker_text" name="speaker_text" placeholder="Visitor, stake rep, youth speaker…" autocomplete="off" />
             </div>
+            {% with input_id='talks_calling', name='calling', show_help=true %}
+              {% include 'partials/calling_select_field.html' %}
+            {% endwith %}
             <div class="mb-3">
               <label class="form-label" for="talks_topic">Topic <span class="text-muted fw-normal">(optional)</span></label>
               <input class="form-control" type="text" id="talks_topic" name="topic" placeholder="Faith, service, testimony…" />
@@ -141,7 +144,9 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='member-select-filter.js') }}"></script>
+<script src="{{ url_for('static', filename='calling-select-filter.js') }}"></script>
 {% include 'partials/member_select_options_data.html' %}
+{% include 'partials/calling_select_options_data.html' %}
 <script type="application/json" id="member-talk-recency-data">{{ member_talk_recency | tojson }}</script>
 <script src="{{ url_for('static', filename='talk-recency.js') }}"></script>
 <script src="{{ url_for('static', filename='talk-form.js') }}"></script>

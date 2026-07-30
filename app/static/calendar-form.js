@@ -66,7 +66,7 @@
     });
     const talkForm = document.getElementById("calTalkForm");
     if (talkForm) {
-      talkForm.querySelectorAll(".cal-speaker-text, .cal-speaker-topic").forEach(function (el) {
+      talkForm.querySelectorAll(".cal-speaker-text, .cal-speaker-topic, .cal-speaker-calling").forEach(function (el) {
         el.value = "";
       });
       const assigned = talkForm.querySelector("#cal_talk_kind_assigned");
@@ -76,12 +76,15 @@
     if (window.MemberSelectFilter) {
       window.MemberSelectFilter.resetWithin(document.getElementById("calCreateModal"));
     }
+    if (window.CallingSelectFilter) {
+      window.CallingSelectFilter.resetWithin(document.getElementById("calCreateModal"));
+    }
     const suggestedTalkId = document.getElementById("cal_suggested_talk_id");
     if (suggestedTalkId) suggestedTalkId.value = "";
     const calSuggestedForm = document.getElementById("cal-suggested-talk-add-form");
     if (calSuggestedForm) {
       resetSuggestedSlots(calSuggestedForm);
-      calSuggestedForm.querySelectorAll(".cal-suggested-speaker-text, .cal-suggested-topic-input").forEach(function (el) {
+      calSuggestedForm.querySelectorAll(".cal-suggested-speaker-text, .cal-suggested-topic-input, .cal-suggested-calling").forEach(function (el) {
         el.value = "";
       });
       const calSuggestedNotes = document.getElementById("cal_suggested_notes");
@@ -157,6 +160,9 @@
         if (window.MemberSelectFilter) {
           window.MemberSelectFilter.bindWithin(hidden);
         }
+        if (window.CallingSelectFilter) {
+          window.CallingSelectFilter.bindWithin(hidden);
+        }
         const nextHidden = form.querySelector(".cal-speaker-slot.d-none");
         if (!nextHidden) addBtn.classList.add("d-none");
       });
@@ -173,7 +179,7 @@
             input.value = "";
           }
         });
-        slot.querySelectorAll(".cal-speaker-text, .cal-speaker-topic").forEach(function (el) {
+        slot.querySelectorAll(".cal-speaker-text, .cal-speaker-topic, .cal-speaker-calling").forEach(function (el) {
           el.value = "";
         });
         const slots = Array.from(form.querySelectorAll(".cal-speaker-slot"));
@@ -191,14 +197,17 @@
       const slotNum = Number(slot.getAttribute("data-slot") || "0");
       const memberSelect = slot.querySelector('select[id^="cal_talk_member_id_"]');
       const speakerText = slot.querySelector(".cal-speaker-text");
+      const callingInput = slot.querySelector(".cal-speaker-calling");
       const topic = slot.querySelector(".cal-speaker-topic");
       const memberId = memberSelect ? memberSelect.value : "";
       const text = speakerText ? speakerText.value.trim() : "";
+      const calling = callingInput ? callingInput.value.trim() : "";
       const topicText = topic ? topic.value.trim() : "";
       if (!memberId && !text) return;
       speakers.push({
         member_id: memberId || null,
         speaker_text: text || null,
+        calling: calling || null,
         topic: topicText,
         sort_order: slotNum,
       });
@@ -230,6 +239,9 @@
 
     const speakerText = slot.querySelector(".cal-speaker-text");
     if (speakerText) speakerText.value = suggestion.speaker_text || "";
+
+    const callingInput = slot.querySelector(".cal-speaker-calling");
+    if (callingInput) callingInput.value = suggestion.calling || "";
 
     const topic = slot.querySelector(".cal-speaker-topic");
     if (topic) topic.value = suggestion.topic || "";
