@@ -252,10 +252,14 @@ def build_bulletin_text(data: dict, talks=None) -> str:
     if data.get("invocation"):
         lines.append(f"Invocation: {data['invocation']}")
     lines.append("")
-    lines.append("Branch Business:")
     branch_business = (data.get("branch_business") or "").strip()
-    if branch_business:
-        lines.extend(part for part in branch_business.splitlines() if part.strip())
+    branch_parts = [part for part in branch_business.splitlines() if part.strip()] if branch_business else []
+    if branch_parts:
+        # First line sits beside the label (same pattern as Stake Business)
+        lines.append(f"Branch Business: {branch_parts[0]}")
+        lines.extend(branch_parts[1:])
+    else:
+        lines.append("Branch Business:")
     # Always leave blank lines so announcements can be written by hand after printing
     lines.extend(branch_business_handwrite_lines())
     lines.append("")
@@ -448,10 +452,20 @@ def export_docx(data: dict, talks=None) -> bytes:
     add_labeled_line("Opening Hymn", data.get("opening_hymn_line") or "", after=body_after)
     add_labeled_line("Invocation", data.get("invocation") or "", after=section_after)
 
-    add_line("Branch Business:", bold=True, after=2)
     branch_business = (data.get("branch_business") or "").strip()
-    if branch_business:
-        add_multiline(branch_business, after_last=body_after)
+    branch_parts = [part.strip() for part in branch_business.splitlines() if part.strip()] if branch_business else []
+    if branch_parts:
+        # First line sits beside the label (same pattern as Stake Business)
+        add_labeled_line(
+            "Branch Business",
+            branch_parts[0],
+            after=body_after if len(branch_parts) > 1 else 2,
+            show_empty=True,
+        )
+        if len(branch_parts) > 1:
+            add_multiline("\n".join(branch_parts[1:]), after_last=body_after)
+    else:
+        add_line("Branch Business:", bold=True, after=2)
     # Blank lines for handwritten branch business on the printed page
     for i, blank in enumerate(branch_business_handwrite_lines()):
         is_last = i == BRANCH_BUSINESS_HANDWRITE_LINES - 1

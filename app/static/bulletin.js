@@ -316,12 +316,21 @@
     if (opening) lines.push("Opening Hymn: " + opening);
     if (val("invocation")) lines.push("Invocation: " + val("invocation"));
     lines.push("");
-    lines.push("Branch Business:");
     var branchBusiness = val("branch_business");
+    var branchParts = [];
     if (branchBusiness) {
       branchBusiness.split(/\r?\n/).forEach(function (part) {
-        if (part.trim()) lines.push(part);
+        if (part.trim()) branchParts.push(part.trim());
       });
+    }
+    // First line sits beside the label (same pattern as Stake Business)
+    if (branchParts.length) {
+      lines.push("Branch Business: " + branchParts[0]);
+      branchParts.slice(1).forEach(function (part) {
+        lines.push(part);
+      });
+    } else {
+      lines.push("Branch Business:");
     }
     // Blank lines for handwritten notes after printing (matches Word/text download)
     lines.push("");
