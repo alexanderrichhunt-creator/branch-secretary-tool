@@ -16,6 +16,7 @@
       {% if omit_name is not defined or not omit_name %}name="{{ calling_name }}"{% endif %}
       value="{{ calling_value }}"
       data-calling-filter="1"
+      data-calling-slot="{{ calling_input_id }}"
       placeholder="{{ placeholder | default('Type a calling to search…') }}"
       autocomplete="off"
     />

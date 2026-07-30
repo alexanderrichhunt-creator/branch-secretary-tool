@@ -222,6 +222,12 @@
           return lookupHymn(input, { skipSave: true });
         })
       );
+      // Refresh assigned-speaker lines from calendar so every speaker's calling is current.
+      if (selectedSpeakersMode() === MODE_TALKS) {
+        isLoadingDraft = false;
+        await loadSpeakers(MODE_TALKS);
+        return;
+      }
     } catch (e) {
       setSaveStatus("Could not load saved work for this date.", "text-danger");
     } finally {

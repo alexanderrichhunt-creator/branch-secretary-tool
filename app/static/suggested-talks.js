@@ -123,17 +123,27 @@
     });
   }
 
+  function callingValueForSuggestedSlot(slot, slotNum, form) {
+    const byClass = slot.querySelector(".cal-suggested-calling, [data-calling-filter]");
+    if (byClass && (byClass.value || "").trim()) return byClass.value.trim();
+    // Prefer form-scoped ids (suggested_calling_N / cal_suggested_calling_N).
+    const prefix =
+      form && form.id === "cal-suggested-talk-add-form" ? "cal_suggested_" : "suggested_";
+    const byId = document.getElementById(prefix + "calling_" + slotNum);
+    if (byId && (byId.value || "").trim()) return byId.value.trim();
+    return byClass ? (byClass.value || "").trim() : byId ? (byId.value || "").trim() : "";
+  }
+
   function collectSuggestedSpeakers(form) {
     const speakers = [];
     visibleSuggestedSlots(form).forEach(function (slot) {
       const slotNum = Number(slot.getAttribute("data-slot") || "0");
       const memberSelect = slot.querySelector("select");
       const speakerText = slot.querySelector(".cal-suggested-speaker-text");
-      const callingInput = slot.querySelector(".cal-suggested-calling");
       const topic = slot.querySelector(".cal-suggested-topic-input");
       const memberId = memberSelect ? memberSelect.value : "";
       const text = speakerText ? speakerText.value.trim() : "";
-      const calling = callingInput ? callingInput.value.trim() : "";
+      const calling = callingValueForSuggestedSlot(slot, slotNum, form);
       const topicText = topic ? topic.value.trim() : "";
       if (!memberId && !text && !topicText) return;
       speakers.push({

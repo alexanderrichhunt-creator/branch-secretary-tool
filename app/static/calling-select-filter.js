@@ -1,5 +1,7 @@
 (function () {
   let callingOptions = null;
+  let documentClickBound = false;
+  const boundInputs = new Set();
 
   function loadOptions() {
     if (callingOptions) return callingOptions;
@@ -56,18 +58,27 @@
     resultsEl.innerHTML = "";
   }
 
+  function hideAllResults(exceptInput) {
+    boundInputs.forEach(function (input) {
+      if (exceptInput && input === exceptInput) return;
+      if (input._callingResultsEl) hideResults(input._callingResultsEl);
+    });
+  }
+
   function bindCallingFilter(input) {
     if (!input || input.dataset.callingFilterBound) return;
     input.dataset.callingFilterBound = "1";
+    boundInputs.add(input);
 
     const options = loadOptions();
     const resultsEl = ensureResultsEl(input);
+    input._callingResultsEl = resultsEl;
 
     function chooseOption(value) {
-      input.value = value;
+      input.value = value || "";
       hideResults(resultsEl);
+      // Change only — avoid re-opening the list via a synthetic input event.
       input.dispatchEvent(new Event("change", { bubbles: true }));
-      input.dispatchEvent(new Event("input", { bubbles: true }));
     }
 
     function renderResults() {
@@ -78,10 +89,7 @@
         })
         .slice(0, 12);
 
-      if (!q && !matches.length) {
-        hideResults(resultsEl);
-        return;
-      }
+      hideAllResults(input);
 
       if (!matches.length) {
         resultsEl.innerHTML =
@@ -105,7 +113,10 @@
     }
 
     input.addEventListener("input", renderResults);
-    input.addEventListener("focus", renderResults);
+    input.addEventListener("focus", function () {
+      hideAllResults(input);
+      renderResults();
+    });
 
     input.addEventListener("keydown", function (event) {
       if (event.key === "Escape") {
@@ -115,25 +126,23 @@
         const first = resultsEl.querySelector(".calling-filter-result");
         if (first && !resultsEl.classList.contains("d-none")) {
           event.preventDefault();
+          event.stopPropagation();
           chooseOption(first.getAttribute("data-calling") || "");
         }
       }
     });
 
     resultsEl.addEventListener("mousedown", function (event) {
+      // Keep focus on the input so the field is not blurred before click applies.
       event.preventDefault();
     });
 
     resultsEl.addEventListener("click", function (event) {
       const btn = event.target.closest(".calling-filter-result");
-      if (!btn) return;
+      if (!btn || !resultsEl.contains(btn)) return;
+      event.preventDefault();
+      event.stopPropagation();
       chooseOption(btn.getAttribute("data-calling") || "");
-    });
-
-    document.addEventListener("click", function (event) {
-      if (!input.contains(event.target) && !resultsEl.contains(event.target)) {
-        hideResults(resultsEl);
-      }
     });
 
     input._callingFilterReset = function () {
@@ -142,12 +151,26 @@
     };
   }
 
+  function ensureDocumentClick() {
+    if (documentClickBound) return;
+    documentClickBound = true;
+    document.addEventListener("click", function (event) {
+      boundInputs.forEach(function (input) {
+        const resultsEl = input._callingResultsEl;
+        if (!resultsEl) return;
+        if (input.contains(event.target) || resultsEl.contains(event.target)) return;
+        hideResults(resultsEl);
+      });
+    });
+  }
+
   function bindWithin(root) {
     const scope = root || document;
     scope.querySelectorAll("[data-calling-filter]").forEach(function (input) {
       if (input.dataset.callingFilterBound) return;
       bindCallingFilter(input);
     });
+    ensureDocumentClick();
   }
 
   function resetWithin(root) {

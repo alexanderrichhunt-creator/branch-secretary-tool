@@ -79,12 +79,46 @@ def _apply_compact_daygrid_event(event: dict, kind: str) -> dict:
     return event
 
 
-def _parse_calling_submission(raw=None) -> str | None:
+_CALLING_UNSET = object()
+
+
+def _parse_calling_submission(raw=_CALLING_UNSET) -> str | None:
+    """Normalize a calling string.
+
+    Pass raw explicitly for JSON speaker payloads (including None/empty).
+    Omit raw to read the form field named ``calling``.
+    """
     from .callings import normalize_calling
 
-    if raw is None:
+    if raw is _CALLING_UNSET:
         raw = request.form.get("calling")
     return normalize_calling(raw)
+
+
+def _refresh_bulletin_draft_speakers(talk_date: date | None) -> None:
+    """Keep draft speaker lines in sync with calendar talks (names + callings)."""
+    if talk_date is None:
+        return
+    from .bulletin import SPEAKERS_MODE_TALKS, speakers_text_for_mode
+    from .models import BulletinDraft
+
+    draft = BulletinDraft.query.filter_by(meeting_date=talk_date).first()
+    if draft is None:
+        return
+    mode = (draft.speakers_mode or SPEAKERS_MODE_TALKS).strip() or SPEAKERS_MODE_TALKS
+    if mode != SPEAKERS_MODE_TALKS:
+        return
+    has_intermediate = bool(
+        (draft.intermediate_hymn_num or "").strip()
+        or (draft.intermediate_hymn_title or "").strip()
+    )
+    talks = _talks_for_bulletin_date(talk_date)
+    draft.speakers_text = speakers_text_for_mode(
+        mode,
+        talks,
+        split_for_intermediate=has_intermediate,
+    )
+    db.session.commit()
 
 
 def _parse_talk_speaker_submission():
@@ -1024,6 +1058,8 @@ def add_talk():
         except ValueError:
             pass
 
+    _refresh_bulletin_draft_speakers(talk_date)
+
     if is_special_meeting_talk(t):
         return _talk_add_success(f"{SPECIAL_MEETINGS[talk_kind]['short_label']} saved.")
     return _talk_add_success("Talk saved.")
@@ -1063,17 +1099,25 @@ def api_add_calendar_talks():
         )
         db.session.add(t)
         db.session.commit()
+        _refresh_bulletin_draft_speakers(talk_date)
         return jsonify({"ok": True, "message": f"{label_for_talk_kind(talk_kind)} saved.", "count": 1})
 
     cleaned: list[dict] = []
     for speaker in speakers:
         member_raw = speaker.get("member_id")
-        member_id = int(member_raw) if member_raw else None
+        try:
+            member_id = int(member_raw) if member_raw else None
+        except (TypeError, ValueError):
+            member_id = None
         speaker_text = (speaker.get("speaker_text") or "").strip() or None
+        # Explicit raw= so empty/null callings do not fall back to request.form
         calling = _parse_calling_submission(speaker.get("calling"))
         topic = (speaker.get("topic") or "").strip()
         sort_raw = speaker.get("sort_order")
-        sort_order = int(sort_raw) if sort_raw else 0
+        try:
+            sort_order = int(sort_raw) if sort_raw else 0
+        except (TypeError, ValueError):
+            sort_order = 0
         if member_id:
             speaker_text = None
         if not member_id and not speaker_text:
@@ -1131,6 +1175,7 @@ def api_add_calendar_talks():
             pass
 
     db.session.commit()
+    _refresh_bulletin_draft_speakers(talk_date)
     message = "Talk saved." if created == 1 else f"{created} talks saved."
     return jsonify({"ok": True, "message": message, "count": created})
 
@@ -1208,6 +1253,7 @@ def edit_talk_post(talk_id: int):
             exclude_talk_id=talk.id,
         )
     db.session.commit()
+    _refresh_bulletin_draft_speakers(talk_date)
 
     if is_special_meeting_talk(talk):
         flash(f"{SPECIAL_MEETINGS[talk_kind]['short_label']} updated.", "success")
@@ -1220,8 +1266,10 @@ def edit_talk_post(talk_id: int):
 @login_required
 def delete_talk(talk_id: int):
     talk = Talk.query.get_or_404(talk_id)
+    talk_date = talk.talk_date
     db.session.delete(talk)
     db.session.commit()
+    _refresh_bulletin_draft_speakers(talk_date)
     flash("Talk deleted.", "success")
     return _redirect_after_talk_edit(talk_id)
 

@@ -579,6 +579,7 @@ def program_lines_after_sacrament(data: dict, talks=None) -> list[str]:
         return lines
 
     if assigned and intermediate and len(assigned) >= 2:
+        # Always rebuild from talks so every speaker's calling stays current.
         blocks = speakers_text_blocks_for_talks(assigned)
         if blocks:
             lines.append(blocks[0])
@@ -591,7 +592,9 @@ def program_lines_after_sacrament(data: dict, talks=None) -> list[str]:
         return lines
 
     if assigned:
-        text = speakers_text or speakers_text_for_talks(assigned)
+        # Prefer live talk data (includes callings for every speaker). Fall back to
+        # the editable speakers_text only when talks somehow produce no line.
+        text = speakers_text_for_talks(assigned) or speakers_text
         if text:
             lines.append(text)
             lines.append("")

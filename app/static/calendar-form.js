@@ -191,17 +191,24 @@
     });
   }
 
+  function callingValueForSlot(slot, slotNum) {
+    const byClass = slot.querySelector(".cal-speaker-calling, [data-calling-filter]");
+    if (byClass && (byClass.value || "").trim()) return byClass.value.trim();
+    const byId = document.getElementById("cal_talk_calling_" + slotNum);
+    if (byId && (byId.value || "").trim()) return byId.value.trim();
+    return byClass ? (byClass.value || "").trim() : byId ? (byId.value || "").trim() : "";
+  }
+
   function collectCalendarSpeakers(form) {
     const speakers = [];
     visibleSpeakerSlots(form).forEach(function (slot) {
       const slotNum = Number(slot.getAttribute("data-slot") || "0");
       const memberSelect = slot.querySelector('select[id^="cal_talk_member_id_"]');
       const speakerText = slot.querySelector(".cal-speaker-text");
-      const callingInput = slot.querySelector(".cal-speaker-calling");
       const topic = slot.querySelector(".cal-speaker-topic");
       const memberId = memberSelect ? memberSelect.value : "";
       const text = speakerText ? speakerText.value.trim() : "";
-      const calling = callingInput ? callingInput.value.trim() : "";
+      const calling = callingValueForSlot(slot, slotNum);
       const topicText = topic ? topic.value.trim() : "";
       if (!memberId && !text) return;
       speakers.push({
