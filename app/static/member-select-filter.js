@@ -96,6 +96,25 @@
     resultsEl.innerHTML = "";
   }
 
+  function selectedOptionName(selectEl) {
+    if (!selectEl || !selectEl.value) return "";
+    const selected = selectEl.options[selectEl.selectedIndex];
+    if (!selected || !selected.value) return "";
+    return (
+      selected.getAttribute("data-member-name") ||
+      (selected.textContent || "").split("·")[0].trim() ||
+      ""
+    );
+  }
+
+  function nameForMemberId(options, memberId) {
+    if (!memberId) return "";
+    const opt = options.find(function (item) {
+      return String(item.id) === String(memberId);
+    });
+    return opt ? opt.name : "";
+  }
+
   function bindMemberSelectFilter(filterInput, selectEl) {
     if (!filterInput || !selectEl || filterInput.dataset.memberFilterBound) return;
     filterInput.dataset.memberFilterBound = "1";
@@ -103,12 +122,32 @@
     const options = loadOptions();
     const placeholder =
       selectEl.querySelector('option[value=""]')?.textContent || "— Choose speaker —";
+    // Preserve server-rendered selection before options are rebuilt.
+    const previousValue = selectEl.value || "";
+    const previousName = selectedOptionName(selectEl);
+
     if (options.length && !selectEl.dataset.optionsLoaded) {
       populateSelect(selectEl, options, placeholder);
       selectEl.dataset.optionsLoaded = "1";
+      if (previousValue) {
+        selectEl.value = previousValue;
+      }
     }
 
     const resultsEl = ensureResultsEl(filterInput, selectEl);
+
+    function syncFilterFromSelect() {
+      const value = selectEl.value || "";
+      if (!value) {
+        // Keep free-typed text unless the select was cleared intentionally.
+        return;
+      }
+      filterInput.value =
+        nameForMemberId(options, value) || selectedOptionName(selectEl) || previousName || "";
+    }
+
+    // Show current speaker name when opening edit forms, etc.
+    syncFilterFromSelect();
 
     function chooseOption(opt) {
       selectEl.value = String(opt.id);
@@ -157,7 +196,10 @@
     }
 
     filterInput.addEventListener("input", renderResults);
-    filterInput.addEventListener("focus", renderResults);
+    filterInput.addEventListener("focus", function () {
+      // If the field still shows the selected speaker, open the list for easy change.
+      renderResults();
+    });
 
     filterInput.addEventListener("keydown", function (event) {
       if (event.key === "Escape") {
@@ -185,12 +227,23 @@
       }
     });
 
+    // If something else sets the select value, keep the visible name in sync.
+    selectEl.addEventListener("change", function () {
+      if (!selectEl.value) {
+        // Don't wipe the search box while the user is typing a new name.
+        return;
+      }
+      const name = nameForMemberId(options, selectEl.value) || selectedOptionName(selectEl);
+      if (name) filterInput.value = name;
+    });
+
     filterInput._memberFilterReset = function () {
       filterInput.value = "";
       selectEl.value = "";
       hideResults(resultsEl);
     };
 
+    filterInput._memberFilterSync = syncFilterFromSelect;
     filterInput._memberFilterApply = renderResults;
   }
 
@@ -206,6 +259,26 @@
 
   function recaptureWithin(root) {
     bindWithin(root);
+    syncWithin(root);
+  }
+
+  function syncWithin(root) {
+    const scope = root || document;
+    scope.querySelectorAll("[data-member-filter-target]").forEach(function (input) {
+      if (typeof input._memberFilterSync === "function") {
+        input._memberFilterSync();
+        return;
+      }
+      const id = input.getAttribute("data-member-filter-target");
+      const select = id ? document.getElementById(id) : null;
+      if (!select || !select.value) return;
+      const selected = select.options[select.selectedIndex];
+      if (!selected) return;
+      input.value =
+        selected.getAttribute("data-member-name") ||
+        (selected.textContent || "").split("·")[0].trim() ||
+        "";
+    });
   }
 
   function resetWithin(root) {
@@ -234,6 +307,7 @@
     bindWithin: bindWithin,
     refreshWithin: bindWithin,
     recaptureWithin: recaptureWithin,
+    syncWithin: syncWithin,
     resetWithin: resetWithin,
     resetAll: resetAll,
   };
