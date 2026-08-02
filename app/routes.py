@@ -849,17 +849,23 @@ def reset_members():
 @main_bp.post("/members/<int:member_id>/delete")
 @login_required
 def delete_member(member_id: int):
-    if getattr(current_user, "role", None) != "admin":
-        flash("Only admins can delete members.", "danger")
-        return redirect(url_for("main.members"))
+    """Remove one member (moved away, added by mistake, etc.).
 
+    Also removes their talks, suggested talks, and interviews via ORM cascades.
+    """
     member = Member.query.get_or_404(member_id)
     name = member.full_name
     db.session.delete(member)
     db.session.commit()
 
     flash(f"Deleted member: {name}", "success")
-    return redirect(url_for("main.members", q=request.args.get("q") or "", regular=request.args.get("regular") or ""))
+    return redirect(
+        url_for(
+            "main.members",
+            q=request.args.get("q") or request.form.get("q") or "",
+            regular=request.args.get("regular") or request.form.get("regular") or "",
+        )
+    )
 
 
 @main_bp.post("/members/<int:member_id>/regular-attendee")
