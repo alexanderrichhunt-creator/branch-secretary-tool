@@ -3,7 +3,7 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">Members</h1>
-    <p class="page-subtitle">Mark regular attendees to build your speaker pool for sacrament talks.</p>
+    <p class="page-subtitle">Mark regular attendees for the speaker pool. Delete members who moved or were added by mistake.</p>
   </div>
   <div class="page-actions">
     <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.speaker_pool') }}">Speaker pool</a>
@@ -105,7 +105,7 @@
                 <th class="text-nowrap">Birthdate</th>
                 <th class="text-nowrap">Age</th>
                 <th class="text-nowrap">Regular</th>
-                <th></th>
+                <th class="text-end text-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -137,12 +137,17 @@
                       >{% if m.is_regular_attendee %}Yes{% else %}No{% endif %}</button>
                     </form>
                   </td>
-                  <td class="text-end">
-                    {% if current_user.role == "admin" %}
-                      <form method="post" action="{{ url_for('main.delete_member', member_id=m.id, q=q, regular='1' if regular_only else '') }}" onsubmit="return confirm('Delete {{ m.full_name }}? This also deletes their talks/interviews.');">
-                        <button class="btn btn-outline-danger btn-sm" type="submit">Delete</button>
-                      </form>
-                    {% endif %}
+                  <td class="text-end text-nowrap">
+                    <form
+                      class="d-inline"
+                      method="post"
+                      action="{{ url_for('main.delete_member', member_id=m.id) }}"
+                      onsubmit="return confirm({{ ('Delete ' ~ m.full_name ~ '?\n\nThis also removes their talks, suggested talks, and interviews.') | tojson }});"
+                    >
+                      {% if q %}<input type="hidden" name="q" value="{{ q }}" />{% endif %}
+                      {% if regular_only %}<input type="hidden" name="regular" value="1" />{% endif %}
+                      <button class="btn btn-outline-danger btn-sm" type="submit" title="Remove this member">Delete</button>
+                    </form>
                   </td>
                 </tr>
               {% endfor %}
