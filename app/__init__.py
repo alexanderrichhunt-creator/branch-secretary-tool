@@ -60,11 +60,12 @@ def create_app():
     app.jinja_env.globals["member_label"] = _member_label
     app.jinja_env.globals["talk_speaker_label"] = _talk_speaker_label
     app.jinja_env.globals["interview_who_label"] = _interview_who_label
-    from .event_utils import EVENT_CATEGORIES, CALENDAR_ITEM_STYLES, event_category_label
+    from .event_utils import EVENT_CATEGORIES, CALENDAR_ITEM_STYLES, event_category_label, recurrence_label
 
     app.jinja_env.globals["EVENT_CATEGORIES"] = EVENT_CATEGORIES
     app.jinja_env.globals["CALENDAR_ITEM_STYLES"] = CALENDAR_ITEM_STYLES
     app.jinja_env.globals["event_category_label"] = event_category_label
+    app.jinja_env.globals["recurrence_label"] = recurrence_label
     return app
 
 
@@ -81,6 +82,20 @@ def _apply_schema_patches():
             )
             conn.execute(
                 text("ALTER TABLE interview ADD COLUMN IF NOT EXISTS who_text VARCHAR(256)")
+            )
+            conn.execute(
+                text("ALTER TABLE interview ADD COLUMN IF NOT EXISTS recurrence_freq VARCHAR(16)")
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE interview ADD COLUMN IF NOT EXISTS recurrence_interval INTEGER DEFAULT 1"
+                )
+            )
+            conn.execute(
+                text("ALTER TABLE interview ADD COLUMN IF NOT EXISTS recurrence_byweekday VARCHAR(32)")
+            )
+            conn.execute(
+                text("ALTER TABLE interview ADD COLUMN IF NOT EXISTS recurrence_until DATE")
             )
             conn.execute(text("ALTER TABLE talk ALTER COLUMN member_id DROP NOT NULL"))
             conn.execute(
@@ -185,6 +200,15 @@ def _sqlite_patch_talk_interview_schema(conn, engine, sa_inspect):
         cols_i = {c["name"] for c in insp.get_columns("interview")}
         if "who_text" not in cols_i:
             conn.execute(text("ALTER TABLE interview ADD COLUMN who_text VARCHAR(256)"))
+        cols_i = {c["name"] for c in sa_inspect(engine).get_columns("interview")}
+        if "recurrence_freq" not in cols_i:
+            conn.execute(text("ALTER TABLE interview ADD COLUMN recurrence_freq VARCHAR(16)"))
+        if "recurrence_interval" not in cols_i:
+            conn.execute(text("ALTER TABLE interview ADD COLUMN recurrence_interval INTEGER DEFAULT 1"))
+        if "recurrence_byweekday" not in cols_i:
+            conn.execute(text("ALTER TABLE interview ADD COLUMN recurrence_byweekday VARCHAR(32)"))
+        if "recurrence_until" not in cols_i:
+            conn.execute(text("ALTER TABLE interview ADD COLUMN recurrence_until DATE"))
 
 
 def _sqlite_patch_event_schema(conn, engine, sa_inspect):

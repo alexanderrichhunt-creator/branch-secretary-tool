@@ -353,6 +353,12 @@
                 <label class="form-label big-label" for="cal_who_text">Who / what (free text, optional)</label>
                 <input class="form-control form-control-lg" type="text" id="cal_who_text" name="who_text" placeholder="If not on the members list" autocomplete="off" />
               </div>
+              {% set rec_id_prefix = 'cal_interview' %}
+              {% set rec_freq = '' %}
+              {% set rec_interval = 1 %}
+              {% set rec_until = none %}
+              {% set rec_byweekday = '' %}
+              {% include 'partials/interview_recurrence_fields.html' %}
               <div class="mb-3">
                 <label class="form-label big-label" for="interview_notes">Notes (optional)</label>
                 <textarea class="form-control" id="interview_notes" name="notes" rows="2"></textarea>

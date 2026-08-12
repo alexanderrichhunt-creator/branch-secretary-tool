@@ -147,7 +147,7 @@ def _parse_iso_datetime(raw: str | None) -> datetime | None:
 
 
 def event_duration(event) -> timedelta:
-    if event.all_day:
+    if getattr(event, "all_day", False):
         return timedelta(days=1)
     end_at = getattr(event, "end_at", None)
     if end_at and end_at > event.starts_at:
@@ -156,8 +156,20 @@ def event_duration(event) -> timedelta:
     return timedelta(minutes=minutes)
 
 
+def _normalize_recurrence_freq(freq_name: str | None, interval: int) -> tuple[str | None, int]:
+    freq = (freq_name or "").strip().lower()
+    if not freq or freq == "none":
+        return None, max(1, interval)
+    if freq == "biweekly":
+        return "weekly", 2
+    return freq, max(1, interval)
+
+
 def build_recurrence_rule(event):
-    freq_name = (getattr(event, "recurrence_freq", None) or "").strip().lower()
+    interval = max(1, int(getattr(event, "recurrence_interval", None) or 1))
+    freq_name, interval = _normalize_recurrence_freq(
+        getattr(event, "recurrence_freq", None), interval
+    )
     if not freq_name:
         return None
 
@@ -165,7 +177,6 @@ def build_recurrence_rule(event):
     if freq is None:
         return None
 
-    interval = max(1, int(getattr(event, "recurrence_interval", None) or 1))
     kwargs: dict = {"freq": freq, "interval": interval, "dtstart": event.starts_at}
 
     until = getattr(event, "recurrence_until", None)
@@ -186,23 +197,24 @@ def iter_event_occurrences(event, range_start: datetime, range_end: datetime):
     """Yield (starts_at, ends_at) tuples for an event within the given range."""
     duration = event_duration(event)
     rule = build_recurrence_rule(event)
+    all_day = bool(getattr(event, "all_day", False))
 
     if rule is None:
         occ_start = event.starts_at
-        occ_end = occ_start + duration if not event.all_day else occ_start + timedelta(days=1)
-        if _occurrence_overlaps(occ_start, occ_end, event.all_day, range_start, range_end):
+        occ_end = occ_start + duration if not all_day else occ_start + timedelta(days=1)
+        if _occurrence_overlaps(occ_start, occ_end, all_day, range_start, range_end):
             yield occ_start, occ_end
         return
 
     for occ_start in rule.between(range_start, range_end, inc=True):
-        if event.all_day:
+        if all_day:
             occ_start = datetime.combine(occ_start.date(), time.min)
             occ_end = occ_start + timedelta(days=1)
         else:
             base_time = event.starts_at.time()
             occ_start = datetime.combine(occ_start.date(), base_time)
             occ_end = occ_start + duration
-        if _occurrence_overlaps(occ_start, occ_end, event.all_day, range_start, range_end):
+        if _occurrence_overlaps(occ_start, occ_end, all_day, range_start, range_end):
             yield occ_start, occ_end
 
 
@@ -219,16 +231,16 @@ def _occurrence_overlaps(
 
 
 def recurrence_label(event) -> str:
-    freq = (getattr(event, "recurrence_freq", None) or "").strip().lower()
+    interval = max(1, int(getattr(event, "recurrence_interval", None) or 1))
+    freq, interval = _normalize_recurrence_freq(getattr(event, "recurrence_freq", None), interval)
     if not freq:
         return ""
-    interval = max(1, int(getattr(event, "recurrence_interval", None) or 1))
     if freq == "daily":
         label = "Daily" if interval == 1 else f"Every {interval} days"
     elif freq == "weekly":
         days = (getattr(event, "recurrence_byweekday", None) or "").strip()
         if days:
-            day_names = ", ".join(days)
+            day_names = ", ".join(code for code in days.split(",") if code)
             label = f"Weekly on {day_names}" if interval == 1 else f"Every {interval} weeks on {day_names}"
         else:
             label = "Weekly" if interval == 1 else f"Every {interval} weeks"
@@ -244,11 +256,15 @@ def recurrence_label(event) -> str:
 
 
 def parse_recurrence_form(form) -> tuple[str | None, int, str | None, date | None]:
-    freq = (form.get("recurrence_freq") or "").strip().lower()
-    if not freq or freq == "none":
+    raw_freq = (form.get("recurrence_freq") or "").strip().lower()
+    try:
+        raw_interval = max(1, int(form.get("recurrence_interval") or "1"))
+    except (TypeError, ValueError):
+        raw_interval = 1
+    freq, interval = _normalize_recurrence_freq(raw_freq, raw_interval)
+    if not freq:
         return None, 1, None, None
 
-    interval = max(1, int(form.get("recurrence_interval") or "1"))
     byweekday = None
     if freq == "weekly":
         selected = form.getlist("recurrence_byweekday")

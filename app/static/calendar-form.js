@@ -57,8 +57,13 @@
     if (who) who.value = "";
     const member = document.getElementById("cal_member_id");
     if (member) member.value = "";
-    const until = document.getElementById("recurrence_until");
-    if (until) until.value = "";
+    document.querySelectorAll("#calCreateModal [name='recurrence_until']").forEach(function (el) {
+      el.value = "";
+    });
+    document.querySelectorAll("#calCreateModal .cal-recurrence-freq").forEach(function (freq) {
+      freq.value = "none";
+      syncRecurrenceForm(freq.closest("form"));
+    });
     const category = document.getElementById("event_category");
     if (category) category.value = "";
     document.querySelectorAll("#calEventForm textarea, #calInterviewForm textarea, #calTalkForm textarea").forEach(function (el) {
@@ -302,22 +307,36 @@
     });
   }
 
-  function toggleWeeklyDays(show, activeDayCode) {
-    const wrap = document.querySelector(".cal-weekdays-wrap");
-    if (!wrap) return;
-    wrap.classList.toggle("d-none", !show);
-    if (show && activeDayCode) {
-      const box = wrap.querySelector('input[value="' + activeDayCode + '"]');
-      if (box) box.checked = true;
+  function isWeeklyFreq(value) {
+    return value === "weekly" || value === "biweekly";
+  }
+
+  function syncRecurrenceForm(form) {
+    if (!form) return;
+    const freq = form.querySelector(".cal-recurrence-freq");
+    const wrap = form.querySelector(".cal-weekdays-wrap");
+    if (wrap && freq) {
+      wrap.classList.toggle("d-none", !isWeeklyFreq(freq.value));
     }
   }
 
+  function toggleWeeklyDays(show, activeDayCode) {
+    document.querySelectorAll("#calCreateModal .cal-weekdays-wrap").forEach(function (wrap) {
+      wrap.classList.toggle("d-none", !show);
+      if (show && activeDayCode) {
+        const box = wrap.querySelector('input[value="' + activeDayCode + '"]');
+        if (box) box.checked = true;
+      }
+    });
+  }
+
   function bindRecurrenceControls(modalEl) {
-    const freq = modalEl.querySelector(".cal-recurrence-freq");
-    if (!freq || freq.dataset.bound) return;
-    freq.dataset.bound = "1";
-    freq.addEventListener("change", function () {
-      toggleWeeklyDays(freq.value === "weekly");
+    modalEl.querySelectorAll(".cal-recurrence-freq").forEach(function (freq) {
+      if (freq.dataset.bound) return;
+      freq.dataset.bound = "1";
+      freq.addEventListener("change", function () {
+        syncRecurrenceForm(freq.closest("form"));
+      });
     });
   }
 
@@ -541,18 +560,19 @@
         this.modalTitleEl.textContent = "Add to calendar — " + formatDayLabel(titleDate);
       }
 
-      const freq = document.querySelector(".cal-recurrence-freq");
-      if (freq) {
+      document.querySelectorAll("#calCreateModal .cal-recurrence-freq").forEach(function (freq) {
         freq.value = "none";
-        toggleWeeklyDays(false);
-      }
-      document.querySelectorAll('input[name="recurrence_byweekday"]').forEach(function (el) {
+        syncRecurrenceForm(freq.closest("form"));
+      });
+      document.querySelectorAll('#calCreateModal input[name="recurrence_byweekday"]').forEach(function (el) {
         el.checked = false;
       });
-      const dayBox = document.querySelector(
-        'input[name="recurrence_byweekday"][value="' + weekdayCode(titleDate) + '"]'
-      );
-      if (dayBox) dayBox.checked = true;
+      const dayCode = weekdayCode(titleDate);
+      document.querySelectorAll(
+        '#calCreateModal input[name="recurrence_byweekday"][value="' + dayCode + '"]'
+      ).forEach(function (dayBox) {
+        dayBox.checked = true;
+      });
 
       if (opts.suggestion) {
         fillTalkFromSuggestion(opts.suggestion);

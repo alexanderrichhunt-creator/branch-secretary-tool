@@ -3,7 +3,7 @@
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
   <div>
     <h1 class="h2 fw-bold mb-1">Interviews</h1>
-    <div class="muted">Schedule interviews. Pick a member and/or type who/what the appointment is for.</div>
+    <div class="muted">Schedule interviews. For regular counseling, set a repeat and an end date.</div>
   </div>
   <a class="btn btn-outline-primary btn-lg" href="{{ url_for('main.calendar') }}">Calendar view</a>
 </div>
@@ -43,6 +43,12 @@
             <label class="form-label big-label" for="purpose">Purpose</label>
             <input class="form-control form-control-lg" id="purpose" name="purpose" value="Interview" />
           </div>
+          {% set rec_id_prefix = 'interview' %}
+          {% set rec_freq = '' %}
+          {% set rec_interval = 1 %}
+          {% set rec_until = none %}
+          {% set rec_byweekday = '' %}
+          {% include 'partials/interview_recurrence_fields.html' %}
           <div class="mb-3">
             <label class="form-label big-label" for="notes">Notes (optional)</label>
             <textarea class="form-control form-control-lg" id="notes" name="notes" rows="3"></textarea>
@@ -54,6 +60,48 @@
   </div>
 
   <div class="col-12 col-lg-7">
+    {% if repeating_interviews %}
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <h2 class="h4 fw-bold mb-3">Repeating interviews</h2>
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Who</th>
+                <th>Purpose</th>
+                <th>Repeats</th>
+                <th>Next</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for i, next_at in repeating_interviews %}
+                <tr>
+                  <td class="fw-bold">{{ interview_who_label(i) }}</td>
+                  <td>{{ i.purpose }}</td>
+                  <td>{{ recurrence_label(i) or "—" }}</td>
+                  <td class="text-nowrap">
+                    {% if next_at %}
+                      {{ next_at.strftime("%b %d, %Y %I:%M %p") }}
+                    {% else %}
+                      <span class="muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end text-nowrap">
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.edit_interview', interview_id=i.id) }}">Edit</a>
+                    <form class="d-inline" method="post" action="{{ url_for('main.delete_interview', interview_id=i.id) }}" onsubmit="return confirm('Delete this interview series?');">
+                      <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
     <div class="card shadow-sm">
       <div class="card-body">
         <h2 class="h4 fw-bold mb-3">Recent interviews</h2>
@@ -64,6 +112,7 @@
                 <th>Start</th>
                 <th>Who</th>
                 <th>Purpose</th>
+                <th>Repeat</th>
                 <th>Minutes</th>
                 <th class="text-end">Actions</th>
               </tr>
@@ -74,10 +123,17 @@
                   <td class="text-nowrap">{{ i.starts_at.strftime("%b %d, %Y %I:%M %p") }}</td>
                   <td class="fw-bold">{{ interview_who_label(i) }}</td>
                   <td>{{ i.purpose }}</td>
+                  <td>
+                    {% if i.recurrence_freq %}
+                      {{ recurrence_label(i) }}
+                    {% else %}
+                      <span class="muted">—</span>
+                    {% endif %}
+                  </td>
                   <td>{{ i.duration_minutes }}</td>
                   <td class="text-end text-nowrap">
                     <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.edit_interview', interview_id=i.id) }}">Edit</a>
-                    <form class="d-inline" method="post" action="{{ url_for('main.delete_interview', interview_id=i.id) }}" onsubmit="return confirm('Delete this interview?');">
+                    <form class="d-inline" method="post" action="{{ url_for('main.delete_interview', interview_id=i.id) }}" onsubmit="return confirm('Delete this interview{% if i.recurrence_freq %} series{% endif %}?');">
                       <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
                     </form>
                   </td>

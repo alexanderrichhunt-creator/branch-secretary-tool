@@ -3,7 +3,7 @@
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
   <div>
     <h1 class="h2 fw-bold mb-1">Edit interview</h1>
-    <div class="muted">Fix mistakes or adjust the schedule.</div>
+    <div class="muted">Fix mistakes or adjust the schedule. Repeat changes apply to the whole series.</div>
   </div>
   {% if return_to == 'calendar' %}
     <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.calendar') }}">Back to calendar</a>
@@ -46,19 +46,28 @@
         <label class="form-label big-label" for="purpose">Purpose</label>
         <input class="form-control form-control-lg" id="purpose" name="purpose" value="{{ interview.purpose }}" />
       </div>
+      {% set rec_id_prefix = 'interview' %}
+      {% set rec_freq = interview.recurrence_freq or '' %}
+      {% set rec_interval = interview.recurrence_interval or 1 %}
+      {% set rec_until = interview.recurrence_until %}
+      {% set rec_byweekday = interview.recurrence_byweekday or '' %}
+      {% include 'partials/interview_recurrence_fields.html' %}
       <div class="mb-3">
         <label class="form-label big-label" for="notes">Notes (optional)</label>
         <textarea class="form-control form-control-lg" id="notes" name="notes" rows="3">{{ interview.notes or "" }}</textarea>
       </div>
+      {% if interview.recurrence_freq %}
+        <div class="alert alert-info py-2">Changes apply to the whole repeating series.</div>
+      {% endif %}
       <div class="d-flex gap-2">
         <button class="btn btn-success btn-lg" type="submit">Save changes</button>
       </div>
     </form>
-    <form class="mt-3" method="post" action="{{ url_for('main.delete_interview', interview_id=interview.id) }}" onsubmit="return confirm('Delete this interview?');">
+    <form class="mt-3" method="post" action="{{ url_for('main.delete_interview', interview_id=interview.id) }}" onsubmit="return confirm('Delete this interview{% if interview.recurrence_freq %} series{% endif %}?');">
       {% if return_to %}
         <input type="hidden" name="return_to" value="{{ return_to }}" />
       {% endif %}
-      <button class="btn btn-outline-danger btn-lg" type="submit">Delete interview</button>
+      <button class="btn btn-outline-danger btn-lg" type="submit">Delete interview{% if interview.recurrence_freq %} series{% endif %}</button>
     </form>
   </div>
 </div>

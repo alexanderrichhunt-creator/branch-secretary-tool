@@ -145,6 +145,29 @@ def _parse_interview_who_submission():
     return member_id, who_text
 
 
+def _apply_recurrence_from_form(obj, starts_at: datetime) -> None:
+    from .event_utils import WEEKDAY_CODES, parse_recurrence_form
+
+    freq, interval, byweekday, until = parse_recurrence_form(request.form)
+    if freq == "weekly" and not byweekday:
+        byweekday = WEEKDAY_CODES[starts_at.weekday()]
+    obj.recurrence_freq = freq
+    obj.recurrence_interval = interval
+    obj.recurrence_byweekday = byweekday
+    obj.recurrence_until = until
+
+
+def _next_interview_occurrence(interview: Interview, after: datetime | None = None) -> datetime | None:
+    from .event_utils import iter_event_occurrences
+
+    after = after or datetime.now()
+    horizon = after + timedelta(days=400)
+    for occ_start, _occ_end in iter_event_occurrences(interview, after, horizon):
+        if occ_start >= after:
+            return occ_start
+    return None
+
+
 def _parse_interview_schedule_from_form() -> tuple[datetime | None, int | None, str | None]:
     """Parse interview start + duration from datetime-local or calendar date/time fields."""
     starts_at_raw = (request.form.get("starts_at") or "").strip()
@@ -608,27 +631,33 @@ def _parse_event_times_from_form():
 
 
 def _build_upcoming_interviews(limit: int = 8) -> list[dict]:
+    from .event_utils import iter_event_occurrences, recurrence_label
+
     now = datetime.now() - timedelta(hours=2)
+    horizon = now + timedelta(days=120)
     items: list[dict] = []
 
-    interviews = (
-        Interview.query.filter(Interview.starts_at >= now)
-        .order_by(Interview.starts_at.asc())
-        .limit(limit)
-        .all()
-    )
-    for interview in interviews:
-        items.append(
-            {
-                "kind": "interview",
-                "starts_at": interview.starts_at,
-                "all_day": False,
-                "title": f"Interview: {_interview_subject_name(interview)}",
-                "subtitle": f"{interview.purpose} ({interview.duration_minutes} min)",
-                "edit_url": url_for("main.edit_interview", interview_id=interview.id),
-            }
-        )
-    return items
+    for interview in Interview.query.order_by(Interview.starts_at.asc()).all():
+        for occ_start, _occ_end in iter_event_occurrences(interview, now, horizon):
+            if occ_start < now:
+                continue
+            repeat = recurrence_label(interview)
+            subtitle = f"{interview.purpose} ({interview.duration_minutes} min)"
+            if repeat:
+                subtitle = f"{subtitle} · {repeat}"
+            items.append(
+                {
+                    "kind": "interview",
+                    "starts_at": occ_start,
+                    "all_day": False,
+                    "title": f"Interview: {_interview_subject_name(interview)}",
+                    "subtitle": subtitle,
+                    "edit_url": url_for("main.edit_interview", interview_id=interview.id),
+                }
+            )
+
+    items.sort(key=lambda item: item["starts_at"])
+    return items[:limit]
 
 
 def _build_upcoming_events(limit: int = 8) -> list[dict]:
@@ -1283,9 +1312,29 @@ def delete_talk(talk_id: int):
 @main_bp.get("/interviews")
 @login_required
 def interviews():
+    from .event_utils import WEEKDAY_CODES
+
     interviews = Interview.query.order_by(Interview.starts_at.desc()).limit(200).all()
     members = Member.query.order_by(Member.full_name.asc()).all()
-    return render_template("interviews.html", interviews=interviews, members=members, member_select_options=build_all_member_filter_options())
+    today = date.today()
+    repeating_interviews = []
+    now = datetime.now()
+    for interview in Interview.query.filter(Interview.recurrence_freq.isnot(None)).order_by(
+        Interview.starts_at.desc()
+    ).all():
+        until = interview.recurrence_until
+        if until is not None and until < today:
+            continue
+        next_at = _next_interview_occurrence(interview, now)
+        repeating_interviews.append((interview, next_at))
+    return render_template(
+        "interviews.html",
+        interviews=interviews,
+        repeating_interviews=repeating_interviews,
+        members=members,
+        weekday_codes=WEEKDAY_CODES,
+        member_select_options=build_all_member_filter_options(),
+    )
 
 
 @main_bp.get("/admin/users")
@@ -1318,14 +1367,18 @@ def add_interview():
         purpose=purpose,
         notes=notes,
     )
+    _apply_recurrence_from_form(i, starts_at)
     db.session.add(i)
     db.session.commit()
-    return _calendar_form_success("Interview saved.", _redirect_after_interview_action)
+    saved_msg = "Repeating interview saved." if i.recurrence_freq else "Interview saved."
+    return _calendar_form_success(saved_msg, _redirect_after_interview_action)
 
 
 @main_bp.get("/interviews/<int:interview_id>/edit")
 @login_required
 def edit_interview(interview_id: int):
+    from .event_utils import WEEKDAY_CODES
+
     interview = Interview.query.get_or_404(interview_id)
     members = Member.query.order_by(Member.full_name.asc()).all()
     return_to = _edit_return_to()
@@ -1333,6 +1386,7 @@ def edit_interview(interview_id: int):
         "interview_edit.html",
         interview=interview,
         members=members,
+        weekday_codes=WEEKDAY_CODES,
         member_select_options=build_all_member_filter_options(),
         return_to=return_to,
     )
@@ -1363,6 +1417,7 @@ def edit_interview_post(interview_id: int):
     interview.notes = notes
     interview.member_id = member_id
     interview.who_text = who_text
+    _apply_recurrence_from_form(interview, starts_at)
     db.session.commit()
 
     flash("Interview updated.", "success")
@@ -1373,9 +1428,10 @@ def edit_interview_post(interview_id: int):
 @login_required
 def delete_interview(interview_id: int):
     interview = Interview.query.get_or_404(interview_id)
+    was_series = bool(interview.recurrence_freq)
     db.session.delete(interview)
     db.session.commit()
-    flash("Interview deleted.", "success")
+    flash("Interview series deleted." if was_series else "Interview deleted.", "success")
     return _redirect_after_interview_edit(interview_id)
 
 
@@ -1673,10 +1729,7 @@ def api_events():
         Talk.talk_date <= range_end_date,
     ).all()
     talks = sorted(talks, key=talk_sort_key)
-    interviews = Interview.query.filter(
-        Interview.starts_at < range_end,
-        Interview.starts_at >= range_start - timedelta(days=1),
-    ).all()
+    interviews = Interview.query.filter(Interview.starts_at < range_end).all()
     branch_events = Event.query.all()
 
     for t in talks:
@@ -1725,34 +1778,36 @@ def api_events():
     for i in interviews:
         subject = _interview_subject_name(i)
         title_line = f"Interview: {subject} — {i.purpose}"
-        end = i.starts_at + timedelta(minutes=i.duration_minutes)
         interview_bg, interview_border = calendar_item_colors("interview")
-        events.append(
-            _apply_compact_daygrid_event(
-                {
-                    "id": f"interview-{i.id}",
-                    "title": _daygrid_list_title("interview", title_line),
-                    "start": i.starts_at.isoformat(),
-                    "end": end.isoformat(),
-                    "allDay": False,
-                    "order": _calendar_timed_order(i.starts_at),
-                    "backgroundColor": interview_bg,
-                    "borderColor": interview_border,
-                    "extendedProps": {
-                        "kind": "interview",
-                        "kindLabel": "Interview",
-                        "accentColor": interview_bg,
-                        "editUrl": url_for("main.edit_interview", interview_id=i.id, return_to="calendar"),
-                        "fullTitle": title_line,
-                        "interviewSubject": subject,
-                        "interviewPurpose": i.purpose,
-                        "durationMinutes": i.duration_minutes,
-                        "notes": (i.notes or "").strip(),
+        repeat = recurrence_label(i)
+        for occ_start, occ_end in iter_event_occurrences(i, range_start, range_end):
+            events.append(
+                _apply_compact_daygrid_event(
+                    {
+                        "id": f"interview-{i.id}-{occ_start.strftime('%Y%m%d%H%M')}",
+                        "title": _daygrid_list_title("interview", title_line),
+                        "start": occ_start.isoformat(),
+                        "end": occ_end.isoformat(),
+                        "allDay": False,
+                        "order": _calendar_timed_order(occ_start),
+                        "backgroundColor": interview_bg,
+                        "borderColor": interview_border,
+                        "extendedProps": {
+                            "kind": "interview",
+                            "kindLabel": "Interview",
+                            "accentColor": interview_bg,
+                            "editUrl": url_for("main.edit_interview", interview_id=i.id, return_to="calendar"),
+                            "fullTitle": title_line,
+                            "interviewSubject": subject,
+                            "interviewPurpose": i.purpose,
+                            "durationMinutes": i.duration_minutes,
+                            "recurrence": repeat,
+                            "notes": (i.notes or "").strip(),
+                        },
                     },
-                },
-                "interview",
+                    "interview",
+                )
             )
-        )
 
     for event in branch_events:
         repeat = recurrence_label(event)

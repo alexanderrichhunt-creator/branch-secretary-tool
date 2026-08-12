@@ -93,6 +93,12 @@ class Interview(db.Model):
     who_text = db.Column(db.String(256), nullable=True)
     member = db.relationship("Member", back_populates="interviews")
 
+    # Same recurrence shape as Event: one row, expanded on the calendar.
+    recurrence_freq = db.Column(db.String(16), nullable=True)  # daily, weekly, monthly
+    recurrence_interval = db.Column(db.Integer, nullable=True, default=1)
+    recurrence_byweekday = db.Column(db.String(32), nullable=True)  # MO,TU,...
+    recurrence_until = db.Column(db.Date, nullable=True)
+
 
 class Event(db.Model):
     """Branch meetings and calendar events (supports simple recurrence)."""
