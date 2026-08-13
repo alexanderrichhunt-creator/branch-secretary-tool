@@ -4,6 +4,9 @@
       autoHint: "First Sunday of the month — Fast & Testimony selected automatically.",
       selectedHint: "No assigned speakers for this week. Appears on the calendar and bulletin.",
     },
+    primary_program: {
+      selectedHint: "Primary Program for this sacrament Sunday. No assigned speakers.",
+    },
     branch_conference: {
       selectedHint: "Branch Conference for this sacrament Sunday. No assigned speakers.",
     },

@@ -10,10 +10,11 @@
 
   const MODE_TALKS = "talks";
   const MODE_FAST = "fast_testimony";
+  const MODE_PRIMARY = "primary_program";
   const MODE_BRANCH = "branch_conference";
   const MODE_STAKE = "stake_conference";
   const MODE_GENERAL = "general_conference";
-  const SPECIAL_MODES = [MODE_FAST, MODE_BRANCH, MODE_STAKE, MODE_GENERAL];
+  const SPECIAL_MODES = [MODE_FAST, MODE_PRIMARY, MODE_BRANCH, MODE_STAKE, MODE_GENERAL];
   const DRAFT_FIELD_IDS = [
     "presiding",
     "conducting",
@@ -39,6 +40,9 @@
     fast_testimony: {
       firstSunday: "First Sunday of the month — Fast & Testimony Meeting selected automatically.",
       selected: "Fast & Testimony Meeting selected. You can still edit the text below.",
+    },
+    primary_program: {
+      selected: "Primary Program selected. You can still edit the text below.",
     },
     branch_conference: {
       selected: "Branch Conference selected. You can still edit the text below.",
@@ -238,20 +242,10 @@
 
   function updateSpeakersHint(isFirstSunday, mode) {
     if (!speakersHint) return;
-    if (mode === MODE_FAST) {
-      speakersHint.textContent = isFirstSunday ? MODE_HINTS.fast_testimony.firstSunday : MODE_HINTS.fast_testimony.selected;
-      return;
-    }
-    if (mode === MODE_BRANCH) {
-      speakersHint.textContent = MODE_HINTS.branch_conference.selected;
-      return;
-    }
-    if (mode === MODE_STAKE) {
-      speakersHint.textContent = MODE_HINTS.stake_conference.selected;
-      return;
-    }
-    if (mode === MODE_GENERAL) {
-      speakersHint.textContent = MODE_HINTS.general_conference.selected;
+    const hints = MODE_HINTS[mode];
+    if (hints) {
+      speakersHint.textContent =
+        mode === MODE_FAST && isFirstSunday && hints.firstSunday ? hints.firstSunday : hints.selected;
       return;
     }
     speakersHint.textContent = isFirstSunday

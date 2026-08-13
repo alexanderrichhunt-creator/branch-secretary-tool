@@ -627,12 +627,14 @@ def program_lines_after_sacrament(data: dict, talks=None) -> list[str]:
 
 SPEAKERS_MODE_TALKS = "talks"
 SPEAKERS_MODE_FAST_TESTIMONY = "fast_testimony"
+SPEAKERS_MODE_PRIMARY_PROGRAM = "primary_program"
 SPEAKERS_MODE_BRANCH_CONFERENCE = "branch_conference"
 SPEAKERS_MODE_STAKE_CONFERENCE = "stake_conference"
 SPEAKERS_MODE_GENERAL_CONFERENCE = "general_conference"
 
 TALK_KIND_ASSIGNED = "assigned"
 TALK_KIND_FAST_TESTIMONY = "fast_testimony"
+TALK_KIND_PRIMARY_PROGRAM = "primary_program"
 TALK_KIND_BRANCH_CONFERENCE = "branch_conference"
 TALK_KIND_STAKE_CONFERENCE = "stake_conference"
 TALK_KIND_GENERAL_CONFERENCE = "general_conference"
@@ -648,6 +650,14 @@ SPECIAL_MEETINGS = {
         "speakers_mode": SPEAKERS_MODE_FAST_TESTIMONY,
         "calendar_kind": "fast_testimony",
         "calendar_label": "Fast & Testimony Meeting",
+    },
+    TALK_KIND_PRIMARY_PROGRAM: {
+        "label": "Primary Program",
+        "short_label": "Primary Program",
+        "speakers_text": "Today the Primary will present the sacrament meeting program.",
+        "speakers_mode": SPEAKERS_MODE_PRIMARY_PROGRAM,
+        "calendar_kind": "primary_program",
+        "calendar_label": "Primary Program",
     },
     TALK_KIND_BRANCH_CONFERENCE: {
         "label": "Branch Conference",
@@ -680,6 +690,7 @@ SPECIAL_SPEAKERS_MODES = frozenset(meta["speakers_mode"] for meta in SPECIAL_MEE
 
 FAST_TESTIMONY_LABEL = SPECIAL_MEETINGS[TALK_KIND_FAST_TESTIMONY]["label"]
 FAST_TESTIMONY_SPEAKERS_TEXT = SPECIAL_MEETINGS[TALK_KIND_FAST_TESTIMONY]["speakers_text"]
+PRIMARY_PROGRAM_LABEL = SPECIAL_MEETINGS[TALK_KIND_PRIMARY_PROGRAM]["label"]
 BRANCH_CONFERENCE_LABEL = SPECIAL_MEETINGS[TALK_KIND_BRANCH_CONFERENCE]["label"]
 STAKE_CONFERENCE_LABEL = SPECIAL_MEETINGS[TALK_KIND_STAKE_CONFERENCE]["label"]
 GENERAL_CONFERENCE_LABEL = SPECIAL_MEETINGS[TALK_KIND_GENERAL_CONFERENCE]["label"]
@@ -710,6 +721,10 @@ def is_special_meeting_talk(talk) -> bool:
 
 def is_fast_testimony_talk(talk) -> bool:
     return special_meeting_kind(talk) == TALK_KIND_FAST_TESTIMONY
+
+
+def is_primary_program_talk(talk) -> bool:
+    return special_meeting_kind(talk) == TALK_KIND_PRIMARY_PROGRAM
 
 
 def is_branch_conference_talk(talk) -> bool:

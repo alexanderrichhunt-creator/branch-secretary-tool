@@ -80,6 +80,11 @@ CALENDAR_ITEM_STYLES = {
         "color": "#be185d",
         "border": "#9f1239",
     },
+    "primary_program": {
+        "label": "Primary Program",
+        "color": "#ca8a04",
+        "border": "#a16207",
+    },
     "branch_conference": {
         "label": "Branch Conference",
         "color": "#0d9488",

@@ -275,6 +275,7 @@ def _build_stream_cues(
 def build_stream_program(meeting_date: date, talks: list, *, saved_row=None) -> dict[str, Any]:
     """Assemble OBS-ready program JSON for one sacrament meeting date."""
     from .bulletin import (
+        SPECIAL_SPEAKERS_MODES,
         _format_meeting_date,
         bulletin_person_name,
         compose_bulletin_defaults_for_date,
@@ -304,12 +305,7 @@ def build_stream_program(meeting_date: date, talks: list, *, saved_row=None) -> 
 
     speakers, special_kind, special_meta = _speakers_payload(talks)
     speakers_mode = (bulletin.get("speakers_mode") or "talks").strip()
-    is_special = bool(special_kind) or speakers_mode in {
-        "fast_testimony",
-        "branch_conference",
-        "stake_conference",
-        "general_conference",
-    }
+    is_special = bool(special_kind) or speakers_mode in SPECIAL_SPEAKERS_MODES
     special_label = (special_meta or {}).get("label") if special_meta else None
     if is_special and not special_label:
         special_label = speakers_mode.replace("_", " ").title()
