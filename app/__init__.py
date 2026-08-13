@@ -60,12 +60,23 @@ def create_app():
     app.jinja_env.globals["member_label"] = _member_label
     app.jinja_env.globals["talk_speaker_label"] = _talk_speaker_label
     app.jinja_env.globals["interview_who_label"] = _interview_who_label
-    from .event_utils import EVENT_CATEGORIES, CALENDAR_ITEM_STYLES, event_category_label, recurrence_label
+    from .event_utils import (
+        EVENT_CATEGORIES,
+        CALENDAR_ITEM_STYLES,
+        NTH_WEEKDAY_CHOICES,
+        WEEKDAY_NAMES,
+        event_category_label,
+        recurrence_label,
+        recurrence_option,
+    )
 
     app.jinja_env.globals["EVENT_CATEGORIES"] = EVENT_CATEGORIES
     app.jinja_env.globals["CALENDAR_ITEM_STYLES"] = CALENDAR_ITEM_STYLES
     app.jinja_env.globals["event_category_label"] = event_category_label
     app.jinja_env.globals["recurrence_label"] = recurrence_label
+    app.jinja_env.globals["recurrence_option"] = recurrence_option
+    app.jinja_env.globals["WEEKDAY_NAMES"] = WEEKDAY_NAMES
+    app.jinja_env.globals["NTH_WEEKDAY_CHOICES"] = NTH_WEEKDAY_CHOICES
     return app
 
 
@@ -97,9 +108,15 @@ def _apply_schema_patches():
             conn.execute(
                 text("ALTER TABLE interview ADD COLUMN IF NOT EXISTS recurrence_until DATE")
             )
+            conn.execute(
+                text("ALTER TABLE interview ADD COLUMN IF NOT EXISTS recurrence_bysetpos INTEGER")
+            )
             conn.execute(text("ALTER TABLE talk ALTER COLUMN member_id DROP NOT NULL"))
             conn.execute(
                 text("ALTER TABLE event ADD COLUMN IF NOT EXISTS category VARCHAR(32)")
+            )
+            conn.execute(
+                text("ALTER TABLE event ADD COLUMN IF NOT EXISTS recurrence_bysetpos INTEGER")
             )
             conn.execute(
                 text(
@@ -209,6 +226,8 @@ def _sqlite_patch_talk_interview_schema(conn, engine, sa_inspect):
             conn.execute(text("ALTER TABLE interview ADD COLUMN recurrence_byweekday VARCHAR(32)"))
         if "recurrence_until" not in cols_i:
             conn.execute(text("ALTER TABLE interview ADD COLUMN recurrence_until DATE"))
+        if "recurrence_bysetpos" not in cols_i:
+            conn.execute(text("ALTER TABLE interview ADD COLUMN recurrence_bysetpos INTEGER"))
 
 
 def _sqlite_patch_event_schema(conn, engine, sa_inspect):
@@ -220,6 +239,8 @@ def _sqlite_patch_event_schema(conn, engine, sa_inspect):
     cols = {c["name"] for c in insp.get_columns("event")}
     if "category" not in cols:
         conn.execute(text("ALTER TABLE event ADD COLUMN category VARCHAR(32)"))
+    if "recurrence_bysetpos" not in cols:
+        conn.execute(text("ALTER TABLE event ADD COLUMN recurrence_bysetpos INTEGER"))
 
 
 def _sqlite_patch_bulletin_defaults_schema(conn, engine, sa_inspect):

@@ -1,0 +1,115 @@
+{# Shared repeat controls for events and interviews.
+   Expected: rec_id_prefix, rec_freq, rec_interval, rec_until, rec_byweekday, rec_bysetpos, weekday_codes
+   Optional: rec_hint
+#}
+{% set rec_id_prefix = rec_id_prefix or 'rec' %}
+{% set rec_freq = rec_freq or '' %}
+{% set rec_interval = rec_interval or 1 %}
+{% set rec_byweekday = rec_byweekday or '' %}
+{% set rec = namespace(option=rec_freq or 'none') %}
+{% if rec_freq == 'monthly' and rec_bysetpos %}
+  {% set rec.option = 'monthly_nth' %}
+{% elif rec_freq == 'weekly' and rec_interval == 2 %}
+  {% set rec.option = 'biweekly' %}
+{% elif rec_freq == 'weekly' and rec_interval == 3 %}
+  {% set rec.option = 'every_3_weeks' %}
+{% elif rec_freq == 'weekly' and rec_interval == 4 %}
+  {% set rec.option = 'every_4_weeks' %}
+{% elif rec_freq == 'weekly' %}
+  {% set rec.option = 'weekly' %}
+{% elif not rec_freq %}
+  {% set rec.option = 'none' %}
+{% endif %}
+{% set show_weekdays = rec.option in ['weekly', 'biweekly', 'every_3_weeks', 'every_4_weeks'] %}
+{% set show_nth = rec.option == 'monthly_nth' %}
+{% set selected_days = rec_byweekday.split(',') if rec_byweekday else [] %}
+{% set selected_nth_day = selected_days[0] if selected_days else '' %}
+<div class="row g-2 mb-3">
+  <div class="col-md-6">
+    <label class="form-label big-label" for="{{ rec_id_prefix }}_recurrence_freq">Repeat</label>
+    <select class="form-select form-select-lg cal-recurrence-freq" id="{{ rec_id_prefix }}_recurrence_freq" name="recurrence_freq">
+      <option value="none" {% if rec.option == 'none' %}selected{% endif %}>Does not repeat</option>
+      <option value="daily" {% if rec.option == 'daily' %}selected{% endif %}>Daily</option>
+      <option value="weekly" {% if rec.option == 'weekly' %}selected{% endif %}>Weekly</option>
+      <option value="biweekly" {% if rec.option == 'biweekly' %}selected{% endif %}>Every 2 weeks</option>
+      <option value="every_3_weeks" {% if rec.option == 'every_3_weeks' %}selected{% endif %}>Every 3 weeks</option>
+      <option value="every_4_weeks" {% if rec.option == 'every_4_weeks' %}selected{% endif %}>Every 4 weeks</option>
+      <option value="monthly" {% if rec.option == 'monthly' %}selected{% endif %}>Monthly (same date)</option>
+      <option value="monthly_nth" {% if rec.option == 'monthly_nth' %}selected{% endif %}>A specific weekday each month (4th Sunday, etc.)</option>
+    </select>
+    {% if rec_hint %}
+      <div class="form-text">{{ rec_hint }}</div>
+    {% endif %}
+  </div>
+  <div class="col-md-6">
+    <label class="form-label big-label" for="{{ rec_id_prefix }}_recurrence_until">Repeat until</label>
+    <input
+      class="form-control form-control-lg"
+      type="date"
+      id="{{ rec_id_prefix }}_recurrence_until"
+      name="recurrence_until"
+      value="{{ rec_until.isoformat() if rec_until else '' }}"
+    />
+    <div class="form-text">Leave blank to keep repeating until you stop the series.</div>
+  </div>
+</div>
+<div class="mb-3 cal-weekdays-wrap{% if not show_weekdays %} d-none{% endif %}" id="{{ rec_id_prefix }}_weekdays_wrap">
+  <div class="form-label big-label">On these days</div>
+  <div class="d-flex flex-wrap gap-2">
+    {% for code in weekday_codes %}
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="checkbox"
+          name="recurrence_byweekday"
+          value="{{ code }}"
+          id="{{ rec_id_prefix }}_wd_{{ code }}"
+          {% if code in selected_days %}checked{% endif %}
+        />
+        <label class="form-check-label" for="{{ rec_id_prefix }}_wd_{{ code }}">{{ WEEKDAY_NAMES.get(code, code) }}</label>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+<div class="mb-3 cal-monthly-nth-wrap{% if not show_nth %} d-none{% endif %}" id="{{ rec_id_prefix }}_monthly_nth_wrap">
+  <div class="form-label big-label">Which weekday each month</div>
+  <div class="row g-2">
+    <div class="col-6">
+      <label class="form-label" for="{{ rec_id_prefix }}_recurrence_bysetpos">Week</label>
+      <select class="form-select form-select-lg cal-recurrence-bysetpos" id="{{ rec_id_prefix }}_recurrence_bysetpos" name="recurrence_bysetpos">
+        {% for value, label in NTH_WEEKDAY_CHOICES %}
+          <option value="{{ value }}" {% if rec_bysetpos == value or (rec_bysetpos is none and value == 1) %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-6">
+      <label class="form-label" for="{{ rec_id_prefix }}_recurrence_nth_weekday">Day</label>
+      <select class="form-select form-select-lg cal-recurrence-nth-weekday" id="{{ rec_id_prefix }}_recurrence_nth_weekday" name="recurrence_nth_weekday">
+        {% for code in weekday_codes %}
+          <option value="{{ code }}" {% if selected_nth_day == code or (not selected_nth_day and code == 'SU') %}selected{% endif %}>{{ WEEKDAY_NAMES.get(code, code) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="form-text">Example: 4th Sunday, 1st Sunday, or last Wednesday.</div>
+</div>
+<script>
+  (function () {
+    var freq = document.getElementById({{ (rec_id_prefix ~ '_recurrence_freq')|tojson }});
+    var weekdays = document.getElementById({{ (rec_id_prefix ~ '_weekdays_wrap')|tojson }});
+    var nthWrap = document.getElementById({{ (rec_id_prefix ~ '_monthly_nth_wrap')|tojson }});
+    function isWeekly(value) {
+      return value === 'weekly' || value === 'biweekly' || value === 'every_3_weeks' || value === 'every_4_weeks';
+    }
+    function sync() {
+      if (!freq) return;
+      if (weekdays) weekdays.classList.toggle('d-none', !isWeekly(freq.value));
+      if (nthWrap) nthWrap.classList.toggle('d-none', freq.value !== 'monthly_nth');
+    }
+    if (freq && !freq.dataset.recurrenceFieldsBound) {
+      freq.dataset.recurrenceFieldsBound = '1';
+      freq.addEventListener('change', sync);
+    }
+    sync();
+  })();
+</script>

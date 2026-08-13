@@ -43,7 +43,7 @@
               </td>
               <td>
                 {% if e.recurrence_freq %}
-                  {{ e.recurrence_freq|title }}{% if e.recurrence_until %} until {{ e.recurrence_until.strftime("%b %d, %Y") }}{% endif %}
+                  {{ recurrence_label(e) }}
                 {% else %}
                   <span class="muted">—</span>
                 {% endif %}

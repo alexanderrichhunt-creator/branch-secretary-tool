@@ -47,33 +47,14 @@
           <input class="form-control form-control-lg" type="time" id="end_time" name="end_time" value="{{ (event.end_at or event.starts_at).strftime('%H:%M') }}" />
         </div>
       </div>
-      <div class="row g-2 mb-3">
-        <div class="col-md-6">
-          <label class="form-label big-label" for="recurrence_freq">Repeat</label>
-          <select class="form-select form-select-lg" id="recurrence_freq" name="recurrence_freq">
-            <option value="none" {% if not event.recurrence_freq %}selected{% endif %}>Does not repeat</option>
-            <option value="daily" {% if event.recurrence_freq == 'daily' %}selected{% endif %}>Daily</option>
-            <option value="weekly" {% if event.recurrence_freq == 'weekly' %}selected{% endif %}>Weekly</option>
-            <option value="monthly" {% if event.recurrence_freq == 'monthly' %}selected{% endif %}>Monthly</option>
-          </select>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label big-label" for="recurrence_until">Repeat until (optional)</label>
-          <input class="form-control form-control-lg" type="date" id="recurrence_until" name="recurrence_until" value="{{ event.recurrence_until.isoformat() if event.recurrence_until else '' }}" />
-        </div>
-      </div>
-      <div class="mb-3" id="weekdays-wrap">
-        <div class="form-label big-label">On these days</div>
-        <div class="d-flex flex-wrap gap-2">
-          {% set selected_days = (event.recurrence_byweekday or '').split(',') %}
-          {% for code in weekday_codes %}
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="recurrence_byweekday" value="{{ code }}" id="wd_{{ code }}" {% if code in selected_days %}checked{% endif %} />
-              <label class="form-check-label" for="wd_{{ code }}">{{ code }}</label>
-            </div>
-          {% endfor %}
-        </div>
-      </div>
+      {% set rec_id_prefix = 'event' %}
+      {% set rec_freq = event.recurrence_freq or '' %}
+      {% set rec_interval = event.recurrence_interval or 1 %}
+      {% set rec_until = event.recurrence_until %}
+      {% set rec_byweekday = event.recurrence_byweekday or '' %}
+      {% set rec_bysetpos = event.recurrence_bysetpos %}
+      {% set rec_hint = 'Use this for standing meetings, like every 2 weeks or the 4th Sunday.' %}
+      {% include 'partials/recurrence_fields.html' %}
       <div class="mb-3">
         <label class="form-label big-label" for="location">Location (optional)</label>
         <input class="form-control form-control-lg" type="text" id="location" name="location" value="{{ event.location or '' }}" />
@@ -104,22 +85,14 @@
     const timeRow = document.getElementById('time-row');
     const startTime = document.getElementById('start_time');
     const endTime = document.getElementById('end_time');
-    const freq = document.getElementById('recurrence_freq');
-    const weekdays = document.getElementById('weekdays-wrap');
-
     function syncAllDay() {
       const on = allDay && allDay.checked;
       if (timeRow) timeRow.classList.toggle('d-none', on);
       if (startTime) { startTime.disabled = on; startTime.required = !on; }
       if (endTime) { endTime.disabled = on; endTime.required = !on; }
     }
-    function syncWeekdays() {
-      if (weekdays && freq) weekdays.classList.toggle('d-none', freq.value !== 'weekly');
-    }
     if (allDay) allDay.addEventListener('change', syncAllDay);
-    if (freq) freq.addEventListener('change', syncWeekdays);
     syncAllDay();
-    syncWeekdays();
   })();
 </script>
 {% endblock %}

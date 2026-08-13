@@ -146,15 +146,21 @@ def _parse_interview_who_submission():
 
 
 def _apply_recurrence_from_form(obj, starts_at: datetime) -> None:
-    from .event_utils import WEEKDAY_CODES, parse_recurrence_form
+    from dataclasses import replace
 
-    freq, interval, byweekday, until = parse_recurrence_form(request.form)
-    if freq == "weekly" and not byweekday:
-        byweekday = WEEKDAY_CODES[starts_at.weekday()]
-    obj.recurrence_freq = freq
-    obj.recurrence_interval = interval
-    obj.recurrence_byweekday = byweekday
-    obj.recurrence_until = until
+    from .event_utils import WEEKDAY_CODES, parse_recurrence_form, weekday_nth_from_date
+
+    spec = parse_recurrence_form(request.form)
+    if spec.freq == "weekly" and not spec.byweekday:
+        spec = replace(spec, byweekday=WEEKDAY_CODES[starts_at.weekday()])
+    if spec.freq == "monthly" and spec.bysetpos and not spec.byweekday:
+        _nth, code = weekday_nth_from_date(starts_at.date())
+        spec = replace(spec, byweekday=code)
+    obj.recurrence_freq = spec.freq
+    obj.recurrence_interval = spec.interval
+    obj.recurrence_byweekday = spec.byweekday
+    obj.recurrence_until = spec.until
+    obj.recurrence_bysetpos = spec.bysetpos
 
 
 def _next_interview_occurrence(interview: Interview, after: datetime | None = None) -> datetime | None:
@@ -1445,7 +1451,7 @@ def events():
 @main_bp.post("/events/add")
 @login_required
 def add_event():
-    from .event_utils import normalize_event_category, parse_recurrence_form
+    from .event_utils import normalize_event_category
 
     title = (request.form.get("title") or "").strip()
     notes = (request.form.get("notes") or "").strip() or None
@@ -1455,10 +1461,6 @@ def add_event():
     if err:
         return _calendar_form_error(err, _redirect_after_event_action)
 
-    freq, interval, byweekday, until = parse_recurrence_form(request.form)
-    if freq == "weekly" and not byweekday:
-        weekday_codes = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
-        byweekday = weekday_codes[starts_at.weekday()]
     event = Event(
         title=title or "Untitled event",
         notes=notes,
@@ -1466,15 +1468,13 @@ def add_event():
         starts_at=starts_at,
         end_at=end_at,
         all_day=all_day,
-        recurrence_freq=freq,
-        recurrence_interval=interval,
-        recurrence_byweekday=byweekday,
-        recurrence_until=until,
         category=category,
     )
+    _apply_recurrence_from_form(event, starts_at)
     db.session.add(event)
     db.session.commit()
-    return _calendar_form_success("Event saved.", _redirect_after_event_action)
+    saved_msg = "Repeating event saved." if event.recurrence_freq else "Event saved."
+    return _calendar_form_success(saved_msg, _redirect_after_event_action)
 
 
 @main_bp.get("/events/<int:event_id>/edit")
@@ -1495,7 +1495,7 @@ def edit_event(event_id: int):
 @main_bp.post("/events/<int:event_id>/edit")
 @login_required
 def edit_event_post(event_id: int):
-    from .event_utils import normalize_event_category, parse_recurrence_form
+    from .event_utils import normalize_event_category
 
     event = Event.query.get_or_404(event_id)
     title = (request.form.get("title") or "").strip()
@@ -1506,21 +1506,14 @@ def edit_event_post(event_id: int):
     if err or not title:
         return _edit_event_form_error(event_id, err or "Title is required.")
 
-    freq, interval, byweekday, until = parse_recurrence_form(request.form)
-    if freq == "weekly" and not byweekday:
-        weekday_codes = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
-        byweekday = weekday_codes[starts_at.weekday()]
     event.title = title
     event.notes = notes
     event.location = location
     event.starts_at = starts_at
     event.end_at = end_at
     event.all_day = all_day
-    event.recurrence_freq = freq
-    event.recurrence_interval = interval
-    event.recurrence_byweekday = byweekday
-    event.recurrence_until = until
     event.category = category
+    _apply_recurrence_from_form(event, starts_at)
     db.session.commit()
     flash("Event updated.", "success")
     return _redirect_after_event_edit(event_id)

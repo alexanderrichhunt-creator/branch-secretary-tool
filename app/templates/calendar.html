@@ -269,32 +269,14 @@
                   <input class="form-control form-control-lg cal-end-time" type="time" id="end_time_event" name="end_time" value="10:00" />
                 </div>
               </div>
-              <div class="row g-2 mb-3">
-                <div class="col-md-6">
-                  <label class="form-label big-label" for="recurrence_freq">Repeat</label>
-                  <select class="form-select form-select-lg cal-recurrence-freq" id="recurrence_freq" name="recurrence_freq">
-                    <option value="none">Does not repeat</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                  </select>
-                </div>
-                <div class="col-md-6 cal-repeat-until-wrap">
-                  <label class="form-label big-label" for="recurrence_until">Repeat until (optional)</label>
-                  <input class="form-control form-control-lg" type="date" id="recurrence_until" name="recurrence_until" />
-                </div>
-              </div>
-              <div class="mb-3 cal-weekdays-wrap d-none">
-                <div class="form-label big-label">On these days</div>
-                <div class="d-flex flex-wrap gap-2">
-                  {% for code in weekday_codes %}
-                    <div class="form-check">
-                      <input class="form-check-input" type="checkbox" name="recurrence_byweekday" value="{{ code }}" id="wd_event_{{ code }}" />
-                      <label class="form-check-label" for="wd_event_{{ code }}">{{ code }}</label>
-                    </div>
-                  {% endfor %}
-                </div>
-              </div>
+              {% set rec_id_prefix = 'cal_event' %}
+              {% set rec_freq = '' %}
+              {% set rec_interval = 1 %}
+              {% set rec_until = none %}
+              {% set rec_byweekday = '' %}
+              {% set rec_bysetpos = none %}
+              {% set rec_hint = 'Use this for standing meetings, like every 2 weeks or the 4th Sunday.' %}
+              {% include 'partials/recurrence_fields.html' %}
               <div class="mb-3">
                 <label class="form-label big-label" for="event_location">Location (optional)</label>
                 <input class="form-control form-control-lg" type="text" id="event_location" name="location" placeholder="Chapel, Zoom link, etc." />
@@ -358,6 +340,7 @@
               {% set rec_interval = 1 %}
               {% set rec_until = none %}
               {% set rec_byweekday = '' %}
+              {% set rec_bysetpos = none %}
               {% include 'partials/interview_recurrence_fields.html' %}
               <div class="mb-3">
                 <label class="form-label big-label" for="interview_notes">Notes (optional)</label>
