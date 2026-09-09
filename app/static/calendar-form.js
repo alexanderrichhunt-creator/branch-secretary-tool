@@ -221,6 +221,31 @@
     return speakers;
   }
 
+  function suggestionSortOrder(suggestion) {
+    const raw = suggestion && (suggestion.sort_order != null ? suggestion.sort_order : suggestion.sortOrder);
+    const n = Number(raw);
+    if (n >= 1 && n <= 4) return n;
+    return 1;
+  }
+
+  function showSpeakerSlotsThrough(form, slotNum) {
+    if (!form) return;
+    form.querySelectorAll(".cal-speaker-slot").forEach(function (slot) {
+      const n = Number(slot.getAttribute("data-slot") || "0");
+      slot.classList.toggle("d-none", n < 1 || n > slotNum);
+      if (n <= slotNum && n > 1 && window.MemberSelectFilter) {
+        window.MemberSelectFilter.bindWithin(slot);
+      }
+      if (n <= slotNum && n > 1 && window.CallingSelectFilter) {
+        window.CallingSelectFilter.bindWithin(slot);
+      }
+    });
+    const addBtn = form.querySelector("#calAddSpeakerSlot");
+    if (addBtn) {
+      addBtn.classList.toggle("d-none", !form.querySelector(".cal-speaker-slot.d-none"));
+    }
+  }
+
   function fillTalkFromSuggestion(suggestion) {
     const form = document.getElementById("calTalkForm");
     if (!form || !suggestion) return;
@@ -229,7 +254,9 @@
     if (idField) idField.value = suggestion.id ? String(suggestion.id) : "";
 
     resetSpeakerSlots(form);
-    const slot = form.querySelector('.cal-speaker-slot[data-slot="1"]');
+    const order = suggestionSortOrder(suggestion);
+    showSpeakerSlotsThrough(form, order);
+    const slot = form.querySelector('.cal-speaker-slot[data-slot="' + order + '"]');
     if (!slot) return;
 
     const member = slot.querySelector('select[id^="cal_talk_member_id_"]');
@@ -578,9 +605,6 @@
 
       resetRecurrenceForms(titleDate);
 
-      if (opts.suggestion) {
-        fillTalkFromSuggestion(opts.suggestion);
-      }
       if (opts.tab) {
         activateCreateTab(opts.tab);
       } else {
@@ -588,6 +612,9 @@
       }
 
       dispatchTalkDateChange();
+      if (opts.suggestion) {
+        fillTalkFromSuggestion(opts.suggestion);
+      }
       this.modal.show();
     },
   };

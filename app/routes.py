@@ -67,6 +67,17 @@ def _daygrid_list_title(kind: str, full_title: str) -> str:
     return _short_calendar_title(text, 26)
 
 
+def _color_alpha(hex_color: str, alpha: float) -> str:
+    raw = (hex_color or "").lstrip("#")
+    if len(raw) != 6:
+        return hex_color
+    try:
+        red, green, blue = int(raw[0:2], 16), int(raw[2:4], 16), int(raw[4:6], 16)
+    except ValueError:
+        return hex_color
+    return f"rgba({red}, {green}, {blue}, {alpha})"
+
+
 def _apply_compact_daygrid_event(event: dict, kind: str) -> dict:
     from .event_utils import FEATURED_CALENDAR_KINDS
 
@@ -78,7 +89,11 @@ def _apply_compact_daygrid_event(event: dict, kind: str) -> dict:
         if "cal-featured-event" not in classes:
             classes.append("cal-featured-event")
         event["display"] = "block"
-        event["textColor"] = "#fff"
+        bg = event.get("backgroundColor") or event.get("borderColor") or "#2563eb"
+        border = event.get("borderColor") or bg
+        event["backgroundColor"] = _color_alpha(bg, 0.16)
+        event["borderColor"] = _color_alpha(border, 0.5)
+        event["textColor"] = bg
     else:
         if "cal-compact-event" not in classes:
             classes.append("cal-compact-event")
@@ -279,6 +294,16 @@ def _suggested_talk_calendar_title(st: SuggestedTalk) -> str:
     if topic:
         return f"{order_prefix}Suggested topic: {topic}"
     return f"{order_prefix}Suggested talk".strip() or "Suggested talk"
+
+
+def _suggested_talk_by_id(raw_id) -> SuggestedTalk | None:
+    try:
+        suggestion_id = int(raw_id)
+    except (TypeError, ValueError):
+        return None
+    if suggestion_id <= 0:
+        return None
+    return SuggestedTalk.query.get(suggestion_id)
 
 
 def _suggested_talk_payload(st: SuggestedTalk) -> dict:
@@ -1124,6 +1149,14 @@ def add_talk():
         member_id = None
         calling = None
 
+    requested_order = _parse_talk_sort_order()
+    suggested_id_raw = (request.form.get("suggested_talk_id") or "").strip()
+    suggested = _suggested_talk_by_id(suggested_id_raw)
+    if not is_special and requested_order not in range(1, MAX_TALKS_PER_SACRAMENT_WEEK + 1):
+        suggested_order = getattr(suggested, "sort_order", 0) or 0
+        if suggested_order in range(1, MAX_TALKS_PER_SACRAMENT_WEEK + 1):
+            requested_order = suggested_order
+
     t = Talk(
         member_id=member_id,
         speaker_text=speaker_text,
@@ -1131,20 +1164,14 @@ def add_talk():
         talk_date=talk_date,
         topic=topic,
         notes=notes,
-        sort_order=0 if is_special else _resolve_talk_sort_order(talk_date, _parse_talk_sort_order()),
+        sort_order=0 if is_special else _resolve_talk_sort_order(talk_date, requested_order),
     )
     db.session.add(t)
     db.session.commit()
 
-    suggested_id_raw = (request.form.get("suggested_talk_id") or "").strip()
-    if suggested_id_raw:
-        try:
-            suggested = SuggestedTalk.query.get(int(suggested_id_raw))
-            if suggested:
-                db.session.delete(suggested)
-                db.session.commit()
-        except ValueError:
-            pass
+    if suggested:
+        db.session.delete(suggested)
+        db.session.commit()
 
     _refresh_bulletin_draft_speakers(talk_date)
 
@@ -1223,6 +1250,12 @@ def api_add_calendar_talks():
     if not cleaned:
         return jsonify({"ok": False, "error": "Add at least one speaker."}), 400
 
+    suggested = _suggested_talk_by_id(payload.get("suggested_talk_id") or "")
+    if suggested and len(cleaned) == 1:
+        suggested_order = suggested.sort_order or 0
+        if suggested_order in range(1, MAX_TALKS_PER_SACRAMENT_WEEK + 1):
+            cleaned[0]["sort_order"] = suggested_order
+
     existing = _talks_in_week(talk_date)
     if existing + len(cleaned) > MAX_TALKS_PER_SACRAMENT_WEEK:
         return jsonify(
@@ -1253,14 +1286,8 @@ def api_add_calendar_talks():
         db.session.add(t)
         created += 1
 
-    suggested_id_raw = (payload.get("suggested_talk_id") or "")
-    if suggested_id_raw:
-        try:
-            suggested = SuggestedTalk.query.get(int(suggested_id_raw))
-            if suggested:
-                db.session.delete(suggested)
-        except (TypeError, ValueError):
-            pass
+    if suggested:
+        db.session.delete(suggested)
 
     db.session.commit()
     _refresh_bulletin_draft_speakers(talk_date)

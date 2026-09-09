@@ -564,14 +564,14 @@ body {
   margin: 1px 2px 3px;
   padding: 3px 7px;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.25;
   box-shadow: none;
 }
 
 .calendar-page .fc .fc-daygrid-event.cal-featured-event .fc-event-title,
 .calendar-page .fc .fc-daygrid-block-event.cal-featured-event .fc-event-title {
-  font-weight: 700;
+  font-weight: 650;
   color: inherit;
   white-space: nowrap;
   overflow: hidden;
