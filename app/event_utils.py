@@ -117,6 +117,18 @@ CALENDAR_ITEM_STYLES = {
     },
 }
 
+# Sacrament talks and meeting types — boxed on the calendar above interviews/events.
+FEATURED_CALENDAR_KINDS = frozenset(
+    {
+        "talk",
+        "fast_testimony",
+        "primary_program",
+        "branch_conference",
+        "stake_conference",
+        "general_conference",
+    }
+)
+
 
 def normalize_event_category(raw: str | None) -> str | None:
     slug = (raw or "").strip().lower()

@@ -28,29 +28,38 @@
           <div class="fw-semibold">{{ week.sacrament_date.strftime("%A, %b %d, %Y") }}</div>
           <div class="small muted">Week of {{ week.week_start.strftime("%b %d") }} – {{ week.week_end.strftime("%b %d, %Y") }}</div>
 
-          {% if week.has_special_meeting %}
+          {% if week.other_special_meetings or week.has_special_meeting or week.regular_talks %}
             <div class="data-list mt-3">
-              <div class="data-list-item">
-                <div class="data-list-meta">&nbsp;</div>
-                <div>
-                  <div class="data-list-title">{{ week.special_meeting_label }}</div>
-                </div>
-              </div>
-            </div>
-          {% elif week.regular_talks %}
-            <div class="data-list mt-3">
-              {% for t in week.regular_talks %}
+              {% for item in week.other_special_meetings %}
                 <div class="data-list-item">
-                  <div class="data-list-meta">
-                    {% if t.sort_order %}#{{ t.sort_order }}{% else %}{{ t.talk_date.strftime("%a %b %d") }}{% endif %}
-                  </div>
+                  <div class="data-list-meta">{{ item.date.strftime("%a") }}</div>
                   <div>
-                    <div class="data-list-title">{{ talk_speaker_label(t) }}</div>
-                    {% if t.topic %}<div class="data-list-sub">{{ t.topic }}</div>{% endif %}
+                    <div class="data-list-title">{{ item.label }}</div>
                   </div>
-                  <a class="small" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
+                  <a class="small" href="{{ url_for('main.edit_talk', talk_id=item.talk_id) }}">Edit</a>
                 </div>
               {% endfor %}
+              {% if week.has_special_meeting %}
+                <div class="data-list-item">
+                  <div class="data-list-meta">&nbsp;</div>
+                  <div>
+                    <div class="data-list-title">{{ week.special_meeting_label }}</div>
+                  </div>
+                </div>
+              {% else %}
+                {% for t in week.regular_talks %}
+                  <div class="data-list-item">
+                    <div class="data-list-meta">
+                      {% if t.sort_order %}#{{ t.sort_order }}{% else %}{{ t.talk_date.strftime("%a %b %d") }}{% endif %}
+                    </div>
+                    <div>
+                      <div class="data-list-title">{{ talk_speaker_label(t) }}</div>
+                      {% if t.topic %}<div class="data-list-sub">{{ t.topic }}</div>{% endif %}
+                    </div>
+                    <a class="small" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
+                  </div>
+                {% endfor %}
+              {% endif %}
             </div>
           {% else %}
             <div class="muted small mt-2">No talks logged for this week yet.</div>
@@ -79,11 +88,11 @@
               {% endif %}
 
               {% set group_count = group.regular_talk_count %}
-              <div class="dashboard-sunday-group{% if not group.regular_talks and not group.has_special_meeting %} dashboard-sunday-group-empty{% endif %}">
+              <div class="dashboard-sunday-group{% if not group.regular_talks and not group.has_special_meeting and not group.other_special_meetings %} dashboard-sunday-group-empty{% endif %}">
                 <div class="dashboard-sunday-header">
                   <div>
                     <div class="fw-semibold">{{ group.sacrament_date.strftime("%A, %b %d, %Y") }}</div>
-                    {% if not group.regular_talks and not group.has_special_meeting %}
+                    {% if not group.regular_talks and not group.has_special_meeting and not group.other_special_meetings %}
                       <div class="small muted">No talks logged</div>
                     {% endif %}
                   </div>
@@ -99,35 +108,44 @@
                   {% endif %}
                 </div>
 
-                {% if group.has_special_meeting %}
+                {% if group.other_special_meetings or group.has_special_meeting or group.regular_talks %}
                   <div class="data-list mt-2">
-                    <div class="data-list-item">
-                      <div class="data-list-meta">&nbsp;</div>
-                      <div>
-                        <div class="data-list-title">{{ group.special_meeting_label }}</div>
-                      </div>
-                    </div>
-                  </div>
-                {% elif group.regular_talks %}
-                  <div class="data-list mt-2">
-                    {% for t in group.regular_talks %}
+                    {% for item in group.other_special_meetings %}
                       <div class="data-list-item">
-                        <div class="data-list-meta">
-                          {% if group.regular_talks|length > 1 and t.sort_order %}
-                            #{{ t.sort_order }}
-                          {% elif group.regular_talks|length > 1 and t.talk_date != group.sacrament_date %}
-                            {{ t.talk_date.strftime("%a %b %d") }}
-                          {% else %}
-                            &nbsp;
-                          {% endif %}
-                        </div>
+                        <div class="data-list-meta">{{ item.date.strftime("%a") }}</div>
                         <div>
-                          <div class="data-list-title">{{ talk_speaker_label(t) }}</div>
-                          {% if t.topic %}<div class="data-list-sub">{{ t.topic }}</div>{% endif %}
+                          <div class="data-list-title">{{ item.label }}</div>
                         </div>
-                        <a class="small" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
+                        <a class="small" href="{{ url_for('main.edit_talk', talk_id=item.talk_id) }}">Edit</a>
                       </div>
                     {% endfor %}
+                    {% if group.has_special_meeting %}
+                      <div class="data-list-item">
+                        <div class="data-list-meta">&nbsp;</div>
+                        <div>
+                          <div class="data-list-title">{{ group.special_meeting_label }}</div>
+                        </div>
+                      </div>
+                    {% else %}
+                      {% for t in group.regular_talks %}
+                        <div class="data-list-item">
+                          <div class="data-list-meta">
+                            {% if group.regular_talks|length > 1 and t.sort_order %}
+                              #{{ t.sort_order }}
+                            {% elif group.regular_talks|length > 1 and t.talk_date != group.sacrament_date %}
+                              {{ t.talk_date.strftime("%a %b %d") }}
+                            {% else %}
+                              &nbsp;
+                            {% endif %}
+                          </div>
+                          <div>
+                            <div class="data-list-title">{{ talk_speaker_label(t) }}</div>
+                            {% if t.topic %}<div class="data-list-sub">{{ t.topic }}</div>{% endif %}
+                          </div>
+                          <a class="small" href="{{ url_for('main.edit_talk', talk_id=t.id) }}">Edit</a>
+                        </div>
+                      {% endfor %}
+                    {% endif %}
                   </div>
                 {% endif %}
               </div>

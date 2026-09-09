@@ -556,6 +556,33 @@ body {
   flex-shrink: 0;
 }
 
+.calendar-page .fc .fc-daygrid-event.cal-featured-event,
+.calendar-page .fc .fc-daygrid-block-event.cal-featured-event {
+  border-width: 1px !important;
+  border-style: solid !important;
+  border-radius: 5px;
+  margin: 1px 2px 3px;
+  padding: 3px 7px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.25;
+  box-shadow: none;
+}
+
+.calendar-page .fc .fc-daygrid-event.cal-featured-event .fc-event-title,
+.calendar-page .fc .fc-daygrid-block-event.cal-featured-event .fc-event-title {
+  font-weight: 700;
+  color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-page .fc .fc-timegrid-event.cal-featured-event {
+  border-width: 1px;
+  font-weight: 700;
+}
+
 .calendar-page .fc .fc-daygrid-event.cal-compact-event,
 .calendar-page .fc .fc-daygrid-dot-event.cal-compact-event {
   background: transparent !important;

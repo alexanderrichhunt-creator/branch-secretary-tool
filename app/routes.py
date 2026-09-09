@@ -68,14 +68,24 @@ def _daygrid_list_title(kind: str, full_title: str) -> str:
 
 
 def _apply_compact_daygrid_event(event: dict, kind: str) -> dict:
+    from .event_utils import FEATURED_CALENDAR_KINDS
+
     classes = list(event.get("classNames") or [])
-    for cls in ("cal-compact-event", f"cal-event-{kind}"):
-        if cls not in classes:
-            classes.append(cls)
+    kind_cls = f"cal-event-{kind}"
+    if kind_cls not in classes:
+        classes.append(kind_cls)
+    if kind in FEATURED_CALENDAR_KINDS:
+        if "cal-featured-event" not in classes:
+            classes.append("cal-featured-event")
+        event["display"] = "block"
+        event["textColor"] = "#fff"
+    else:
+        if "cal-compact-event" not in classes:
+            classes.append("cal-compact-event")
+        accent = event.get("borderColor") or event.get("backgroundColor")
+        if accent and kind != "suggested_talk":
+            event["textColor"] = accent
     event["classNames"] = classes
-    accent = event.get("borderColor") or event.get("backgroundColor")
-    if accent and kind != "suggested_talk":
-        event["textColor"] = accent
     return event
 
 
@@ -331,10 +341,27 @@ def _week_talks(talk_date: date, exclude_talk_id: int | None = None) -> list[Tal
     return q.all()
 
 
+def _date_talks(talk_date: date, exclude_talk_id: int | None = None) -> list[Talk]:
+    q = Talk.query.filter(Talk.talk_date == talk_date)
+    if exclude_talk_id:
+        q = q.filter(Talk.id != exclude_talk_id)
+    return q.all()
+
+
 def _talks_in_week(talk_date: date, exclude_talk_id: int | None = None) -> int:
     from .bulletin import is_special_meeting_talk
 
     return sum(1 for t in _week_talks(talk_date, exclude_talk_id) if not is_special_meeting_talk(t))
+
+
+def _date_special_meeting_kind(talk_date: date, exclude_talk_id: int | None = None) -> str | None:
+    from .bulletin import special_meeting_kind
+
+    for talk in _date_talks(talk_date, exclude_talk_id):
+        kind = special_meeting_kind(talk)
+        if kind:
+            return kind
+    return None
 
 
 def _week_special_meeting_kind(talk_date: date, exclude_talk_id: int | None = None) -> str | None:
@@ -356,19 +383,21 @@ def _week_has_fast_testimony(talk_date: date, exclude_talk_id: int | None = None
 
 
 def _validate_talk_week(talk_date: date, talk_kind: str, *, exclude_talk_id: int | None = None) -> str | None:
-    from .bulletin import SPECIAL_MEETINGS, is_special_talk_kind
+    from .bulletin import SPECIAL_MEETINGS, is_special_meeting_talk, is_special_talk_kind
 
+    # Special meetings occupy that calendar day only, so Saturday General
+    # Conference does not block Sunday sacrament in the same week.
     if is_special_talk_kind(talk_kind):
-        existing = _week_special_meeting_kind(talk_date, exclude_talk_id)
+        existing = _date_special_meeting_kind(talk_date, exclude_talk_id)
         if existing:
-            return f"That week already has a {SPECIAL_MEETINGS[existing]['short_label']} logged."
-        if _talks_in_week(talk_date, exclude_talk_id) > 0:
-            return "That week already has assigned speakers logged."
+            return f"That day already has a {SPECIAL_MEETINGS[existing]['short_label']} logged."
+        if any(not is_special_meeting_talk(t) for t in _date_talks(talk_date, exclude_talk_id)):
+            return "That day already has assigned speakers logged."
         return None
 
-    existing = _week_special_meeting_kind(talk_date, exclude_talk_id)
+    existing = _date_special_meeting_kind(talk_date, exclude_talk_id)
     if existing:
-        return f"That week is marked as a {SPECIAL_MEETINGS[existing]['short_label']}."
+        return f"That day is marked as a {SPECIAL_MEETINGS[existing]['short_label']}."
     if _talks_in_week(talk_date, exclude_talk_id) >= MAX_TALKS_PER_SACRAMENT_WEEK:
         return f"That week already has {MAX_TALKS_PER_SACRAMENT_WEEK} talks logged."
     return None
@@ -450,17 +479,35 @@ def _resolve_suggested_sort_order(
     return _auto_suggested_sort_order(suggested_date, exclude_id)
 
 
-def _talk_week_meta(talks: list[Talk]) -> dict:
+def _talk_week_meta(talks: list[Talk], sacrament_date: date | None = None) -> dict:
     from .bulletin import SPECIAL_MEETINGS, sort_assigned_talks, special_meeting_kind
 
+    sunday_talks = [t for t in talks if t.talk_date == sacrament_date] if sacrament_date else list(talks)
     regular = sort_assigned_talks(talks)
-    special_kind = _week_special_meeting_kind_from_talks(talks)
+    special_kind = _week_special_meeting_kind_from_talks(sunday_talks)
     special_meta = SPECIAL_MEETINGS.get(special_kind) if special_kind else None
+    other_specials = []
+    for talk in talks:
+        kind = special_meeting_kind(talk)
+        if not kind:
+            continue
+        if sacrament_date and talk.talk_date == sacrament_date:
+            continue
+        meta = SPECIAL_MEETINGS.get(kind) or {}
+        other_specials.append(
+            {
+                "talk_id": talk.id,
+                "label": meta.get("short_label") or kind,
+                "date": talk.talk_date,
+            }
+        )
+    other_specials.sort(key=lambda item: item["date"])
     return {
         "has_fast_testimony": special_kind == "fast_testimony",
         "has_special_meeting": bool(special_kind),
         "special_meeting_kind": special_kind,
         "special_meeting_label": special_meta["short_label"] if special_meta else None,
+        "other_special_meetings": other_specials,
         "regular_talk_count": len(regular),
         "regular_talks": regular,
     }
@@ -495,7 +542,7 @@ def _build_current_talk_week(recent_talks: list[Talk], today: date) -> dict:
         "week_end": week_start + timedelta(days=6),
         "sacrament_date": sacrament_date,
         "talks": week_talks,
-        **_talk_week_meta(week_talks),
+        **_talk_week_meta(week_talks, sacrament_date),
     }
 
 
@@ -529,7 +576,7 @@ def _build_talk_sunday_groups(
                     "week_end": week_start + timedelta(days=6),
                     "talks": talks,
                     "month_label": week_start.strftime("%B %Y"),
-                    **_talk_week_meta(talks),
+                    **_talk_week_meta(talks, week_start),
                 }
             )
         week_start -= timedelta(days=7)
@@ -1881,13 +1928,19 @@ def api_events():
 
 
 def _talks_for_bulletin_date(talk_date: date) -> list[Talk]:
-    from .bulletin import talk_sort_key
+    from .bulletin import is_special_meeting_talk, talk_sort_key
 
     talks = Talk.query.filter_by(talk_date=talk_date).all()
     if not talks:
         week_start = _week_start_sunday(talk_date)
         week_end = week_start + timedelta(days=6)
-        talks = Talk.query.filter(Talk.talk_date >= week_start, Talk.talk_date <= week_end).all()
+        week_talks = Talk.query.filter(Talk.talk_date >= week_start, Talk.talk_date <= week_end).all()
+        # Don't pull Saturday conference onto Sunday's bulletin (or the reverse).
+        talks = [
+            t
+            for t in week_talks
+            if t.talk_date == talk_date or not is_special_meeting_talk(t)
+        ]
     return sorted(talks, key=talk_sort_key)
 
 
