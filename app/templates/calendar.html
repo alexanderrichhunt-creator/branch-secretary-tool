@@ -203,7 +203,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-outline-danger cal-delete-suggestion-btn d-none">Delete</button>
+        <button type="button" class="btn btn-outline-danger cal-delete-item-btn cal-delete-suggestion-btn d-none">Delete</button>
         <button type="button" class="btn btn-primary cal-schedule-suggestion-btn d-none">Schedule as talk</button>
         <a class="btn btn-outline-primary cal-edit-link" href="#">Edit</a>
       </div>
@@ -570,7 +570,9 @@
 
     const scheduleSuggestionBtn = eventModalEl ? eventModalEl.querySelector(".cal-schedule-suggestion-btn") : null;
     const editLink = eventModalEl ? eventModalEl.querySelector(".cal-edit-link") : null;
-    const deleteSuggestionBtn = eventModalEl ? eventModalEl.querySelector(".cal-delete-suggestion-btn") : null;
+    const deleteItemBtn = eventModalEl
+      ? eventModalEl.querySelector(".cal-delete-item-btn, .cal-delete-suggestion-btn")
+      : null;
     if (scheduleSuggestionBtn) {
       scheduleSuggestionBtn.addEventListener("click", function () {
         const props = window.CalEventDetail && window.CalEventDetail.lastProps;
@@ -586,17 +588,29 @@
         }
       });
     }
-    if (deleteSuggestionBtn) {
-      deleteSuggestionBtn.addEventListener("click", async function () {
+    if (deleteItemBtn) {
+      deleteItemBtn.addEventListener("click", async function () {
         const props = window.CalEventDetail && window.CalEventDetail.lastProps;
-        if (!props || props.kind !== "suggested_talk" || !props.suggestionId) return;
-        if (!window.confirm("Remove this suggested speaker?")) return;
+        if (!props) return;
+        const deleteUrl =
+          props.deleteUrl ||
+          (props.kind === "suggested_talk" && props.suggestionId
+            ? "/api/suggested-talks/" + encodeURIComponent(props.suggestionId) + "/delete"
+            : "");
+        if (!deleteUrl) return;
+        if (!window.confirm(props.deleteConfirm || "Delete this item?")) return;
         try {
-          const res = await fetch(
-            "/api/suggested-talks/" + encodeURIComponent(props.suggestionId) + "/delete",
-            { method: "POST" }
-          );
-          if (!res.ok) return;
+          const res = await fetch(deleteUrl, {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "X-Requested-With": "fetch",
+            },
+          });
+          const data = await res.json().catch(function () {
+            return {};
+          });
+          if (!res.ok || data.ok === false) return;
           if (eventModal) eventModal.hide();
           if (window.SuggestedTalks && window.SuggestedTalks.refresh) {
             await window.SuggestedTalks.refresh();

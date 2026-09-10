@@ -656,7 +656,12 @@ def _edit_event_form_error(event_id: int, message: str):
 
 
 def _form_wants_json() -> bool:
-    return (request.form.get("respond_json") or "").strip() == "1"
+    if (request.form.get("respond_json") or "").strip() == "1":
+        return True
+    return (request.headers.get("X-Requested-With") or "").strip().lower() in (
+        "fetch",
+        "xmlhttprequest",
+    )
 
 
 def _calendar_form_error(message: str, redirect_fn):
@@ -1385,6 +1390,8 @@ def delete_talk(talk_id: int):
     db.session.delete(talk)
     db.session.commit()
     _refresh_bulletin_draft_speakers(talk_date)
+    if _form_wants_json():
+        return jsonify({"ok": True, "message": "Talk deleted."})
     flash("Talk deleted.", "success")
     return _redirect_after_talk_edit(talk_id)
 
@@ -1511,7 +1518,10 @@ def delete_interview(interview_id: int):
     was_series = bool(interview.recurrence_freq)
     db.session.delete(interview)
     db.session.commit()
-    flash("Interview series deleted." if was_series else "Interview deleted.", "success")
+    message = "Interview series deleted." if was_series else "Interview deleted."
+    if _form_wants_json():
+        return jsonify({"ok": True, "message": message})
+    flash(message, "success")
     return _redirect_after_interview_edit(interview_id)
 
 
@@ -1597,9 +1607,13 @@ def edit_event_post(event_id: int):
 @login_required
 def delete_event(event_id: int):
     event = Event.query.get_or_404(event_id)
+    was_series = bool(event.recurrence_freq)
     db.session.delete(event)
     db.session.commit()
-    flash("Event deleted.", "success")
+    message = "Event series deleted." if was_series else "Event deleted."
+    if _form_wants_json():
+        return jsonify({"ok": True, "message": message})
+    flash(message, "success")
     return _redirect_after_event_edit(event_id)
 
 
@@ -1833,6 +1847,8 @@ def api_events():
                         "kindLabel": kind_label,
                         "accentColor": bg,
                         "editUrl": url_for("main.edit_talk", talk_id=t.id, return_to="calendar"),
+                        "deleteUrl": url_for("main.delete_talk", talk_id=t.id),
+                        "deleteConfirm": f"Delete this {kind_label}?" if special_kind else "Delete this talk?",
                         "fullTitle": full_title,
                         "topic": topic,
                         "notes": (t.notes or "").strip(),
@@ -1864,6 +1880,10 @@ def api_events():
                             "kindLabel": "Interview",
                             "accentColor": interview_bg,
                             "editUrl": url_for("main.edit_interview", interview_id=i.id, return_to="calendar"),
+                            "deleteUrl": url_for("main.delete_interview", interview_id=i.id),
+                            "deleteConfirm": (
+                                "Delete this interview series?" if repeat else "Delete this interview?"
+                            ),
                             "fullTitle": title_line,
                             "interviewSubject": subject,
                             "interviewPurpose": i.purpose,
@@ -1898,6 +1918,10 @@ def api_events():
                         "category": getattr(event, "category", None),
                         "categoryLabel": category_label,
                         "editUrl": url_for("main.edit_event", event_id=event.id, return_to="calendar"),
+                        "deleteUrl": url_for("main.delete_event", event_id=event.id),
+                        "deleteConfirm": (
+                            "Delete this event series?" if repeat else "Delete this event?"
+                        ),
                         "fullTitle": event.title,
                         "location": (event.location or "").strip(),
                         "recurrence": repeat,
@@ -1938,6 +1962,8 @@ def api_events():
                         "kindLabel": "Suggested talk",
                         "accentColor": bg,
                         "suggestionId": st.id,
+                        "deleteUrl": url_for("main.api_delete_suggested_talk", suggestion_id=st.id),
+                        "deleteConfirm": "Remove this suggested speaker?",
                         "fullTitle": full_title,
                         "speakerLabel": _suggested_talk_speaker_label(st),
                         "memberId": st.member_id,

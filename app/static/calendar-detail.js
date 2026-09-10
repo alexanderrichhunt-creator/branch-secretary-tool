@@ -174,7 +174,9 @@
 
       const editLink = modalEl.querySelector(".cal-edit-link");
       const scheduleBtn = modalEl.querySelector(".cal-schedule-suggestion-btn");
-      const deleteBtn = modalEl.querySelector(".cal-delete-suggestion-btn");
+      const deleteBtn = modalEl.querySelector(".cal-delete-item-btn, .cal-delete-suggestion-btn");
+      const canDelete = !!(props.deleteUrl || (props.kind === "suggested_talk" && props.suggestionId));
+      if (deleteBtn) deleteBtn.classList.toggle("d-none", !canDelete);
       if (props.kind === "suggested_talk") {
         if (editLink) {
           editLink.textContent = "Edit suggestion";
@@ -183,7 +185,6 @@
           editLink.classList.add("btn-outline-primary");
         }
         if (scheduleBtn) scheduleBtn.classList.remove("d-none");
-        if (deleteBtn) deleteBtn.classList.remove("d-none");
       } else {
         if (editLink) {
           editLink.textContent = "Edit";
@@ -192,7 +193,6 @@
           editLink.classList.remove("btn-outline-primary");
         }
         if (scheduleBtn) scheduleBtn.classList.add("d-none");
-        if (deleteBtn) deleteBtn.classList.add("d-none");
       }
     },
   };
