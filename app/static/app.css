@@ -682,6 +682,43 @@ body {
   text-overflow: clip;
 }
 
+.calendar-page .fc .fc-daygrid-event.cal-multiday-event,
+.calendar-page .fc .fc-timegrid-event.cal-multiday-event {
+  margin-top: 1px;
+  margin-bottom: 1px;
+  padding: 2px 6px;
+  font-weight: 650;
+}
+
+/* Month view: reserve a slot at the bottom of each covered day so the
+   spanning bar (moved there after layout) does not cover single-day events. */
+.calendar-page .fc-dayGridMonth-view .fc-daygrid-day.cal-has-multiday .fc-daygrid-day-frame {
+  padding-bottom: 1.55rem;
+}
+
+.calendar-page .fc-dayGridMonth-view .fc-daygrid-event-harness-abs:has(.cal-multiday-event) {
+  z-index: 3;
+}
+
+.calendar-page .fc-dayGridMonth-view .fc-daygrid-event.cal-multiday-event {
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.calendar-page .fc-dayGridMonth-view .fc-daygrid-event.cal-multiday-event .fc-event-title,
+.calendar-page .fc-dayGridMonth-view .fc-daygrid-event.cal-multiday-event .fc-event-main {
+  font-weight: 600;
+}
+
+.calendar-page .fc .fc-daygrid-event.cal-multiday-event .fc-event-title,
+.calendar-page .fc .fc-timegrid-event.cal-multiday-event .fc-event-title,
+.calendar-page .fc .fc-daygrid-event.cal-multiday-event .fc-event-main {
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .cal-legend .cal-legend-item {
   font-size: 0.75rem;
   font-weight: 600;

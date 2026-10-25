@@ -15,7 +15,7 @@
       <table class="table align-middle">
         <thead>
           <tr>
-            <th>Starts</th>
+            <th>When</th>
             <th>Title</th>
             <th>Category</th>
             <th>Repeat</th>
@@ -27,8 +27,16 @@
           {% for e in events %}
             <tr>
               <td class="text-nowrap">
+                {% set last_day = event_inclusive_end_date(e) %}
                 {% if e.all_day %}
-                  {{ e.starts_at.strftime("%b %d, %Y") }} <span class="small muted">(all day)</span>
+                  {% if last_day > e.starts_at.date() %}
+                    {{ e.starts_at.strftime("%b %d, %Y") }} – {{ last_day.strftime("%b %d, %Y") }}
+                  {% else %}
+                    {{ e.starts_at.strftime("%b %d, %Y") }}
+                  {% endif %}
+                  <span class="small muted">(all day)</span>
+                {% elif e.end_at and last_day > e.starts_at.date() %}
+                  {{ e.starts_at.strftime("%b %d, %Y %I:%M %p") }} – {{ e.end_at.strftime("%b %d, %Y %I:%M %p") }}
                 {% else %}
                   {{ e.starts_at.strftime("%b %d, %Y %I:%M %p") }}
                 {% endif %}

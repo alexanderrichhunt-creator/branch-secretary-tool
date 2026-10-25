@@ -177,7 +177,7 @@
             <div class="card-body py-3">
               <div class="row g-3">
                 <div class="col-md-4">
-                  <div class="cal-detail-field-label">Date</div>
+                  <div class="cal-detail-field-label cal-detail-date-label">Date</div>
                   <div class="cal-detail-date cal-detail-field-value"></div>
                 </div>
                 <div class="col-md-4">
@@ -248,11 +248,16 @@
               {% set selected = "" %}
               {% include "partials/event_category_field.html" %}
               <div class="row g-2 mb-3 cal-schedule-row">
-                <div class="col-sm-6">
-                  <label class="form-label big-label" for="event_date_event">Date</label>
+                <div class="col-sm-6 col-lg-4">
+                  <label class="form-label big-label" for="event_date_event">Start date</label>
                   <input class="form-control form-control-lg cal-event-date" type="date" id="event_date_event" name="event_date" required />
                 </div>
-                <div class="col-sm-6 d-flex align-items-end">
+                <div class="col-sm-6 col-lg-4">
+                  <label class="form-label big-label" for="event_end_date_event">End date</label>
+                  <input class="form-control form-control-lg cal-event-end-date" type="date" id="event_end_date_event" name="event_end_date" />
+                  <div class="form-text">Optional. Blank means the same day. The event shows on every day from start through end.</div>
+                </div>
+                <div class="col-sm-12 col-lg-4 d-flex align-items-end">
                   <div class="form-check mb-2">
                     <input class="form-check-input cal-all-day" type="checkbox" id="all_day_event" name="all_day" value="1" />
                     <label class="form-check-label" for="all_day_event">All day</label>
@@ -479,6 +484,87 @@
       }
     }
 
+    function hexToRgba(hex, alpha) {
+      const raw = String(hex || "").trim().replace("#", "");
+      if (!/^[0-9a-fA-F]{6}$/.test(raw)) return hex;
+      const red = parseInt(raw.slice(0, 2), 16);
+      const green = parseInt(raw.slice(2, 4), 16);
+      const blue = parseInt(raw.slice(4, 6), 16);
+      return "rgba(" + red + ", " + green + ", " + blue + ", " + alpha + ")";
+    }
+
+    function isoDay(date) {
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return date.getFullYear() + "-" + month + "-" + day;
+    }
+
+    function parseIsoDay(iso) {
+      if (!iso || String(iso).length < 10) return null;
+      const parts = String(iso).slice(0, 10).split("-");
+      if (parts.length !== 3) return null;
+      const year = Number(parts[0]);
+      const month = Number(parts[1]);
+      const day = Number(parts[2]);
+      if (!year || !month || !day) return null;
+      return new Date(year, month - 1, day);
+    }
+
+    function darkenHex(hex, keep) {
+      const raw = String(hex || "").trim().replace("#", "");
+      if (!/^[0-9a-fA-F]{6}$/.test(raw)) return "#1f2937";
+      const channel = function (start) {
+        return Math.round(parseInt(raw.slice(start, start + 2), 16) * keep)
+          .toString(16)
+          .padStart(2, "0");
+      };
+      return "#" + channel(0) + channel(2) + channel(4);
+    }
+
+    function pinMonthMultidayBars(root) {
+      const cells = root.querySelectorAll(".fc-daygrid-day.cal-has-multiday");
+      cells.forEach(function (cell) {
+        const harnesses = cell.querySelectorAll(".fc-daygrid-event-harness-abs");
+        harnesses.forEach(function (harness) {
+          if (!harness.querySelector(".cal-multiday-event")) return;
+          const cellRect = cell.getBoundingClientRect();
+          const barRect = harness.getBoundingClientRect();
+          if (!cellRect.height || !barRect.height) return;
+          const shift = cellRect.bottom - 4 - barRect.bottom;
+          if (Math.abs(shift) < 1) return;
+          const currentTop = parseFloat(harness.style.top);
+          const base = Number.isFinite(currentTop) ? currentTop : 0;
+          harness.style.top = (base + shift) + "px";
+        });
+      });
+    }
+
+    function softenMonthMultidayBar(info) {
+      const bg = info.event.backgroundColor || info.event.borderColor || "#64748b";
+      const border = info.event.borderColor || bg;
+      // About 55% opacity so the bar stays visible without covering the day.
+      // Text uses a darker shade of the same color so it stays readable on the wash.
+      info.el.style.backgroundColor = hexToRgba(bg, 0.55);
+      info.el.style.borderColor = hexToRgba(border, 0.4);
+      const main = info.el.querySelector(".fc-event-main");
+      if (main) main.style.color = darkenHex(bg, 0.35);
+    }
+
+    function markMonthMultidayDays(info) {
+      const props = info.event.extendedProps || {};
+      const start = parseIsoDay(props.startDate);
+      const end = parseIsoDay(props.endDate) || start;
+      if (!start || !end) return;
+      const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      const root = info.view.calendar.el;
+      while (cursor <= last) {
+        const cell = root.querySelector('.fc-daygrid-day[data-date="' + isoDay(cursor) + '"]');
+        if (cell) cell.classList.add("cal-has-multiday");
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+
     const calendarTimeFormat = {
       hour: "numeric",
       minute: "2-digit",
@@ -492,7 +578,17 @@
       navLinks: true,
       dayMaxEvents: true,
       expandRows: true,
-      eventOrder: "-allDay,order,start,title",
+      // Multi-day bars sort after everything else so they sit below that day's
+      // single-day events. Other ordering (talk order, all-day, time) stays put.
+      eventOrder: [
+        function (a, b) {
+          return (a.multiDay ? 1 : 0) - (b.multiDay ? 1 : 0);
+        },
+        "order",
+        "-allDay",
+        "start",
+        "title"
+      ],
       slotEventOverlap: false,
       eventTimeFormat: calendarTimeFormat,
       slotLabelFormat: calendarTimeFormat,
@@ -524,9 +620,27 @@
         eventModal.show();
       },
       eventDidMount: function(info) {
+        if (info.view.type === 'dayGridMonth' && info.event.extendedProps && info.event.extendedProps.multiDay) {
+          softenMonthMultidayBar(info);
+          markMonthMultidayDays(info);
+        }
         if (info.view.type !== 'dayGridMonth' || info.event.allDay) return;
         const timeEl = info.el.querySelector('.fc-event-time');
         if (timeEl) timeEl.classList.add('cal-event-time-badge');
+      },
+      eventsSet: function() {
+        // Rows finish stretching after the events mount, so pin the bars once
+        // layout has settled. A second pass catches the height change from the
+        // bottom padding added when a day is marked.
+        window.requestAnimationFrame(function() {
+          pinMonthMultidayBars(el);
+          window.requestAnimationFrame(function() {
+            pinMonthMultidayBars(el);
+          });
+        });
+      },
+      windowResize: function() {
+        pinMonthMultidayBars(el);
       },
       navLinkDayClick: function(date, jsEvent) {
         openCreateForDay(date, date, true, null, { tab: "cal-tab-suggested" });

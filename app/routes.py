@@ -678,39 +678,64 @@ def _calendar_form_success(message: str, redirect_fn):
     return redirect_fn()
 
 
+def _parse_form_date(raw: str) -> date | None:
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date()
+    except Exception:
+        return None
+
+
 def _parse_event_times_from_form():
-    """Parse date, times, and all-day flag from an event form."""
+    """Parse start date, optional end date, times, and the all-day flag.
+
+    A blank end date defaults to the start date, so existing single-day forms
+    and saved rows stay valid.
+    """
+    from .event_utils import resolve_event_range
+
     event_date_raw = (request.form.get("event_date") or "").strip()
+    end_date_raw = (request.form.get("event_end_date") or "").strip()
     all_day = (request.form.get("all_day") or "").strip() == "1"
     if not event_date_raw:
         return None, None, None, "Date is required."
 
-    try:
-        event_date = datetime.strptime(event_date_raw, "%Y-%m-%d").date()
-    except Exception:
+    event_date = _parse_form_date(event_date_raw)
+    if event_date is None:
         return None, None, None, "Invalid date."
 
-    if all_day:
-        starts_at = datetime.combine(event_date, datetime.min.time())
-        end_at = starts_at + timedelta(days=1)
-        return starts_at, end_at, True, None
+    if end_date_raw:
+        end_date = _parse_form_date(end_date_raw)
+        if end_date is None:
+            return None, None, None, "Invalid end date."
+    else:
+        end_date = None
 
-    start_time_raw = (request.form.get("start_time") or "").strip()
-    end_time_raw = (request.form.get("end_time") or "").strip()
-    if not start_time_raw or not end_time_raw:
-        return None, None, None, "Start and end times are required."
+    start_time = None
+    end_time = None
+    if not all_day:
+        start_time_raw = (request.form.get("start_time") or "").strip()
+        end_time_raw = (request.form.get("end_time") or "").strip()
+        if not start_time_raw or not end_time_raw:
+            return None, None, None, "Start and end times are required."
+        try:
+            start_time = datetime.strptime(start_time_raw, "%H:%M").time()
+            end_time = datetime.strptime(end_time_raw, "%H:%M").time()
+        except Exception:
+            return None, None, None, "Invalid start or end time."
 
-    try:
-        start_time = datetime.strptime(start_time_raw, "%H:%M").time()
-        end_time = datetime.strptime(end_time_raw, "%H:%M").time()
-    except Exception:
-        return None, None, None, "Invalid start or end time."
-
-    starts_at = datetime.combine(event_date, start_time)
-    end_at = datetime.combine(event_date, end_time)
-    if end_at <= starts_at:
-        end_at += timedelta(days=1)
-    return starts_at, end_at, False, None
+    starts_at, end_at, err = resolve_event_range(
+        event_date,
+        end_date,
+        all_day=all_day,
+        start_time=start_time,
+        end_time=end_time,
+    )
+    if err:
+        return None, None, None, err
+    return starts_at, end_at, all_day, None
 
 
 def _build_upcoming_interviews(limit: int = 8) -> list[dict]:
@@ -744,15 +769,24 @@ def _build_upcoming_interviews(limit: int = 8) -> list[dict]:
 
 
 def _build_upcoming_events(limit: int = 8) -> list[dict]:
-    from .event_utils import event_category_label, iter_event_occurrences, recurrence_label
+    from .event_utils import (
+        event_category_label,
+        iter_event_occurrences,
+        occurrence_inclusive_end,
+        occurrence_is_multiday,
+        recurrence_label,
+    )
 
     now = datetime.now() - timedelta(hours=2)
     horizon = now + timedelta(days=120)
     items: list[dict] = []
 
     for event in Event.query.order_by(Event.starts_at.asc()).all():
-        for occ_start, _occ_end in iter_event_occurrences(event, now, horizon):
-            if occ_start < now:
+        for occ_start, occ_end in iter_event_occurrences(event, now, horizon):
+            multi_day = occurrence_is_multiday(occ_start, occ_end, bool(event.all_day))
+            # Single-day rows keep the old "already started" cutoff. A trip that
+            # is underway still belongs on the upcoming list until its last day.
+            if occ_start < now and not (multi_day and occ_end > datetime.now()):
                 continue
             repeat = recurrence_label(event)
             category_label = event_category_label(getattr(event, "category", None))
@@ -766,6 +800,8 @@ def _build_upcoming_events(limit: int = 8) -> list[dict]:
                     "kind": "event",
                     "category": getattr(event, "category", None),
                     "starts_at": occ_start,
+                    "ends_on": occurrence_inclusive_end(occ_start, occ_end, bool(event.all_day)),
+                    "multi_day": multi_day,
                     "all_day": event.all_day,
                     "title": event.title,
                     "subtitle": " · ".join(subtitle_parts),
@@ -1791,6 +1827,8 @@ def api_events():
         event_category_colors,
         event_category_label,
         iter_event_occurrences,
+        occurrence_inclusive_end,
+        occurrence_is_multiday,
         parse_calendar_range,
         recurrence_label,
     )
@@ -1902,35 +1940,45 @@ def api_events():
         bg, border = event_category_colors(getattr(event, "category", None))
         for occ_start, occ_end in iter_event_occurrences(event, range_start, range_end):
             occ_id = f"event-{event.id}-{occ_start.strftime('%Y%m%d%H%M')}"
-            fc_event = _apply_compact_daygrid_event(
-                {
-                    "id": occ_id,
-                    "title": _daygrid_list_title("event", event.title),
-                    "start": occ_start.date().isoformat() if event.all_day else occ_start.isoformat(),
-                    "allDay": event.all_day,
-                    "order": 0 if event.all_day else _calendar_timed_order(occ_start),
-                    "backgroundColor": bg,
-                    "borderColor": border,
-                    "extendedProps": {
-                        "kind": "event",
-                        "kindLabel": category_label,
-                        "accentColor": bg,
-                        "category": getattr(event, "category", None),
-                        "categoryLabel": category_label,
-                        "editUrl": url_for("main.edit_event", event_id=event.id, return_to="calendar"),
-                        "deleteUrl": url_for("main.delete_event", event_id=event.id),
-                        "deleteConfirm": (
-                            "Delete this event series?" if repeat else "Delete this event?"
-                        ),
-                        "fullTitle": event.title,
-                        "location": (event.location or "").strip(),
-                        "recurrence": repeat,
-                        "notes": (event.notes or "").strip(),
-                    },
+            all_day = bool(event.all_day)
+            multi_day = occurrence_is_multiday(occ_start, occ_end, all_day)
+            inclusive_end = occurrence_inclusive_end(occ_start, occ_end, all_day)
+            fc_event = {
+                "id": occ_id,
+                "title": event.title if multi_day else _daygrid_list_title("event", event.title),
+                "start": occ_start.date().isoformat() if all_day else occ_start.isoformat(),
+                "allDay": all_day,
+                "order": 0 if all_day else _calendar_timed_order(occ_start),
+                "backgroundColor": bg,
+                "borderColor": border,
+                "extendedProps": {
+                    "kind": "event",
+                    "kindLabel": category_label,
+                    "accentColor": bg,
+                    "category": getattr(event, "category", None),
+                    "categoryLabel": category_label,
+                    "editUrl": url_for("main.edit_event", event_id=event.id, return_to="calendar"),
+                    "deleteUrl": url_for("main.delete_event", event_id=event.id),
+                    "deleteConfirm": (
+                        "Delete this event series?" if repeat else "Delete this event?"
+                    ),
+                    "fullTitle": event.title,
+                    "location": (event.location or "").strip(),
+                    "recurrence": repeat,
+                    "notes": (event.notes or "").strip(),
+                    "startDate": occ_start.date().isoformat(),
+                    "endDate": inclusive_end.isoformat(),
+                    "multiDay": multi_day,
                 },
-                "event",
-            )
-            if event.all_day:
+            }
+            # Month view defaults to dots. A multi-day event needs a bar so it
+            # is visible on every day it covers, including across week rows.
+            if multi_day:
+                fc_event["display"] = "block"
+                fc_event["classNames"] = ["cal-multiday-event", "cal-event-event"]
+            else:
+                fc_event = _apply_compact_daygrid_event(fc_event, "event")
+            if all_day:
                 fc_event["end"] = occ_end.date().isoformat()
             else:
                 fc_event["end"] = occ_end.isoformat()

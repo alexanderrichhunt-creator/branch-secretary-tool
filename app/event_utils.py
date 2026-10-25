@@ -187,13 +187,85 @@ def _parse_iso_datetime(raw: str | None) -> datetime | None:
 
 
 def event_duration(event) -> timedelta:
-    if getattr(event, "all_day", False):
-        return timedelta(days=1)
+    """How long one occurrence lasts.
+
+    All-day ``end_at`` is exclusive (midnight after the last included day),
+    which is how single-day rows are already stored. A missing end falls back
+    to one day for all-day items and one hour for timed items.
+    """
     end_at = getattr(event, "end_at", None)
-    if end_at and end_at > event.starts_at:
-        return end_at - event.starts_at
+    starts_at = event.starts_at
+    if getattr(event, "all_day", False):
+        if end_at and end_at > starts_at:
+            return end_at - starts_at
+        return timedelta(days=1)
+    if end_at and end_at > starts_at:
+        return end_at - starts_at
     minutes = getattr(event, "duration_minutes", None) or 60
     return timedelta(minutes=minutes)
+
+
+def event_inclusive_end_date(event) -> date:
+    """Last calendar day an event occupies. Defaults to the start date."""
+    start_date = event.starts_at.date()
+    end_at = getattr(event, "end_at", None)
+    if end_at is None:
+        return start_date
+    if getattr(event, "all_day", False):
+        last = end_at.date() - timedelta(days=1)
+        return last if last >= start_date else start_date
+    if end_at.date() < start_date:
+        return start_date
+    return end_at.date()
+
+
+def occurrence_inclusive_end(occ_start: datetime, occ_end: datetime, all_day: bool) -> date:
+    """Last calendar day of one expanded occurrence."""
+    start_date = occ_start.date()
+    if all_day:
+        last = occ_end.date() - timedelta(days=1)
+        return last if last >= start_date else start_date
+    end_date = occ_end.date()
+    return end_date if end_date >= start_date else start_date
+
+
+def occurrence_is_multiday(occ_start: datetime, occ_end: datetime, all_day: bool) -> bool:
+    return occurrence_inclusive_end(occ_start, occ_end, all_day) > occ_start.date()
+
+
+def resolve_event_range(
+    start_date: date,
+    end_date: date | None,
+    *,
+    all_day: bool,
+    start_time: time | None = None,
+    end_time: time | None = None,
+) -> tuple[datetime | None, datetime | None, str | None]:
+    """Build ``starts_at`` / ``end_at`` from form dates.
+
+    A blank end date means the event is a single day. All-day ``end_at`` stays
+    exclusive so existing one-day rows (end = start + 1 day) keep their meaning.
+    A timed event whose end clock time is not after the start, on the same day,
+    still rolls into the next morning so overnight meetings keep working.
+    """
+    if end_date is None:
+        end_date = start_date
+    if end_date < start_date:
+        return None, None, "End date must be on or after the start date."
+
+    if all_day:
+        starts_at = datetime.combine(start_date, time.min)
+        end_at = datetime.combine(end_date + timedelta(days=1), time.min)
+        return starts_at, end_at, None
+
+    if start_time is None or end_time is None:
+        return None, None, "Start and end times are required."
+
+    starts_at = datetime.combine(start_date, start_time)
+    end_at = datetime.combine(end_date, end_time)
+    if end_at <= starts_at:
+        end_at += timedelta(days=1)
+    return starts_at, end_at, None
 
 
 @dataclass(frozen=True)
@@ -282,39 +354,48 @@ def build_recurrence_rule(event):
 
 
 def iter_event_occurrences(event, range_start: datetime, range_end: datetime):
-    """Yield (starts_at, ends_at) tuples for an event within the given range."""
+    """Yield (starts_at, ends_at) tuples for an event within the given range.
+
+    An occurrence that starts before the window is still included when its span
+    reaches into the window, so a multi-day event shows on both sides of a
+    month boundary.
+    """
     duration = event_duration(event)
+    if duration <= timedelta(0):
+        duration = timedelta(days=1) if getattr(event, "all_day", False) else timedelta(hours=1)
     rule = build_recurrence_rule(event)
     all_day = bool(getattr(event, "all_day", False))
 
+    def _span(raw_start: datetime, *, keep_clock: bool) -> tuple[datetime, datetime]:
+        if all_day:
+            occ_start = datetime.combine(raw_start.date(), time.min)
+        elif keep_clock:
+            occ_start = datetime.combine(raw_start.date(), event.starts_at.time())
+        else:
+            occ_start = raw_start
+        return occ_start, occ_start + duration
+
     if rule is None:
-        occ_start = event.starts_at
-        occ_end = occ_start + duration if not all_day else occ_start + timedelta(days=1)
-        if _occurrence_overlaps(occ_start, occ_end, all_day, range_start, range_end):
+        occ_start, occ_end = _span(event.starts_at, keep_clock=False)
+        if _ranges_overlap(occ_start, occ_end, range_start, range_end):
             yield occ_start, occ_end
         return
 
-    for occ_start in rule.between(range_start, range_end, inc=True):
-        if all_day:
-            occ_start = datetime.combine(occ_start.date(), time.min)
-            occ_end = occ_start + timedelta(days=1)
-        else:
-            base_time = event.starts_at.time()
-            occ_start = datetime.combine(occ_start.date(), base_time)
-            occ_end = occ_start + duration
-        if _occurrence_overlaps(occ_start, occ_end, all_day, range_start, range_end):
+    # Look back by the occurrence length so a trip that started last month
+    # still appears on the days that fall inside this fetch.
+    window_start = range_start - duration
+    for raw_start in rule.between(window_start, range_end, inc=True):
+        occ_start, occ_end = _span(raw_start, keep_clock=True)
+        if _ranges_overlap(occ_start, occ_end, range_start, range_end):
             yield occ_start, occ_end
 
 
-def _occurrence_overlaps(
+def _ranges_overlap(
     occ_start: datetime,
     occ_end: datetime,
-    all_day: bool,
     range_start: datetime,
     range_end: datetime,
 ) -> bool:
-    if all_day:
-        occ_end = occ_start + timedelta(days=1)
     return occ_start < range_end and occ_end > range_start
 
 

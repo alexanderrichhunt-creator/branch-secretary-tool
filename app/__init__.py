@@ -66,6 +66,7 @@ def create_app():
         NTH_WEEKDAY_CHOICES,
         WEEKDAY_NAMES,
         event_category_label,
+        event_inclusive_end_date,
         recurrence_label,
         recurrence_option,
     )
@@ -73,6 +74,7 @@ def create_app():
     app.jinja_env.globals["EVENT_CATEGORIES"] = EVENT_CATEGORIES
     app.jinja_env.globals["CALENDAR_ITEM_STYLES"] = CALENDAR_ITEM_STYLES
     app.jinja_env.globals["event_category_label"] = event_category_label
+    app.jinja_env.globals["event_inclusive_end_date"] = event_inclusive_end_date
     app.jinja_env.globals["recurrence_label"] = recurrence_label
     app.jinja_env.globals["recurrence_option"] = recurrence_option
     app.jinja_env.globals["WEEKDAY_NAMES"] = WEEKDAY_NAMES

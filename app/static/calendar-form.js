@@ -319,6 +319,40 @@
     });
   }
 
+  function setEventEndDate(dateValue) {
+    document.querySelectorAll(".cal-event-end-date").forEach(function (el) {
+      el.value = dateValue || "";
+      const form = el.closest("form");
+      const startEl = form ? form.querySelector('[name="event_date"]') : null;
+      if (startEl && startEl.value) el.min = startEl.value;
+    });
+  }
+
+  function validateEventDateRange(form) {
+    const startEl = form.querySelector('[name="event_date"]');
+    const endEl = form.querySelector('[name="event_end_date"]');
+    if (!startEl || !endEl || !endEl.value || !startEl.value) return "";
+    if (endEl.value < startEl.value) {
+      return "End date must be on or after the start date.";
+    }
+    return "";
+  }
+
+  function bindEventEndDate(modalEl) {
+    const form = modalEl.querySelector("#calEventForm");
+    if (!form || form.dataset.endDateBound) return;
+    form.dataset.endDateBound = "1";
+    const startEl = form.querySelector('[name="event_date"]');
+    const endEl = form.querySelector('[name="event_end_date"]');
+    if (!startEl || !endEl) return;
+    startEl.addEventListener("change", function () {
+      if (startEl.value) endEl.min = startEl.value;
+      if (!endEl.value || endEl.value < startEl.value) {
+        endEl.value = startEl.value;
+      }
+    });
+  }
+
   function syncTimes(startValue, endValue) {
     document.querySelectorAll(".cal-start-time").forEach(function (el) {
       el.value = startValue;
@@ -484,6 +518,13 @@
     form.addEventListener("submit", async function (event) {
       event.preventDefault();
       showFormError(errorSelector, "");
+      if (form.id === "calEventForm") {
+        const dateError = validateEventDateRange(form);
+        if (dateError) {
+          showFormError(errorSelector, dateError);
+          return;
+        }
+      }
       const submitBtn = form.querySelector('[type="submit"]');
       if (submitBtn) submitBtn.disabled = true;
       try {
@@ -523,6 +564,7 @@
       if (!modalEl) return;
       bindRecurrenceControls(modalEl);
       bindAllDayControls(modalEl);
+      bindEventEndDate(modalEl);
       bindCalendarAjaxForms();
       setAllDayState(modalEl.querySelector("#cal-pane-event"), false);
       setAllDayState(modalEl.querySelector("#cal-pane-interview"), false);
@@ -580,6 +622,7 @@
 
       const dateValue = resolveDateValue(start, allDay, opts.dateStr);
       syncDates(dateValue);
+      setEventEndDate(dateValue);
 
       const titleDate = dateFromParts(dateValue);
 
