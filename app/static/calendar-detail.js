@@ -8,6 +8,47 @@
     });
   }
 
+  function parseIsoDate(iso) {
+    if (!iso || String(iso).length < 10) return null;
+    const parts = String(iso).slice(0, 10).split("-");
+    if (parts.length !== 3) return null;
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+    const day = Number(parts[2]);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+  }
+
+  function sameCalendarDay(a, b) {
+    return (
+      a &&
+      b &&
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate()
+    );
+  }
+
+  function formatDateSpan(start, end) {
+    if (!start) return "—";
+    if (!end || sameCalendarDay(start, end)) return formatDateLong(start);
+    if (start.getFullYear() === end.getFullYear()) {
+      const startText = start.toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      });
+      return startText + " – " + formatDateLong(end);
+    }
+    return formatDateLong(start) + " – " + formatDateLong(end);
+  }
+
+  function inclusiveDayCount(start, end) {
+    const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    return Math.round((endDay.getTime() - startDay.getTime()) / 86400000) + 1;
+  }
+
   function formatTimeShort(d) {
     return d.toLocaleTimeString(undefined, {
       hour: "numeric",
@@ -86,6 +127,9 @@
       const title = props.fullTitle || fcEvent.title || "Event";
       const kindLabel = props.kindLabel || props.categoryLabel || "Calendar item";
       const accent = props.accentColor || fcEvent.backgroundColor || "#64748b";
+      const rangeStart = parseIsoDate(props.startDate) || start;
+      const rangeEnd = parseIsoDate(props.endDate) || (allDay ? null : end);
+      const multiDay = !!props.multiDay || (rangeStart && rangeEnd && !sameCalendarDay(rangeStart, rangeEnd));
 
       let timeText = "All day";
       let durationText = "All day";
@@ -95,20 +139,32 @@
         timeText = formatTimeShort(start);
         if (end) {
           timeText += " – " + formatTimeShort(end);
-          durationText =
-            props.durationMinutes != null
-              ? formatDurationMinutes(Number(props.durationMinutes))
-              : durationFromRange(start, end, false) || "—";
+          if (multiDay && rangeStart && rangeEnd) {
+            const days = inclusiveDayCount(rangeStart, rangeEnd);
+            durationText = days === 1 ? "1 day" : days + " days";
+          } else {
+            durationText =
+              props.durationMinutes != null
+                ? formatDurationMinutes(Number(props.durationMinutes))
+                : durationFromRange(start, end, false) || "—";
+          }
         } else if (props.durationMinutes != null) {
           durationText = formatDurationMinutes(Number(props.durationMinutes));
         } else {
           durationText = "—";
         }
+      } else if (allDay && multiDay && rangeStart && rangeEnd) {
+        const days = inclusiveDayCount(rangeStart, rangeEnd);
+        durationText = days === 1 ? "1 day" : days + " days";
+        showDuration = true;
       } else if (allDay) {
         showDuration = false;
       }
 
       modalEl.querySelector(".modal-title").textContent = title;
+
+      const dateLabel = modalEl.querySelector(".cal-detail-date-label");
+      if (dateLabel) dateLabel.textContent = multiDay ? "Dates" : "Date";
 
       const badge = modalEl.querySelector(".cal-detail-badge");
       if (badge) {
@@ -116,7 +172,10 @@
         badge.style.backgroundColor = accent;
       }
 
-      setText(modalEl.querySelector(".cal-detail-date"), start ? formatDateLong(start) : "—");
+      setText(
+        modalEl.querySelector(".cal-detail-date"),
+        rangeStart ? formatDateSpan(rangeStart, multiDay ? rangeEnd : rangeStart) : "—"
+      );
       setText(modalEl.querySelector(".cal-detail-time"), timeText);
       setText(modalEl.querySelector(".cal-detail-duration"), durationText);
       toggleBlock(modalEl.querySelector(".cal-detail-duration-wrap"), showDuration);

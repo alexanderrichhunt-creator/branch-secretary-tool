@@ -197,7 +197,10 @@
             {% for item in upcoming_events %}
               <div class="dashboard-schedule-row dashboard-schedule-{{ item.kind }}{% if item.category %} dashboard-schedule-cat-{{ item.category }}{% endif %}">
                 <div class="dashboard-schedule-when">
-                  {% if item.all_day %}
+                  {% if item.multi_day %}
+                    {{ item.starts_at.strftime("%a %b %d") }} – {{ item.ends_on.strftime("%a %b %d") }}
+                    {% if item.all_day %} · All day{% else %} · {{ item.starts_at.strftime("%I:%M %p") }}{% endif %}
+                  {% elif item.all_day %}
                     {{ item.starts_at.strftime("%a %b %d") }} · All day
                   {% else %}
                     {{ item.starts_at.strftime("%a %b %d · %I:%M %p") }}

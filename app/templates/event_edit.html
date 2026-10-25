@@ -26,11 +26,16 @@
       {% set selected = event.category or "" %}
       {% include "partials/event_category_field.html" %}
       <div class="row g-2 mb-3">
-        <div class="col-sm-6">
-          <label class="form-label big-label" for="event_date">Date</label>
+        <div class="col-sm-6 col-lg-4">
+          <label class="form-label big-label" for="event_date">Start date</label>
           <input class="form-control form-control-lg" type="date" id="event_date" name="event_date" value="{{ event.starts_at.strftime('%Y-%m-%d') }}" required />
         </div>
-        <div class="col-sm-6 d-flex align-items-end">
+        <div class="col-sm-6 col-lg-4">
+          <label class="form-label big-label" for="event_end_date">End date</label>
+          <input class="form-control form-control-lg" type="date" id="event_end_date" name="event_end_date" value="{{ event_inclusive_end_date(event).isoformat() }}" />
+          <div class="form-text">Optional. Leave blank for a single day. The event shows on every day from start through end.</div>
+        </div>
+        <div class="col-sm-12 col-lg-4 d-flex align-items-end">
           <div class="form-check mb-2">
             <input class="form-check-input" type="checkbox" id="all_day" name="all_day" value="1" {% if event.all_day %}checked{% endif %} />
             <label class="form-check-label" for="all_day">All day</label>
@@ -66,6 +71,7 @@
       {% if event.recurrence_freq %}
         <div class="alert alert-info py-2">Changes apply to the whole repeating series.</div>
       {% endif %}
+      <div id="event-date-error" class="alert alert-warning py-2 px-3 d-none" role="alert"></div>
       <button class="btn btn-primary btn-lg" type="submit">Save changes</button>
     </form>
     <form class="mt-3" method="post" action="{{ url_for('main.delete_event', event_id=event.id) }}" onsubmit="return confirm('Delete this event{% if event.recurrence_freq %} series{% endif %}?');">
@@ -85,14 +91,45 @@
     const timeRow = document.getElementById('time-row');
     const startTime = document.getElementById('start_time');
     const endTime = document.getElementById('end_time');
+    const startDate = document.getElementById('event_date');
+    const endDate = document.getElementById('event_end_date');
+    const form = startDate ? startDate.closest('form') : null;
+    const errorEl = document.getElementById('event-date-error');
+
     function syncAllDay() {
       const on = allDay && allDay.checked;
       if (timeRow) timeRow.classList.toggle('d-none', on);
       if (startTime) { startTime.disabled = on; startTime.required = !on; }
       if (endTime) { endTime.disabled = on; endTime.required = !on; }
     }
+
+    function syncEndMin() {
+      if (!startDate || !endDate) return;
+      if (startDate.value) endDate.min = startDate.value;
+      if (endDate.value && startDate.value && endDate.value < startDate.value) {
+        endDate.value = startDate.value;
+      }
+    }
+
     if (allDay) allDay.addEventListener('change', syncAllDay);
+    if (startDate) startDate.addEventListener('change', syncEndMin);
     syncAllDay();
+    syncEndMin();
+
+    if (form) {
+      form.addEventListener('submit', function (event) {
+        if (!startDate || !endDate || !endDate.value || !startDate.value) return;
+        if (endDate.value < startDate.value) {
+          event.preventDefault();
+          if (errorEl) {
+            errorEl.textContent = 'End date must be on or after the start date.';
+            errorEl.classList.remove('d-none');
+          }
+        } else if (errorEl) {
+          errorEl.classList.add('d-none');
+        }
+      });
+    }
   })();
 </script>
 {% endblock %}
