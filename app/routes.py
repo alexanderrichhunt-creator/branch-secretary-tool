@@ -9,7 +9,16 @@ from flask import Blueprint, flash, jsonify, redirect, render_template, request,
 from flask_login import current_user, login_required
 
 from . import db
-from .models import Event, Interview, Member, SuggestedTalk, Talk, User, parse_us_date
+from .models import (
+    CleaningAssignment,
+    Event,
+    Interview,
+    Member,
+    SuggestedTalk,
+    Talk,
+    User,
+    parse_us_date,
+)
 from .talk_utils import (
     build_all_member_filter_options,
     build_member_select_options,
@@ -1653,6 +1662,282 @@ def delete_event(event_id: int):
     return _redirect_after_event_edit(event_id)
 
 
+def _cleaning_week_choices(selected: date, assignments_by_week: dict[date, CleaningAssignment]) -> list[dict]:
+    """A few weeks before and after the selection, always including the selected week."""
+    from .cleaning import format_week_range, week_start_sunday
+
+    this_week = week_start_sunday(date.today())
+    start = min(selected, this_week) - timedelta(days=7 * 2)
+    end = max(selected, this_week) + timedelta(days=7 * 12)
+    choices = []
+    cursor = start
+    while cursor <= end:
+        assignment = assignments_by_week.get(cursor)
+        names = assignment.cleaner_names() if assignment else []
+        choices.append(
+            {
+                "start": cursor,
+                "label": format_week_range(cursor),
+                "names": ", ".join(names),
+            }
+        )
+        cursor += timedelta(days=7)
+    return choices
+
+
+def _selected_cleaning_members(raw_ids: list[str]) -> list[Member]:
+    ids: list[int] = []
+    for raw in raw_ids:
+        try:
+            ids.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+    if not ids:
+        return []
+    found = Member.query.filter(Member.id.in_(ids)).all()
+    order = {member_id: index for index, member_id in enumerate(ids)}
+    found.sort(key=lambda member: order.get(member.id, 0))
+    return found
+
+
+@main_bp.get("/cleaning")
+@login_required
+def cleaning():
+    from .cleaning import (
+        format_week_long,
+        format_week_range,
+        parse_week_start,
+        week_end_saturday,
+        week_start_sunday,
+    )
+
+    selected = parse_week_start(request.args.get("week")) or week_start_sunday(date.today())
+    assignments = CleaningAssignment.query.order_by(CleaningAssignment.week_start.asc()).all()
+    by_week = {row.week_start: row for row in assignments}
+    current = by_week.get(selected)
+    selected_ids = {member.id for member in current.members} if current else set()
+    members = Member.query.order_by(Member.full_name.asc()).all()
+    return render_template(
+        "cleaning.html",
+        members=members,
+        selected=selected,
+        selected_end=week_end_saturday(selected),
+        selected_label=format_week_long(selected),
+        selected_short=format_week_range(selected),
+        selected_ids=selected_ids,
+        week_choices=_cleaning_week_choices(selected, by_week),
+        assignments=assignments,
+        current=current,
+    )
+
+
+@main_bp.post("/cleaning")
+@login_required
+def cleaning_save():
+    from .cleaning import format_week_range, parse_week_start
+
+    week_start = parse_week_start(request.form.get("week_start") or request.form.get("week_day"))
+    if week_start is None:
+        flash("Choose a week.", "warning")
+        return redirect(url_for("main.cleaning"))
+
+    members = _selected_cleaning_members(request.form.getlist("member_ids"))
+    if not members:
+        flash("Select at least one person for that week.", "warning")
+        return redirect(url_for("main.cleaning", week=week_start.isoformat()))
+
+    assignment = CleaningAssignment.query.filter_by(week_start=week_start).first()
+    created = assignment is None
+    if assignment is None:
+        assignment = CleaningAssignment(week_start=week_start)
+        db.session.add(assignment)
+    assignment.members = members
+    db.session.commit()
+    verb = "Saved" if created else "Updated"
+    flash(f"{verb} cleaning for {format_week_range(week_start)}.", "success")
+    return redirect(url_for("main.cleaning", week=week_start.isoformat()))
+
+
+@main_bp.post("/cleaning/<int:assignment_id>/delete")
+@login_required
+def delete_cleaning(assignment_id: int):
+    assignment = CleaningAssignment.query.get_or_404(assignment_id)
+    week = assignment.week_start.isoformat()
+    db.session.delete(assignment)
+    db.session.commit()
+    message = "Cleaning assignment removed."
+    if _form_wants_json():
+        return jsonify({"ok": True, "message": message})
+    flash(message, "success")
+    return redirect(url_for("main.cleaning", week=week))
+
+
+def _print_month_start(raw: str | None, today: date | None = None) -> date:
+    today = today or date.today()
+    text = (raw or "").strip()
+    if len(text) >= 7 and text[4] == "-":
+        try:
+            return date(int(text[0:4]), int(text[5:7]), 1)
+        except ValueError:
+            pass
+    return today.replace(day=1)
+
+
+def _shift_month(month_start: date, delta: int) -> date:
+    index = month_start.year * 12 + (month_start.month - 1) + delta
+    year, month0 = divmod(index, 12)
+    return date(year, month0 + 1, 1)
+
+
+def _print_grid_bounds(month_start: date) -> tuple[date, date]:
+    from .cleaning import week_end_saturday, week_start_sunday
+
+    if month_start.month == 12:
+        month_end = date(month_start.year + 1, 1, 1) - timedelta(days=1)
+    else:
+        month_end = date(month_start.year, month_start.month + 1, 1) - timedelta(days=1)
+    grid_start = week_start_sunday(month_start)
+    grid_end = week_end_saturday(week_start_sunday(month_end))
+    return grid_start, grid_end
+
+
+def _print_weeks(month_start: date, grid_start: date, grid_end: date, by_day: dict[date, list[str]], cleaners: dict[date, str] | None = None) -> list[dict]:
+    from .cleaning import format_week_range
+
+    weeks = []
+    cursor = grid_start
+    while cursor <= grid_end:
+        days = []
+        for offset in range(7):
+            day = cursor + timedelta(days=offset)
+            labels = by_day.get(day, [])
+            shown = labels[:5]
+            extra = len(labels) - len(shown)
+            if extra > 0:
+                shown.append(f"+{extra} more")
+            days.append(
+                {
+                    "date": day,
+                    "in_month": day.month == month_start.month and day.year == month_start.year,
+                    "labels": shown,
+                }
+            )
+        weeks.append(
+            {
+                "start": cursor,
+                "range_label": format_week_range(cursor),
+                "cleaners": (cleaners or {}).get(cursor, ""),
+                "days": days,
+            }
+        )
+        cursor += timedelta(days=7)
+    return weeks
+
+
+def _print_calendar_weeks(month_start: date, hidden: set[str]) -> list[dict]:
+    from .bulletin import special_meeting_kind
+    from .event_utils import iter_event_occurrences, occurrence_inclusive_end, occurrence_is_multiday
+
+    grid_start, grid_end = _print_grid_bounds(month_start)
+    by_day: dict[date, list[str]] = defaultdict(list)
+
+    def allow(key: str, *, multi_day: bool = False) -> bool:
+        if key in hidden:
+            return False
+        if multi_day and "multiday" in hidden:
+            return False
+        return True
+
+    for talk in Talk.query.filter(Talk.talk_date >= grid_start, Talk.talk_date <= grid_end).all():
+        if allow(special_meeting_kind(talk) or "talk"):
+            by_day[talk.talk_date].append(_talk_calendar_title(talk))
+
+    range_start = datetime.combine(grid_start, datetime.min.time())
+    range_end = datetime.combine(grid_end + timedelta(days=1), datetime.min.time())
+    if allow("interview"):
+        for interview in Interview.query.filter(Interview.starts_at < range_end).all():
+            subject = _interview_subject_name(interview)
+            for occ_start, _occ_end in iter_event_occurrences(interview, range_start, range_end):
+                by_day[occ_start.date()].append(f"Interview: {subject}")
+
+    if allow("suggested_talk"):
+        suggestions = SuggestedTalk.query.filter(
+            SuggestedTalk.suggested_date >= grid_start,
+            SuggestedTalk.suggested_date <= grid_end,
+        ).all()
+        for suggestion in suggestions:
+            by_day[suggestion.suggested_date].append(_suggested_talk_calendar_title(suggestion))
+
+    for event in Event.query.all():
+        category = getattr(event, "category", None) or "general"
+        for occ_start, occ_end in iter_event_occurrences(event, range_start, range_end):
+            multi_day = occurrence_is_multiday(occ_start, occ_end, bool(event.all_day))
+            if not allow(category, multi_day=multi_day):
+                continue
+            inclusive = occurrence_inclusive_end(occ_start, occ_end, bool(event.all_day))
+            cursor = max(occ_start.date(), grid_start)
+            last = min(inclusive, grid_end)
+            while cursor <= last:
+                by_day[cursor].append(event.title)
+                cursor += timedelta(days=1)
+
+    return _print_weeks(month_start, grid_start, grid_end, by_day)
+
+
+def _print_cleaning_weeks(month_start: date) -> list[dict]:
+    grid_start, grid_end = _print_grid_bounds(month_start)
+    cleaners = {
+        row.week_start: ", ".join(row.cleaner_names())
+        for row in CleaningAssignment.query.filter(
+            CleaningAssignment.week_start >= grid_start,
+            CleaningAssignment.week_start <= grid_end,
+        ).all()
+        if row.cleaner_names()
+    }
+    return _print_weeks(month_start, grid_start, grid_end, {}, cleaners)
+
+
+def _print_page_context(month_start: date, **extra):
+    prev_month = _shift_month(month_start, -1)
+    next_month = _shift_month(month_start, 1)
+    context = {
+        "month_start": month_start,
+        "month_label": month_start.strftime("%B %Y"),
+        "prev_month": prev_month.strftime("%Y-%m"),
+        "next_month": next_month.strftime("%Y-%m"),
+    }
+    context.update(extra)
+    return context
+
+
+@main_bp.get("/calendar/print")
+@login_required
+def calendar_print():
+    from .event_utils import calendar_filter_label, parse_hidden_filters
+
+    month_start = _print_month_start(request.args.get("month"))
+    hidden = parse_hidden_filters(request.args.get("hide"))
+    return render_template(
+        "calendar_print.html",
+        weeks=_print_calendar_weeks(month_start, set(hidden)),
+        hidden=hidden,
+        hidden_labels=[calendar_filter_label(key) for key in hidden],
+        hide_query=",".join(hidden),
+        **_print_page_context(month_start),
+    )
+
+
+@main_bp.get("/cleaning/print")
+@login_required
+def cleaning_print():
+    month_start = _print_month_start(request.args.get("month"))
+    return render_template(
+        "cleaning_print.html",
+        weeks=_print_cleaning_weeks(month_start),
+        **_print_page_context(month_start),
+    )
+
+
 @main_bp.get("/calendar")
 @login_required
 def calendar():
@@ -2026,6 +2311,77 @@ def api_events():
         )
 
     return jsonify(events)
+
+
+@main_bp.get("/api/cleaning")
+@login_required
+def api_cleaning():
+    from .event_utils import parse_calendar_range
+
+    range_start, range_end = parse_calendar_range(
+        request.args.get("start"),
+        request.args.get("end"),
+    )
+    return jsonify(_cleaning_calendar_events(range_start.date(), range_end.date()))
+
+
+def _cleaning_calendar_events(range_start_date: date, range_end_date: date) -> list[dict]:
+    """Week-long cleaning bars. Separate from events: not a multi-day event pin."""
+    from .cleaning import (
+        CLEANING_BORDER,
+        CLEANING_TEXT,
+        CLEANING_WASH,
+        cleaning_title,
+        format_week_range,
+        week_end_saturday,
+    )
+
+    window_start = range_start_date - timedelta(days=6)
+    assignments = CleaningAssignment.query.filter(
+        CleaningAssignment.week_start >= window_start,
+        CleaningAssignment.week_start < range_end_date,
+    ).all()
+    items = []
+    for assignment in assignments:
+        names = assignment.cleaner_names()
+        if not names:
+            continue
+        week_start = assignment.week_start
+        inclusive_end = week_end_saturday(week_start)
+        title = cleaning_title(names)
+        names_label = ", ".join(names)
+        items.append(
+            {
+                "id": f"cleaning-{assignment.id}",
+                "title": title,
+                "start": week_start.isoformat(),
+                "end": (week_start + timedelta(days=7)).isoformat(),
+                "allDay": True,
+                "display": "block",
+                "order": -100,
+                "backgroundColor": CLEANING_WASH,
+                "borderColor": CLEANING_BORDER,
+                "textColor": CLEANING_TEXT,
+                "classNames": ["cal-cleaning-week"],
+                "extendedProps": {
+                    "kind": "cleaning",
+                    "kindLabel": "Church cleaning",
+                    "accentColor": CLEANING_BORDER,
+                    "editUrl": url_for("main.cleaning", week=week_start.isoformat()),
+                    "deleteUrl": url_for("main.delete_cleaning", assignment_id=assignment.id),
+                    "deleteConfirm": "Remove the cleaning assignment for this week?",
+                    "fullTitle": title,
+                    "cleaners": names_label,
+                    "subtitle": format_week_range(week_start),
+                    "startDate": week_start.isoformat(),
+                    "endDate": inclusive_end.isoformat(),
+                    # False so this bar is not pinned with multi-day event bars.
+                    "multiDay": False,
+                    "notes": "",
+                },
+            }
+        )
+    return items
 
 
 def _talks_for_bulletin_date(talk_date: date) -> list[Talk]:

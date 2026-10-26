@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Church cleaning</h1>
+    <p class="page-subtitle">This calendar is only church cleaning. Tap a day to choose that week, then tap the people who are cleaning.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-outline-secondary btn-sm" id="cleaningPrintLink" data-base="{{ url_for('main.cleaning_print') }}" href="{{ url_for('main.cleaning_print', month=selected.strftime('%Y-%m')) }}">Print</a>
+  </div>
+</div>
+
+<div class="panel mb-3 calendar-page">
+  <div class="panel-body p-2 p-md-3">
+    <div id="cleaning-calendar" data-date="{{ selected.isoformat() }}" data-week-start="{{ selected.isoformat() }}" data-week-end="{{ selected_end.isoformat() }}"></div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-xl-7">
+    <div class="panel">
+      <div class="panel-header">Week and people</div>
+      <div class="panel-body">
+        <form method="post" action="{{ url_for('main.cleaning_save') }}" id="cleaning-form">
+          <input type="hidden" name="week_start" value="{{ selected.isoformat() }}" />
+
+          <div class="mb-3">
+            <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-2">
+              <label class="form-label big-label mb-0">Week</label>
+              <div>
+                <label class="form-label small mb-1" for="cleaning-jump">Jump to any day</label>
+                <input class="form-control form-control-sm" type="date" id="cleaning-jump" value="{{ selected.isoformat() }}" />
+              </div>
+            </div>
+            <div class="cleaning-weeks" role="listbox" aria-label="Cleaning weeks">
+              {% for week in week_choices %}
+                <a
+                  class="cleaning-week-chip{% if week.start == selected %} is-selected{% endif %}"
+                  role="option"
+                  aria-selected="{{ 'true' if week.start == selected else 'false' }}"
+                  href="{{ url_for('main.cleaning', week=week.start.isoformat()) }}"
+                >
+                  <span class="cleaning-week-chip-range">{{ week.label }}</span>
+                  <span class="cleaning-week-chip-names">{{ week.names or "No one yet" }}</span>
+                </a>
+              {% endfor %}
+            </div>
+            <p class="cleaning-selected-week mb-0" id="cleaning-selected-week">{{ selected_label }}</p>
+          </div>
+
+          <div class="mb-2">
+            <div class="d-flex flex-wrap align-items-end justify-content-between gap-2">
+              <label class="form-label big-label mb-0" for="cleaning-filter">People</label>
+              <span class="small muted" id="cleaning-count">0 people</span>
+            </div>
+            <p class="small muted mb-2">Tap a name to add them. Tap again to take them off this week.</p>
+            <input class="form-control mb-2" type="search" id="cleaning-filter" placeholder="Filter names" autocomplete="off" />
+            {% if members %}
+              <div class="cleaning-people" id="cleaning-people">
+                {% for member in members %}
+                  <label class="cleaning-person" data-name="{{ member.full_name|lower }}">
+                    <input type="checkbox" name="member_ids" value="{{ member.id }}" {% if member.id in selected_ids %}checked{% endif %} />
+                    <span>{{ member.full_name }}</span>
+                  </label>
+                {% endfor %}
+              </div>
+              <p class="small muted mt-2 mb-0 d-none" id="cleaning-filter-empty">No names match that filter.</p>
+            {% else %}
+              <p class="mb-0">No people yet. <a href="{{ url_for('main.members') }}">Add members</a> first, then come back and tap their names.</p>
+            {% endif %}
+          </div>
+
+          <button class="btn btn-primary mt-3" type="submit" {% if not members %}disabled{% endif %}>
+            {% if current %}Update this week{% else %}Save this week{% endif %}
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-5">
+    <div class="panel">
+      <div class="panel-header">Assigned weeks</div>
+      <div class="panel-body p-0">
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Week</th>
+                <th>Cleaning</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in assignments %}
+                <tr{% if row.week_start == selected %} class="cleaning-row-selected"{% endif %}>
+                  <td class="text-nowrap">{{ row.week_start.strftime("%b") }} {{ row.week_start.day }}, {{ row.week_start.year }}</td>
+                  <td>{{ row.cleaner_names() | join(", ") or "—" }}</td>
+                  <td class="text-end text-nowrap">
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.cleaning', week=row.week_start.isoformat()) }}">Edit</a>
+                    <form class="d-inline" method="post" action="{{ url_for('main.delete_cleaning', assignment_id=row.id) }}" onsubmit="return confirm('Remove the cleaning assignment for this week?');">
+                      <button class="btn btn-sm btn-outline-danger" type="submit">Remove</button>
+                    </form>
+                  </td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="3" class="muted">No cleaning weeks yet.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script>
+  (function () {
+    const root = document.getElementById("cleaning-calendar");
+    const printLink = document.getElementById("cleaningPrintLink");
+    if (root && window.FullCalendar) {
+      const weekStart = root.dataset.weekStart;
+      const weekEnd = root.dataset.weekEnd;
+      const cal = new FullCalendar.Calendar(root, {
+        initialView: "dayGridMonth",
+        initialDate: root.dataset.date,
+        height: "auto",
+        fixedWeekCount: false,
+        headerToolbar: { left: "prev,next today", center: "title", right: "" },
+        events: "{{ url_for('main.api_cleaning') }}",
+        dayMaxEvents: false,
+        eventDisplay: "block",
+        dayCellClassNames: function (arg) {
+          const date = arg.date;
+          if (!date || !weekStart || !weekEnd) return [];
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          const iso = date.getFullYear() + "-" + month + "-" + day;
+          if (iso >= weekStart && iso <= weekEnd) return ["cleaning-cal-selected"];
+          return [];
+        },
+        dateClick: function (info) {
+          window.location = "{{ url_for('main.cleaning') }}?week=" + encodeURIComponent(info.dateStr);
+        },
+        eventClick: function (info) {
+          info.jsEvent.preventDefault();
+          const editUrl = info.event.extendedProps && info.event.extendedProps.editUrl;
+          if (editUrl) window.location = editUrl;
+        },
+        datesSet: function () {
+          if (!printLink) return;
+          const anchor = cal.view.currentStart;
+          const month = anchor.getFullYear() + "-" + String(anchor.getMonth() + 1).padStart(2, "0");
+          printLink.href = (printLink.dataset.base || printLink.href.split("?")[0]) + "?month=" + month;
+        },
+      });
+      cal.render();
+    }
+
+    const jump = document.getElementById("cleaning-jump");
+    if (jump) {
+      jump.addEventListener("change", function () {
+        if (!jump.value) return;
+        const url = new URL(window.location.href);
+        url.searchParams.set("week", jump.value);
+        window.location = url.toString();
+      });
+    }
+
+    const filter = document.getElementById("cleaning-filter");
+    const people = document.getElementById("cleaning-people");
+    const empty = document.getElementById("cleaning-filter-empty");
+    const count = document.getElementById("cleaning-count");
+
+    function updateCount() {
+      if (!count || !people) return;
+      const n = people.querySelectorAll("input:checked").length;
+      count.textContent = n === 1 ? "1 person" : n + " people";
+    }
+
+    function applyFilter() {
+      if (!people) return;
+      const query = (filter && filter.value ? filter.value : "").trim().toLowerCase();
+      let visible = 0;
+      people.querySelectorAll(".cleaning-person").forEach(function (el) {
+        const name = el.getAttribute("data-name") || "";
+        const checked = !!el.querySelector("input:checked");
+        const hide = !!query && !checked && name.indexOf(query) === -1;
+        el.classList.toggle("is-filtered-out", hide);
+        if (!hide) visible += 1;
+      });
+      if (empty) empty.classList.toggle("d-none", visible !== 0);
+    }
+
+    if (people) {
+      people.addEventListener("change", function () {
+        updateCount();
+        applyFilter();
+      });
+    }
+    if (filter) filter.addEventListener("input", applyFilter);
+    updateCount();
+  })();
+</script>
+{% endblock %}

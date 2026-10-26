@@ -110,6 +110,11 @@ CALENDAR_ITEM_STYLES = {
         "color": "#7c3aed",
         "border": "#6d28d9",
     },
+    "cleaning": {
+        "label": "Church cleaning",
+        "color": "#3f6212",
+        "border": "#365314",
+    },
     "general": {
         "label": "General events",
         "color": DEFAULT_EVENT_STYLE["color"],
@@ -157,6 +162,42 @@ def calendar_item_style(kind: str) -> dict:
 def calendar_item_colors(kind: str) -> tuple[str, str]:
     meta = calendar_item_style(kind)
     return meta["color"], meta["border"]
+
+
+# One-tap filters on the main calendar. "cleaning" is not one of them.
+CALENDAR_FILTER_KEYS = (
+    "talk",
+    "fast_testimony",
+    "primary_program",
+    "branch_conference",
+    "stake_conference",
+    "general_conference",
+    "suggested_talk",
+    "interview",
+    "general",
+    "leadership",
+    "branch",
+    "stake",
+    "youth",
+    "multiday",
+)
+
+
+def calendar_filter_label(key: str) -> str:
+    if key == "multiday":
+        return "Multi-day"
+    if key in EVENT_CATEGORIES:
+        return EVENT_CATEGORIES[key]["label"]
+    style = CALENDAR_ITEM_STYLES.get(key)
+    if style:
+        return style["label"]
+    return key
+
+
+def parse_hidden_filters(raw: str | None) -> list[str]:
+    """Keep known filter keys, in chip order, from a comma-separated hide list."""
+    wanted = {part.strip() for part in (raw or "").split(",") if part.strip()}
+    return [key for key in CALENDAR_FILTER_KEYS if key in wanted]
 
 
 def parse_calendar_range(start_raw: str | None, end_raw: str | None) -> tuple[datetime, datetime]:

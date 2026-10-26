@@ -4,23 +4,26 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">Calendar</h1>
-    <p class="page-subtitle">Click a day to add a suggested speaker. Colored dots are talks, interviews, and events — full details when you click.</p>
+    <p class="page-subtitle">Click a day to add a suggested speaker. Tap a type to hide it on this calendar. Church cleaning has its own tab.</p>
   </div>
   <div class="page-actions">
+    <a class="btn btn-outline-secondary btn-sm" id="calPrintLink" data-base="{{ url_for('main.calendar_print') }}" href="{{ url_for('main.calendar_print') }}">Print</a>
     <button class="btn btn-outline-secondary btn-sm" type="button" id="calOpenCreateBtn">Add event</button>
     <button class="btn btn-primary btn-sm" type="button" id="calOpenTalkBtn">Add talk</button>
   </div>
 </div>
 
-<div class="d-flex flex-wrap gap-2 mb-3 cal-legend">
+<div class="d-flex flex-wrap gap-2 mb-2 cal-legend" id="calFilters" role="group" aria-label="Show on calendar">
   {% for key in ['talk', 'fast_testimony', 'primary_program', 'branch_conference', 'stake_conference', 'general_conference', 'suggested_talk', 'interview', 'general'] %}
     {% set meta = CALENDAR_ITEM_STYLES[key] %}
-    <span class="badge cal-legend-item" style="background:{{ meta.color }};">{{ meta.label }}</span>
+    <button class="badge cal-legend-item cal-filter-chip is-on" type="button" data-filter="{{ key }}" aria-pressed="true" style="--chip:{{ meta.color }}; background:{{ meta.color }};">{{ meta.label }}</button>
   {% endfor %}
   {% for slug, meta in EVENT_CATEGORIES.items() %}
-    <span class="badge cal-legend-item" style="background:{{ meta.color }};">{{ meta.label }}</span>
+    <button class="badge cal-legend-item cal-filter-chip is-on" type="button" data-filter="{{ slug }}" aria-pressed="true" style="--chip:{{ meta.color }}; background:{{ meta.color }};">{{ meta.label }}</button>
   {% endfor %}
+  <button class="badge cal-legend-item cal-filter-chip is-on" type="button" data-filter="multiday" aria-pressed="true" style="--chip:#334155; background:#334155;">Multi-day</button>
 </div>
+<p class="small muted mb-3">Tap a type to hide it. Tap again to show it. This browser remembers your choices.</p>
 
 <div class="row g-3 align-items-start">
   <div class="col-12">
@@ -571,6 +574,37 @@
       meridiem: "short",
     };
 
+    const FILTER_STORAGE_KEY = "branchCalendarHiddenFilters";
+
+    function loadHiddenFilters() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(FILTER_STORAGE_KEY) || "[]");
+        return new Set(Array.isArray(raw) ? raw : []);
+      } catch (e) {
+        return new Set();
+      }
+    }
+
+    function applyFilterChips(hidden) {
+      document.querySelectorAll(".cal-filter-chip").forEach(function (chip) {
+        const off = hidden.has(chip.dataset.filter);
+        chip.classList.toggle("is-off", off);
+        chip.classList.toggle("is-on", !off);
+        chip.setAttribute("aria-pressed", off ? "false" : "true");
+      });
+    }
+
+    const hiddenFilters = loadHiddenFilters();
+    applyFilterChips(hiddenFilters);
+
+    function eventVisible(raw) {
+      const props = (raw && raw.extendedProps) || {};
+      const key = props.kind === "event" ? (props.category || "general") : (props.kind || "general");
+      if (hiddenFilters.has(key)) return false;
+      if (props.multiDay && hiddenFilters.has("multiday")) return false;
+      return true;
+    }
+
     const cal = new FullCalendar.Calendar(el, {
       initialView: "dayGridMonth",
       height: "auto",
@@ -599,7 +633,15 @@
         center: 'title',
         right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
       },
-      events: '{{ url_for("main.api_events") }}',
+      events: function (info, successCallback, failureCallback) {
+        const url = "{{ url_for('main.api_events') }}?start=" + encodeURIComponent(info.startStr) + "&end=" + encodeURIComponent(info.endStr);
+        fetch(url, { headers: { Accept: "application/json" } })
+          .then(function (response) { return response.json(); })
+          .then(function (data) {
+            successCallback((data || []).filter(eventVisible));
+          })
+          .catch(failureCallback);
+      },
       views: {
         dayGridMonth: {
           dayMaxEvents: true,
@@ -665,11 +707,17 @@
         sessionStorage.setItem("branchCalendarDate", (d || calendarAnchorDate()).toISOString());
       } catch (e) { /* ignore */ }
     }
-    // Restore month after page reloads (e.g. after some form saves)
-    try {
-      const savedView = sessionStorage.getItem("branchCalendarDate");
-      if (savedView) cal.gotoDate(savedView);
-    } catch (e) { /* ignore */ }
+    // ?month=YYYY-MM opens that month. Otherwise restore the last month
+    // after a reload (for example after saving from the calendar).
+    const monthQuery = new URLSearchParams(window.location.search).get("month");
+    if (monthQuery && /^\d{4}-\d{2}$/.test(monthQuery)) {
+      cal.gotoDate(monthQuery + "-01");
+    } else {
+      try {
+        const savedView = sessionStorage.getItem("branchCalendarDate");
+        if (savedView) cal.gotoDate(savedView);
+      } catch (e) { /* ignore */ }
+    }
     window.refreshBranchCalendar = function () {
       if (!cal || !cal.refetchEvents) return;
       const anchor = calendarAnchorDate();
@@ -678,9 +726,37 @@
       // FullCalendar refetch does not return a Promise; keep the same month after edits
       cal.gotoDate(anchor);
     };
+    function syncPrintLink() {
+      const link = document.getElementById("calPrintLink");
+      if (!link) return;
+      const anchor = calendarAnchorDate();
+      const month = anchor.getFullYear() + "-" + String(anchor.getMonth() + 1).padStart(2, "0");
+      const base = link.dataset.base || link.href.split("?")[0];
+      const hide = Array.from(hiddenFilters).join(",");
+      link.href = base + "?month=" + month + (hide ? "&hide=" + encodeURIComponent(hide) : "");
+    }
     cal.on("datesSet", function () {
       rememberCalendarDate();
+      syncPrintLink();
     });
+    syncPrintLink();
+
+    const filterBar = document.getElementById("calFilters");
+    if (filterBar) {
+      filterBar.addEventListener("click", function (event) {
+        const chip = event.target.closest(".cal-filter-chip");
+        if (!chip || !chip.dataset.filter) return;
+        const key = chip.dataset.filter;
+        if (hiddenFilters.has(key)) hiddenFilters.delete(key);
+        else hiddenFilters.add(key);
+        try {
+          localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(Array.from(hiddenFilters)));
+        } catch (e) { /* ignore */ }
+        applyFilterChips(hiddenFilters);
+        cal.refetchEvents();
+        syncPrintLink();
+      });
+    }
 
     const scheduleSuggestionBtn = eventModalEl ? eventModalEl.querySelector(".cal-schedule-suggestion-btn") : null;
     const editLink = eventModalEl ? eventModalEl.querySelector(".cal-edit-link") : null;
