@@ -719,6 +719,274 @@ body {
   text-overflow: ellipsis;
 }
 
+/* Church cleaning is a week bar, not an event. Light wash, dashed edge,
+   and it stays above single-day dots instead of pinning to the cell bottom. */
+.calendar-page .fc .fc-daygrid-event.cal-cleaning-week,
+.calendar-page .fc .fc-timegrid-event.cal-cleaning-week,
+.calendar-page .fc .fc-list-event.cal-cleaning-week {
+  background: #e7f2d3 !important;
+  border: 1px dashed #3f6212 !important;
+  border-left: 3px solid #3f6212 !important;
+  color: #1a2e05 !important;
+  box-shadow: none;
+}
+
+.calendar-page .fc .cal-cleaning-week .fc-event-main,
+.calendar-page .fc .cal-cleaning-week .fc-event-title,
+.calendar-page .fc .cal-cleaning-week .fc-list-event-title,
+.calendar-page .fc .cal-cleaning-week .fc-list-event-time {
+  color: #1a2e05 !important;
+  font-weight: 650;
+}
+
+.calendar-page .fc .fc-daygrid-event.cal-cleaning-week .fc-event-title,
+.calendar-page .fc .fc-daygrid-event.cal-cleaning-week .fc-event-main {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cleaning-weeks {
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.65rem;
+}
+
+.cleaning-week-chip {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 9.5rem;
+  max-width: 14rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--app-border);
+  border-radius: 0.65rem;
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+  line-height: 1.25;
+}
+
+.cleaning-week-chip:hover {
+  border-color: #3f6212;
+  color: inherit;
+}
+
+.cleaning-week-chip.is-selected {
+  background: #3f6212;
+  border-color: #3f6212;
+  color: #fff;
+}
+
+.cleaning-week-chip-range {
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.cleaning-week-chip-names {
+  font-size: 0.75rem;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cleaning-selected-week {
+  font-weight: 650;
+}
+
+.cleaning-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.cleaning-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  user-select: none;
+}
+
+.cleaning-person input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  accent-color: #3f6212;
+}
+
+.cleaning-person:has(input:checked) {
+  background: #3f6212;
+  border-color: #3f6212;
+  color: #fff;
+}
+
+.cleaning-person.is-filtered-out {
+  display: none;
+}
+
+.cleaning-row-selected {
+  background: #f4f8ec;
+}
+
+.print-calendar-body {
+  margin: 0;
+  background: #eef1f4;
+  color: #1f2933;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+.print-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0.85rem 1rem 0;
+}
+
+.print-toolbar-nav {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.print-sheet {
+  max-width: 1100px;
+  margin: 0.85rem auto 2rem;
+  background: #fff;
+  padding: 1.25rem 1.25rem 1.5rem;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+}
+
+.print-sheet-header h1 {
+  margin: 0.1rem 0;
+  font-size: 1.8rem;
+}
+
+.print-sheet-header p {
+  margin: 0;
+}
+
+.print-sheet-kicker {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #3f6212;
+}
+
+.print-cal {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  table-layout: fixed;
+}
+
+.print-cal th {
+  text-align: left;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #52606d;
+  padding: 0.35rem 0.4rem 0.45rem;
+  border-bottom: 1px solid #d9e2ec;
+}
+
+.print-cleaning-row td {
+  background: #e7f2d3;
+  border: 1px solid #c5d7a4;
+  border-left: 4px solid #3f6212;
+  padding: 0.35rem 0.55rem;
+}
+
+.print-cleaning-label {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #3f6212;
+  margin-right: 0.45rem;
+}
+
+.print-cleaning-names {
+  font-weight: 700;
+}
+
+.print-cleaning-names.is-empty {
+  font-weight: 600;
+  color: #7b8794;
+}
+
+.print-cleaning-range {
+  float: right;
+  color: #3e4c59;
+  font-size: 0.82rem;
+}
+
+.print-days td {
+  vertical-align: top;
+  border: 1px solid #e4e7eb;
+  height: 5.6rem;
+  padding: 0.25rem 0.35rem 0.4rem;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.print-days td.is-outside {
+  background: #f8fafc;
+  color: #9aa5b1;
+}
+
+.print-day-num {
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 0.15rem;
+}
+
+.print-days ul {
+  margin: 0;
+  padding-left: 0.9rem;
+}
+
+.print-days li {
+  margin: 0 0 0.1rem;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .print-calendar-body {
+    background: #fff;
+  }
+
+  .print-sheet {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .print-days td {
+    height: 4.6rem;
+  }
+}
+
 .cal-legend .cal-legend-item {
   font-size: 0.75rem;
   font-weight: 600;

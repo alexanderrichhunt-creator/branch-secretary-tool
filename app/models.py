@@ -37,6 +37,41 @@ class Member(db.Model):
     interviews = db.relationship("Interview", back_populates="member", cascade="all, delete-orphan")
 
 
+cleaning_assignees = db.Table(
+    "cleaning_assignee",
+    db.Column(
+        "assignment_id",
+        db.Integer,
+        db.ForeignKey("cleaning_assignment.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    db.Column(
+        "member_id",
+        db.Integer,
+        db.ForeignKey("member.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+
+class CleaningAssignment(db.Model):
+    """People responsible for cleaning the church during one Sunday–Saturday week."""
+
+    __tablename__ = "cleaning_assignment"
+
+    id = db.Column(db.Integer, primary_key=True)
+    week_start = db.Column(db.Date, nullable=False, unique=True, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    members = db.relationship(
+        "Member",
+        secondary=cleaning_assignees,
+        backref=db.backref("cleaning_assignments", lazy="select"),
+    )
+
+    def cleaner_names(self) -> list[str]:
+        return sorted((member.full_name for member in self.members), key=str.lower)
+
+
 class Talk(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     talk_date = db.Column(db.Date, nullable=False, index=True)

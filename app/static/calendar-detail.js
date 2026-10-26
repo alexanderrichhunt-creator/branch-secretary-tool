@@ -161,10 +161,18 @@
         showDuration = false;
       }
 
+      if (props.kind === "cleaning") {
+        timeText = "Sunday–Saturday";
+        durationText = "1 week";
+        showDuration = true;
+      }
+
       modalEl.querySelector(".modal-title").textContent = title;
 
       const dateLabel = modalEl.querySelector(".cal-detail-date-label");
-      if (dateLabel) dateLabel.textContent = multiDay ? "Dates" : "Date";
+      if (dateLabel) {
+        dateLabel.textContent = props.kind === "cleaning" ? "Week" : multiDay ? "Dates" : "Date";
+      }
 
       const badge = modalEl.querySelector(".cal-detail-badge");
       if (badge) {
@@ -205,6 +213,9 @@
       if (props.kind === "interview") {
         if (props.interviewSubject) metaParts.push(metaRow("With", props.interviewSubject));
         if (props.interviewPurpose) metaParts.push(metaRow("Purpose", props.interviewPurpose));
+      }
+      if (props.kind === "cleaning" && props.cleaners) {
+        metaParts.push(metaRow("People", props.cleaners));
       }
       if (props.location) {
         metaParts.push(metaRow("Location", props.location));

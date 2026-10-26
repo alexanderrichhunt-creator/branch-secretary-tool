@@ -110,6 +110,11 @@ CALENDAR_ITEM_STYLES = {
         "color": "#7c3aed",
         "border": "#6d28d9",
     },
+    "cleaning": {
+        "label": "Church cleaning",
+        "color": "#3f6212",
+        "border": "#365314",
+    },
     "general": {
         "label": "General events",
         "color": DEFAULT_EVENT_STYLE["color"],
