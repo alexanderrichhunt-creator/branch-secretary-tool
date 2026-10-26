@@ -993,6 +993,23 @@ body {
   border-radius: 4px;
 }
 
+button.cal-filter-chip {
+  border: 2px solid transparent;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+button.cal-filter-chip.is-off {
+  background: #fff !important;
+  color: #4b5563 !important;
+  border-color: var(--chip, #94a3b8);
+  text-decoration: line-through;
+}
+
+.calendar-page .fc .fc-daygrid-day.cleaning-cal-selected .fc-daygrid-day-frame {
+  background: #f3f8ea;
+}
+
 
 .calendar-page pre.cal-detail-body {
   white-space: pre-wrap;

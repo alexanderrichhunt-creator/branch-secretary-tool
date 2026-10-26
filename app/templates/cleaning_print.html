@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ month_label }} church cleaning calendar</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}" />
+  </head>
+  <body class="print-calendar-body">
+    <div class="print-toolbar no-print">
+      <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.cleaning', week=month_start.isoformat()) }}">Back to cleaning</a>
+      <div class="print-toolbar-nav">
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.cleaning_print', month=prev_month) }}">Previous month</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.cleaning_print', month=next_month) }}">Next month</a>
+      </div>
+      <button class="btn btn-primary btn-sm" type="button" id="print-calendar-btn">Print</button>
+    </div>
+
+    <article class="print-sheet">
+      <header class="print-sheet-header">
+        <p class="print-sheet-kicker">Branch Secretary</p>
+        <h1>{{ month_label }}</h1>
+        <p>Church cleaning calendar. Each week is Sunday–Saturday.</p>
+      </header>
+
+      <table class="print-cal">
+        <thead>
+          <tr>
+            <th>Sunday</th>
+            <th>Monday</th>
+            <th>Tuesday</th>
+            <th>Wednesday</th>
+            <th>Thursday</th>
+            <th>Friday</th>
+            <th>Saturday</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for week in weeks %}
+            <tr class="print-cleaning-row">
+              <td colspan="7">
+                <span class="print-cleaning-label">Cleaning</span>
+                {% if week.cleaners %}
+                  <span class="print-cleaning-names">{{ week.cleaners }}</span>
+                {% else %}
+                  <span class="print-cleaning-names is-empty">Not assigned</span>
+                {% endif %}
+                <span class="print-cleaning-range">{{ week.range_label }}</span>
+              </td>
+            </tr>
+            <tr class="print-days">
+              {% for day in week.days %}
+                <td class="{% if not day.in_month %}is-outside{% endif %}">
+                  <div class="print-day-num">{{ day.date.day }}</div>
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </article>
+
+    <script>
+      document.getElementById("print-calendar-btn").addEventListener("click", function () {
+        window.print();
+      });
+    </script>
+  </body>
+</html>

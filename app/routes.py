@@ -1703,7 +1703,13 @@ def _selected_cleaning_members(raw_ids: list[str]) -> list[Member]:
 @main_bp.get("/cleaning")
 @login_required
 def cleaning():
-    from .cleaning import format_week_long, format_week_range, parse_week_start, week_start_sunday
+    from .cleaning import (
+        format_week_long,
+        format_week_range,
+        parse_week_start,
+        week_end_saturday,
+        week_start_sunday,
+    )
 
     selected = parse_week_start(request.args.get("week")) or week_start_sunday(date.today())
     assignments = CleaningAssignment.query.order_by(CleaningAssignment.week_start.asc()).all()
@@ -1715,6 +1721,7 @@ def cleaning():
         "cleaning.html",
         members=members,
         selected=selected,
+        selected_end=week_end_saturday(selected),
         selected_label=format_week_long(selected),
         selected_short=format_week_range(selected),
         selected_ids=selected_ids,
@@ -1782,9 +1789,8 @@ def _shift_month(month_start: date, delta: int) -> date:
     return date(year, month0 + 1, 1)
 
 
-def _print_calendar_weeks(month_start: date) -> list[dict]:
-    from .cleaning import format_week_range, week_end_saturday, week_start_sunday
-    from .event_utils import iter_event_occurrences, occurrence_inclusive_end
+def _print_grid_bounds(month_start: date) -> tuple[date, date]:
+    from .cleaning import week_end_saturday, week_start_sunday
 
     if month_start.month == 12:
         month_end = date(month_start.year + 1, 1, 1) - timedelta(days=1)
@@ -1792,35 +1798,11 @@ def _print_calendar_weeks(month_start: date) -> list[dict]:
         month_end = date(month_start.year, month_start.month + 1, 1) - timedelta(days=1)
     grid_start = week_start_sunday(month_start)
     grid_end = week_end_saturday(week_start_sunday(month_end))
+    return grid_start, grid_end
 
-    by_day: dict[date, list[str]] = defaultdict(list)
-    for talk in Talk.query.filter(Talk.talk_date >= grid_start, Talk.talk_date <= grid_end).all():
-        by_day[talk.talk_date].append(_talk_calendar_title(talk))
 
-    range_start = datetime.combine(grid_start, datetime.min.time())
-    range_end = datetime.combine(grid_end + timedelta(days=1), datetime.min.time())
-    for interview in Interview.query.filter(Interview.starts_at < range_end).all():
-        subject = _interview_subject_name(interview)
-        for occ_start, _occ_end in iter_event_occurrences(interview, range_start, range_end):
-            by_day[occ_start.date()].append(f"Interview: {subject}")
-
-    for event in Event.query.all():
-        for occ_start, occ_end in iter_event_occurrences(event, range_start, range_end):
-            inclusive = occurrence_inclusive_end(occ_start, occ_end, bool(event.all_day))
-            cursor = max(occ_start.date(), grid_start)
-            last = min(inclusive, grid_end)
-            while cursor <= last:
-                by_day[cursor].append(event.title)
-                cursor += timedelta(days=1)
-
-    assignments = {
-        row.week_start: ", ".join(row.cleaner_names())
-        for row in CleaningAssignment.query.filter(
-            CleaningAssignment.week_start >= grid_start,
-            CleaningAssignment.week_start <= grid_end,
-        ).all()
-        if row.cleaner_names()
-    }
+def _print_weeks(month_start: date, grid_start: date, grid_end: date, by_day: dict[date, list[str]], cleaners: dict[date, str] | None = None) -> list[dict]:
+    from .cleaning import format_week_range
 
     weeks = []
     cursor = grid_start
@@ -1829,7 +1811,7 @@ def _print_calendar_weeks(month_start: date) -> list[dict]:
         for offset in range(7):
             day = cursor + timedelta(days=offset)
             labels = by_day.get(day, [])
-            shown = labels[:4]
+            shown = labels[:5]
             extra = len(labels) - len(shown)
             if extra > 0:
                 shown.append(f"+{extra} more")
@@ -1844,7 +1826,7 @@ def _print_calendar_weeks(month_start: date) -> list[dict]:
             {
                 "start": cursor,
                 "range_label": format_week_range(cursor),
-                "cleaners": assignments.get(cursor, ""),
+                "cleaners": (cleaners or {}).get(cursor, ""),
                 "days": days,
             }
         )
@@ -1852,19 +1834,107 @@ def _print_calendar_weeks(month_start: date) -> list[dict]:
     return weeks
 
 
+def _print_calendar_weeks(month_start: date, hidden: set[str]) -> list[dict]:
+    from .bulletin import special_meeting_kind
+    from .event_utils import iter_event_occurrences, occurrence_inclusive_end, occurrence_is_multiday
+
+    grid_start, grid_end = _print_grid_bounds(month_start)
+    by_day: dict[date, list[str]] = defaultdict(list)
+
+    def allow(key: str, *, multi_day: bool = False) -> bool:
+        if key in hidden:
+            return False
+        if multi_day and "multiday" in hidden:
+            return False
+        return True
+
+    for talk in Talk.query.filter(Talk.talk_date >= grid_start, Talk.talk_date <= grid_end).all():
+        if allow(special_meeting_kind(talk) or "talk"):
+            by_day[talk.talk_date].append(_talk_calendar_title(talk))
+
+    range_start = datetime.combine(grid_start, datetime.min.time())
+    range_end = datetime.combine(grid_end + timedelta(days=1), datetime.min.time())
+    if allow("interview"):
+        for interview in Interview.query.filter(Interview.starts_at < range_end).all():
+            subject = _interview_subject_name(interview)
+            for occ_start, _occ_end in iter_event_occurrences(interview, range_start, range_end):
+                by_day[occ_start.date()].append(f"Interview: {subject}")
+
+    if allow("suggested_talk"):
+        suggestions = SuggestedTalk.query.filter(
+            SuggestedTalk.suggested_date >= grid_start,
+            SuggestedTalk.suggested_date <= grid_end,
+        ).all()
+        for suggestion in suggestions:
+            by_day[suggestion.suggested_date].append(_suggested_talk_calendar_title(suggestion))
+
+    for event in Event.query.all():
+        category = getattr(event, "category", None) or "general"
+        for occ_start, occ_end in iter_event_occurrences(event, range_start, range_end):
+            multi_day = occurrence_is_multiday(occ_start, occ_end, bool(event.all_day))
+            if not allow(category, multi_day=multi_day):
+                continue
+            inclusive = occurrence_inclusive_end(occ_start, occ_end, bool(event.all_day))
+            cursor = max(occ_start.date(), grid_start)
+            last = min(inclusive, grid_end)
+            while cursor <= last:
+                by_day[cursor].append(event.title)
+                cursor += timedelta(days=1)
+
+    return _print_weeks(month_start, grid_start, grid_end, by_day)
+
+
+def _print_cleaning_weeks(month_start: date) -> list[dict]:
+    grid_start, grid_end = _print_grid_bounds(month_start)
+    cleaners = {
+        row.week_start: ", ".join(row.cleaner_names())
+        for row in CleaningAssignment.query.filter(
+            CleaningAssignment.week_start >= grid_start,
+            CleaningAssignment.week_start <= grid_end,
+        ).all()
+        if row.cleaner_names()
+    }
+    return _print_weeks(month_start, grid_start, grid_end, {}, cleaners)
+
+
+def _print_page_context(month_start: date, **extra):
+    prev_month = _shift_month(month_start, -1)
+    next_month = _shift_month(month_start, 1)
+    context = {
+        "month_start": month_start,
+        "month_label": month_start.strftime("%B %Y"),
+        "prev_month": prev_month.strftime("%Y-%m"),
+        "next_month": next_month.strftime("%Y-%m"),
+    }
+    context.update(extra)
+    return context
+
+
 @main_bp.get("/calendar/print")
 @login_required
 def calendar_print():
+    from .event_utils import calendar_filter_label, parse_hidden_filters
+
     month_start = _print_month_start(request.args.get("month"))
-    prev_month = _shift_month(month_start, -1)
-    next_month = _shift_month(month_start, 1)
+    hidden = parse_hidden_filters(request.args.get("hide"))
     return render_template(
         "calendar_print.html",
-        month_start=month_start,
-        month_label=month_start.strftime("%B %Y"),
-        prev_month=prev_month.strftime("%Y-%m"),
-        next_month=next_month.strftime("%Y-%m"),
-        weeks=_print_calendar_weeks(month_start),
+        weeks=_print_calendar_weeks(month_start, set(hidden)),
+        hidden=hidden,
+        hidden_labels=[calendar_filter_label(key) for key in hidden],
+        hide_query=",".join(hidden),
+        **_print_page_context(month_start),
+    )
+
+
+@main_bp.get("/cleaning/print")
+@login_required
+def cleaning_print():
+    month_start = _print_month_start(request.args.get("month"))
+    return render_template(
+        "cleaning_print.html",
+        weeks=_print_cleaning_weeks(month_start),
+        **_print_page_context(month_start),
     )
 
 
@@ -2240,8 +2310,19 @@ def api_events():
             )
         )
 
-    events.extend(_cleaning_calendar_events(range_start_date, range_end_date))
     return jsonify(events)
+
+
+@main_bp.get("/api/cleaning")
+@login_required
+def api_cleaning():
+    from .event_utils import parse_calendar_range
+
+    range_start, range_end = parse_calendar_range(
+        request.args.get("start"),
+        request.args.get("end"),
+    )
+    return jsonify(_cleaning_calendar_events(range_start.date(), range_end.date()))
 
 
 def _cleaning_calendar_events(range_start_date: date, range_end_date: date) -> list[dict]:

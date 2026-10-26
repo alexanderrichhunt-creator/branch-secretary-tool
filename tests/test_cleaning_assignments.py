@@ -115,7 +115,7 @@ class CleaningAssignmentTests(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(CleaningAssignment.query.count(), 0)
 
-    def test_calendar_shows_cleaning_apart_from_events(self):
+    def test_cleaning_stays_off_the_main_calendar(self):
         self._save("2026-10-25", self.member_ids[:2])
         self.client.post(
             "/events/add",
@@ -128,38 +128,78 @@ class CleaningAssignmentTests(unittest.TestCase):
                 "respond_json": "1",
             },
         )
-        payload = self.client.get(
+        main = self.client.get(
             "/api/events?start=2026-10-01T00:00:00&end=2026-11-01T00:00:00"
         ).get_json()
-        cleaning = next(item for item in payload if item["extendedProps"]["kind"] == "cleaning")
-        youth = next(item for item in payload if item["extendedProps"].get("fullTitle") == "Youth activity")
-
-        self.assertEqual(cleaning["start"], "2026-10-25")
-        self.assertEqual(cleaning["end"], "2026-11-01")
-        self.assertEqual(cleaning["display"], "block")
-        self.assertEqual(cleaning["classNames"], ["cal-cleaning-week"])
-        self.assertNotIn("cal-multiday-event", cleaning["classNames"])
-        self.assertFalse(cleaning["extendedProps"]["multiDay"])
-        self.assertEqual(cleaning["extendedProps"]["kindLabel"], "Church cleaning")
-        self.assertIn("Anna Brooks", cleaning["extendedProps"]["cleaners"])
-        self.assertIn("Ben Carter", cleaning["title"])
+        self.assertFalse(any(item["extendedProps"].get("kind") == "cleaning" for item in main))
+        youth = next(item for item in main if item["extendedProps"].get("fullTitle") == "Youth activity")
         self.assertEqual(youth["extendedProps"]["kind"], "event")
-        self.assertNotIn("cal-cleaning-week", youth.get("classNames") or [])
+        self.assertEqual(youth["extendedProps"]["category"], "youth")
 
-    def test_print_month_lists_who_is_cleaning_each_week(self):
+        cleaning = self.client.get(
+            "/api/cleaning?start=2026-10-01T00:00:00&end=2026-11-01T00:00:00"
+        ).get_json()
+        self.assertEqual(len(cleaning), 1)
+        self.assertEqual(cleaning[0]["extendedProps"]["kind"], "cleaning")
+        self.assertIn("Anna Brooks", cleaning[0]["extendedProps"]["cleaners"])
+        self.assertNotIn("Youth activity", cleaning[0]["title"])
+
+        page = self.client.get("/cleaning?week=2026-10-25")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn(b"cleaning-calendar", page.data)
+        self.assertIn(b"/api/cleaning", page.data)
+
+    def test_prints_are_separate_and_main_print_respects_filters(self):
         self._save("2026-10-25", self.member_ids[:2])
         self._save("2026-11-01", [self.member_ids[2]])
-        page = self.client.get("/calendar/print?month=2026-10")
-        self.assertEqual(page.status_code, 200)
-        body = page.get_data(as_text=True)
-        self.assertIn("October 2026", body)
-        self.assertIn("Anna Brooks, Ben Carter", body)
-        self.assertIn("Church cleaning calendar", body)
-        self.assertNotIn("Clara Diaz", body)
+        self.client.post(
+            "/events/add",
+            data={
+                "title": "Youth activity",
+                "event_date": "2026-10-28",
+                "start_time": "19:00",
+                "end_time": "20:30",
+                "category": "youth",
+                "respond_json": "1",
+            },
+        )
+        self.client.post(
+            "/events/add",
+            data={
+                "title": "Nauvoo Trip",
+                "event_date": "2027-06-28",
+                "event_end_date": "2027-07-02",
+                "all_day": "1",
+                "category": "branch",
+                "respond_json": "1",
+            },
+        )
 
-        november = self.client.get("/calendar/print?month=2026-11").get_data(as_text=True)
+        main_print = self.client.get("/calendar/print?month=2026-10").get_data(as_text=True)
+        self.assertIn("October 2026", main_print)
+        self.assertIn("Youth activity", main_print)
+        self.assertIn("All event types", main_print)
+        self.assertNotIn("Anna Brooks", main_print)
+        self.assertNotIn("Church cleaning calendar", main_print)
+
+        hidden = self.client.get("/calendar/print?month=2026-10&hide=youth").get_data(as_text=True)
+        self.assertNotIn("Youth activity", hidden)
+        self.assertIn("Hidden: Youth Events", hidden)
+
+        june = self.client.get("/calendar/print?month=2027-06").get_data(as_text=True)
+        self.assertIn("Nauvoo Trip", june)
+        no_span = self.client.get("/calendar/print?month=2027-06&hide=multiday").get_data(as_text=True)
+        self.assertNotIn("Nauvoo Trip", no_span)
+        self.assertIn("Hidden: Multi-day", no_span)
+
+        cleaning_print = self.client.get("/cleaning/print?month=2026-10").get_data(as_text=True)
+        self.assertIn("Anna Brooks, Ben Carter", cleaning_print)
+        self.assertIn("Church cleaning calendar", cleaning_print)
+        self.assertNotIn("Youth activity", cleaning_print)
+        self.assertNotIn("Clara Diaz", cleaning_print)
+
+        november = self.client.get("/cleaning/print?month=2026-11").get_data(as_text=True)
         self.assertIn("Clara Diaz", november)
-        self.assertIn("November 2026", november)
 
     def test_delete_removes_the_week(self):
         from app.models import CleaningAssignment

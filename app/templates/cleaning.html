@@ -3,11 +3,16 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">Church cleaning</h1>
-    <p class="page-subtitle">Pick a Sunday–Saturday week, then tap everyone who is cleaning. This is separate from events.</p>
+    <p class="page-subtitle">This calendar is only church cleaning. Tap a day to choose that week, then tap the people who are cleaning.</p>
   </div>
   <div class="page-actions">
-    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.calendar') }}">Calendar</a>
-    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.calendar_print', month=selected.strftime('%Y-%m')) }}">Print calendar</a>
+    <a class="btn btn-outline-secondary btn-sm" id="cleaningPrintLink" data-base="{{ url_for('main.cleaning_print') }}" href="{{ url_for('main.cleaning_print', month=selected.strftime('%Y-%m')) }}">Print</a>
+  </div>
+</div>
+
+<div class="panel mb-3 calendar-page">
+  <div class="panel-body p-2 p-md-3">
+    <div id="cleaning-calendar" data-date="{{ selected.isoformat() }}" data-week-start="{{ selected.isoformat() }}" data-week-end="{{ selected_end.isoformat() }}"></div>
   </div>
 </div>
 
@@ -113,8 +118,51 @@
 {% endblock %}
 
 {% block scripts %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script>
   (function () {
+    const root = document.getElementById("cleaning-calendar");
+    const printLink = document.getElementById("cleaningPrintLink");
+    if (root && window.FullCalendar) {
+      const weekStart = root.dataset.weekStart;
+      const weekEnd = root.dataset.weekEnd;
+      const cal = new FullCalendar.Calendar(root, {
+        initialView: "dayGridMonth",
+        initialDate: root.dataset.date,
+        height: "auto",
+        fixedWeekCount: false,
+        headerToolbar: { left: "prev,next today", center: "title", right: "" },
+        events: "{{ url_for('main.api_cleaning') }}",
+        dayMaxEvents: false,
+        eventDisplay: "block",
+        dayCellClassNames: function (arg) {
+          const date = arg.date;
+          if (!date || !weekStart || !weekEnd) return [];
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          const iso = date.getFullYear() + "-" + month + "-" + day;
+          if (iso >= weekStart && iso <= weekEnd) return ["cleaning-cal-selected"];
+          return [];
+        },
+        dateClick: function (info) {
+          window.location = "{{ url_for('main.cleaning') }}?week=" + encodeURIComponent(info.dateStr);
+        },
+        eventClick: function (info) {
+          info.jsEvent.preventDefault();
+          const editUrl = info.event.extendedProps && info.event.extendedProps.editUrl;
+          if (editUrl) window.location = editUrl;
+        },
+        datesSet: function () {
+          if (!printLink) return;
+          const anchor = cal.view.currentStart;
+          const month = anchor.getFullYear() + "-" + String(anchor.getMonth() + 1).padStart(2, "0");
+          printLink.href = (printLink.dataset.base || printLink.href.split("?")[0]) + "?month=" + month;
+        },
+      });
+      cal.render();
+    }
+
     const jump = document.getElementById("cleaning-jump");
     if (jump) {
       jump.addEventListener("change", function () {
