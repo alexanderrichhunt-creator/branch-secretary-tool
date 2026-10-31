@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import tempfile
 import unittest
 from datetime import date
@@ -212,6 +213,12 @@ class CleaningAssignmentTests(unittest.TestCase):
         self.assertIn("Church cleaning calendar", cleaning_print)
         self.assertIn("print-week-grid", cleaning_print)
         self.assertIn("print-week-names", cleaning_print)
+        week_classes = re.findall(r'class="(print-week(?:\s[^"]*)?)"', cleaning_print)
+        self.assertGreaterEqual(len(week_classes), 4)
+        self.assertEqual(
+            ["is-alt" in row for row in week_classes],
+            [i % 2 == 1 for i in range(len(week_classes))],
+        )
         self.assertIn('<span class="print-cleaning-name">Anna Brooks</span>', cleaning_print)
         self.assertIn('<span class="print-cleaning-name">Ben Carter</span>', cleaning_print)
         self.assertEqual(cleaning_print.count('class="print-cleaning-column"'), 1)

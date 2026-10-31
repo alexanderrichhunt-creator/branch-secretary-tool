@@ -906,8 +906,10 @@ body {
 }
 
 /* Cleaning print uses the same hairline calendar grid as the month calendar.
-   Names sit in the middle of that week's squares, with a light tint and no
-   extra box or outer border. */
+   Names sit in the middle of that week's squares. Weeks alternate between two
+   soft greens of different lightness so each Sunday–Saturday band is obvious
+   on a color printer and still separates in black and white. No extra border
+   or filled name plate. */
 .print-cleaning-cal {
   border-collapse: collapse;
   border-spacing: 0;
@@ -935,13 +937,19 @@ body {
 .print-week-day {
   min-height: 1.35in;
   padding: 0.28rem 0.4rem 0.3rem;
-  border-right: 1px solid #e4e7eb;
-  border-bottom: 1px solid #e4e7eb;
-  background: #fff;
+  border-right: 1px solid #c5cebc;
+  border-bottom: 1px solid #c5cebc;
+  background: #f4f7f0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.print-week.is-alt .print-week-day {
+  background: #d5e3c4;
 }
 
 .print-week-day:first-child {
-  border-left: 1px solid #e4e7eb;
+  border-left: 1px solid #c5cebc;
 }
 
 /* Names share the day row so a longer list can grow the week instead of
@@ -954,19 +962,8 @@ body {
 .print-week-day:nth-child(6) { grid-column: 6; grid-row: 1; }
 .print-week-day:nth-child(7) { grid-column: 7; grid-row: 1; }
 
-.print-week-day.is-assigned {
-  background: #f4f8ec;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
-}
-
 .print-week-day.is-outside {
-  background: #f8fafc;
-  color: #9aa5b1;
-}
-
-.print-week-day.is-assigned.is-outside {
-  background: #f3f6f0;
+  color: #7b8794;
 }
 
 .print-cleaning-cal .print-day-num {
@@ -1026,7 +1023,7 @@ body {
 
 .print-cleaning-names.is-empty {
   font-weight: 600;
-  color: #9aa5b1;
+  color: #5f6b76;
 }
 
 .print-days td {
