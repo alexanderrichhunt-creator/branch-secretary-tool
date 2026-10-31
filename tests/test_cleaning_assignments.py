@@ -3,13 +3,20 @@
 from __future__ import annotations
 
 import os
+import re
 import tempfile
 import unittest
 from datetime import date
 
 from werkzeug.datastructures import MultiDict
 
-from app.cleaning import format_week_long, format_week_range, parse_week_start, week_start_sunday
+from app.cleaning import (
+    cleaning_name_columns,
+    format_week_long,
+    format_week_range,
+    parse_week_start,
+    week_start_sunday,
+)
 
 
 class WeekParsingTests(unittest.TestCase):
@@ -34,6 +41,16 @@ class WeekParsingTests(unittest.TestCase):
         self.assertEqual(format_week_range(date(2026, 10, 25)), "Oct 25 – 31, 2026")
         self.assertIn("Sunday, October 25", format_week_long(date(2026, 10, 25)))
         self.assertIn("Saturday, October 31, 2026", format_week_long(date(2026, 10, 25)))
+
+    def test_print_columns_hold_at_most_four_names(self):
+        self.assertEqual(cleaning_name_columns([]), [])
+        self.assertEqual(cleaning_name_columns(["Ada"]), [["Ada"]])
+        four = ["A", "B", "C", "D"]
+        self.assertEqual(cleaning_name_columns(four), [four])
+        self.assertEqual(
+            cleaning_name_columns(["A", "B", "C", "D", "E", "F"]),
+            [["A", "B", "C", "D"], ["E", "F"]],
+        )
 
 
 class CleaningAssignmentTests(unittest.TestCase):
@@ -193,24 +210,64 @@ class CleaningAssignmentTests(unittest.TestCase):
         self.assertIn("Hidden: Multi-day", no_span)
 
         cleaning_print = self.client.get("/cleaning/print?month=2026-10").get_data(as_text=True)
-        self.assertIn("Anna Brooks, Ben Carter", cleaning_print)
         self.assertIn("Church cleaning calendar", cleaning_print)
         self.assertIn("print-week-grid", cleaning_print)
         self.assertIn("print-week-names", cleaning_print)
+        week_classes = re.findall(r'class="(print-week(?:\s[^"]*)?)"', cleaning_print)
+        self.assertGreaterEqual(len(week_classes), 4)
+        self.assertEqual(
+            ["is-alt" in row for row in week_classes],
+            [i % 2 == 1 for i in range(len(week_classes))],
+        )
+        self.assertIn('<span class="print-cleaning-name">Anna Brooks</span>', cleaning_print)
+        self.assertIn('<span class="print-cleaning-name">Ben Carter</span>', cleaning_print)
+        self.assertEqual(cleaning_print.count('class="print-cleaning-column"'), 1)
+        self.assertNotIn("Anna Brooks, Ben Carter", cleaning_print)
         self.assertNotIn("print-week-box", cleaning_print)
         self.assertNotIn("print-week-assignment", cleaning_print)
         self.assertNotIn("print-cleaning-row", cleaning_print)
         self.assertNotIn("Youth activity", cleaning_print)
         self.assertNotIn("Clara Diaz", cleaning_print)
-        # Names belong to the week cell, after that week's day squares open.
-        anna_at = cleaning_print.find("Anna Brooks, Ben Carter")
+        # Each name is its own line, inside that week's squares, after the day numbers.
+        anna_at = cleaning_print.find("Anna Brooks")
+        ben_at = cleaning_print.find("Ben Carter")
         week_at = cleaning_print.rfind("print-week-grid", 0, anna_at)
         self.assertGreater(week_at, -1)
+        self.assertGreater(ben_at, anna_at)
         self.assertIn(">25<", cleaning_print[week_at:anna_at])
         self.assertIn(">31<", cleaning_print[week_at:anna_at])
 
         november = self.client.get("/cleaning/print?month=2026-11").get_data(as_text=True)
         self.assertIn("Clara Diaz", november)
+
+    def test_print_flows_extra_names_into_another_column(self):
+        from app.models import Member
+
+        with self.app.app_context():
+            extra = []
+            for name in ("Elena Foster", "Grace Hughes", "Henry Ibarra"):
+                member = Member(full_name=name)
+                self.db.session.add(member)
+                extra.append(member)
+            self.db.session.commit()
+            extra_ids = [member.id for member in extra]
+        # Six people: four down the first column, two in the next. Sorted by name.
+        self._save("2026-11-01", self.member_ids + extra_ids)
+        page = self.client.get("/cleaning/print?month=2026-11").get_data(as_text=True)
+        marker = 'class="print-cleaning-column"'
+        start = page.find(marker)
+        self.assertGreater(start, -1)
+        second = page.find(marker, start + len(marker))
+        self.assertGreater(second, -1)
+        first_column = page[start:second]
+        second_column = page[second:]
+        for name in ("Anna Brooks", "Ben Carter", "Clara Diaz", "Elena Foster"):
+            self.assertIn(name, first_column)
+            self.assertNotIn(name, second_column)
+        for name in ("Grace Hughes", "Henry Ibarra"):
+            self.assertIn(name, second_column)
+            self.assertNotIn(name, first_column)
+        self.assertEqual(page.count('class="print-cleaning-column"'), 2)
 
     def test_delete_removes_the_week(self):
         from app.models import CleaningAssignment

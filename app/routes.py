@@ -1801,8 +1801,8 @@ def _print_grid_bounds(month_start: date) -> tuple[date, date]:
     return grid_start, grid_end
 
 
-def _print_weeks(month_start: date, grid_start: date, grid_end: date, by_day: dict[date, list[str]], cleaners: dict[date, str] | None = None) -> list[dict]:
-    from .cleaning import format_week_range
+def _print_weeks(month_start: date, grid_start: date, grid_end: date, by_day: dict[date, list[str]], cleaners: dict[date, list[str]] | None = None) -> list[dict]:
+    from .cleaning import cleaning_name_columns, format_week_range
 
     weeks = []
     cursor = grid_start
@@ -1822,11 +1822,20 @@ def _print_weeks(month_start: date, grid_start: date, grid_end: date, by_day: di
                     "labels": shown,
                 }
             )
+        if cleaners is None:
+            week_cleaners: list[str] | str = ""
+            columns: list[list[str]] = []
+        else:
+            week_cleaners = list(cleaners.get(cursor) or [])
+            columns = cleaning_name_columns(week_cleaners)
         weeks.append(
             {
                 "start": cursor,
                 "range_label": format_week_range(cursor),
-                "cleaners": (cleaners or {}).get(cursor, ""),
+                # Names stay a list so the cleaning print can put each person on their
+                # own line, in columns of four. The main calendar print ignores this.
+                "cleaners": week_cleaners,
+                "cleaner_columns": columns,
                 "days": days,
             }
         )
@@ -1887,7 +1896,7 @@ def _print_calendar_weeks(month_start: date, hidden: set[str]) -> list[dict]:
 def _print_cleaning_weeks(month_start: date) -> list[dict]:
     grid_start, grid_end = _print_grid_bounds(month_start)
     cleaners = {
-        row.week_start: ", ".join(row.cleaner_names())
+        row.week_start: row.cleaner_names()
         for row in CleaningAssignment.query.filter(
             CleaningAssignment.week_start >= grid_start,
             CleaningAssignment.week_start <= grid_end,
