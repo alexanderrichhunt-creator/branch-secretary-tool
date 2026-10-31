@@ -54,7 +54,9 @@
                   {% endfor %}
                   <div class="print-week-names">
                     {% if week.cleaners %}
-                      <span class="print-cleaning-names">{{ week.cleaners }}</span>
+                      {% for name in week.cleaners %}
+                        <span class="print-cleaning-name">{{ name }}</span>
+                      {% endfor %}
                     {% else %}
                       <span class="print-cleaning-names is-empty">Not assigned</span>
                     {% endif %}

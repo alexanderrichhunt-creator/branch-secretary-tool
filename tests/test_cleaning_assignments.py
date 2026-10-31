@@ -193,19 +193,23 @@ class CleaningAssignmentTests(unittest.TestCase):
         self.assertIn("Hidden: Multi-day", no_span)
 
         cleaning_print = self.client.get("/cleaning/print?month=2026-10").get_data(as_text=True)
-        self.assertIn("Anna Brooks, Ben Carter", cleaning_print)
         self.assertIn("Church cleaning calendar", cleaning_print)
         self.assertIn("print-week-grid", cleaning_print)
         self.assertIn("print-week-names", cleaning_print)
+        self.assertIn('<span class="print-cleaning-name">Anna Brooks</span>', cleaning_print)
+        self.assertIn('<span class="print-cleaning-name">Ben Carter</span>', cleaning_print)
+        self.assertNotIn("Anna Brooks, Ben Carter", cleaning_print)
         self.assertNotIn("print-week-box", cleaning_print)
         self.assertNotIn("print-week-assignment", cleaning_print)
         self.assertNotIn("print-cleaning-row", cleaning_print)
         self.assertNotIn("Youth activity", cleaning_print)
         self.assertNotIn("Clara Diaz", cleaning_print)
-        # Names belong to the week cell, after that week's day squares open.
-        anna_at = cleaning_print.find("Anna Brooks, Ben Carter")
+        # Each name is its own line, inside that week's squares, after the day numbers.
+        anna_at = cleaning_print.find("Anna Brooks")
+        ben_at = cleaning_print.find("Ben Carter")
         week_at = cleaning_print.rfind("print-week-grid", 0, anna_at)
         self.assertGreater(week_at, -1)
+        self.assertGreater(ben_at, anna_at)
         self.assertIn(">25<", cleaning_print[week_at:anna_at])
         self.assertIn(">31<", cleaning_print[week_at:anna_at])
 

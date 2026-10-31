@@ -1801,7 +1801,7 @@ def _print_grid_bounds(month_start: date) -> tuple[date, date]:
     return grid_start, grid_end
 
 
-def _print_weeks(month_start: date, grid_start: date, grid_end: date, by_day: dict[date, list[str]], cleaners: dict[date, str] | None = None) -> list[dict]:
+def _print_weeks(month_start: date, grid_start: date, grid_end: date, by_day: dict[date, list[str]], cleaners: dict[date, list[str]] | None = None) -> list[dict]:
     from .cleaning import format_week_range
 
     weeks = []
@@ -1826,7 +1826,9 @@ def _print_weeks(month_start: date, grid_start: date, grid_end: date, by_day: di
             {
                 "start": cursor,
                 "range_label": format_week_range(cursor),
-                "cleaners": (cleaners or {}).get(cursor, ""),
+                # A list on the cleaning print, so each person can sit on their own line.
+                # The main calendar print does not use this field.
+                "cleaners": list(cleaners.get(cursor) or []) if cleaners is not None else "",
                 "days": days,
             }
         )
@@ -1887,7 +1889,7 @@ def _print_calendar_weeks(month_start: date, hidden: set[str]) -> list[dict]:
 def _print_cleaning_weeks(month_start: date) -> list[dict]:
     grid_start, grid_end = _print_grid_bounds(month_start)
     cleaners = {
-        row.week_start: ", ".join(row.cleaner_names())
+        row.week_start: row.cleaner_names()
         for row in CleaningAssignment.query.filter(
             CleaningAssignment.week_start >= grid_start,
             CleaningAssignment.week_start <= grid_end,
