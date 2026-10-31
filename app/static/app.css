@@ -905,11 +905,78 @@ body {
   border-bottom: 1px solid #d9e2ec;
 }
 
-.print-cleaning-row td {
-  background: #e7f2d3;
-  border: 1px solid #c5d7a4;
-  border-left: 4px solid #3f6212;
-  padding: 0.35rem 0.55rem;
+/* Cleaning print: each Sunday–Saturday week is one bordered block, and the
+   assigned names sit inside those day squares instead of on the grid line. */
+.print-cleaning-cal {
+  border-collapse: separate;
+  border-spacing: 0 0.42rem;
+}
+
+.print-cleaning-cal th {
+  padding: 0.2rem 0.4rem 0.35rem;
+}
+
+.print-cleaning-cal > tbody > tr > td {
+  padding: 0;
+  border: none;
+  background: transparent;
+  vertical-align: top;
+}
+
+.print-week-box {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border: 2px solid #243018;
+  background: #fff;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.print-week-day {
+  min-height: 1.42in;
+  padding: 0.28rem 0.4rem 0.35rem;
+  border-right: 1px solid #d3dbe3;
+  background: #fff;
+}
+
+.print-week-day:last-child {
+  border-right: none;
+}
+
+.print-week-day.is-outside {
+  background: #f3f5f7;
+  color: #8b97a3;
+}
+
+.print-cleaning-cal .print-day-num {
+  position: relative;
+  z-index: 2;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.print-week-assignment {
+  position: absolute;
+  z-index: 1;
+  left: 0.38rem;
+  right: 0.38rem;
+  top: 1.85rem;
+  bottom: 0.36rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.65rem;
+  padding: 0.35rem 0.7rem;
+  background: #e4f0cc;
+  border: 1.5px solid #3f6212;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.print-week-assignment.is-empty {
+  background: #f4f5f7;
+  border-color: #c5ced6;
 }
 
 .print-cleaning-label {
@@ -919,22 +986,27 @@ body {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #3f6212;
-  margin-right: 0.45rem;
 }
 
 .print-cleaning-names {
-  font-weight: 700;
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #14240a;
 }
 
+.print-week-assignment.is-empty .print-cleaning-names,
 .print-cleaning-names.is-empty {
   font-weight: 600;
   color: #7b8794;
 }
 
 .print-cleaning-range {
-  float: right;
+  margin-left: auto;
   color: #3e4c59;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .print-days td {
@@ -984,6 +1056,36 @@ body {
 
   .print-days td {
     height: 4.6rem;
+  }
+
+  .print-cleaning-cal {
+    border-spacing: 0 0.16rem;
+    margin-top: 0.4rem;
+  }
+
+  .print-cleaning-sheet .print-sheet-header h1 {
+    font-size: 20pt;
+  }
+
+  .print-cleaning-sheet .print-sheet-header p {
+    font-size: 10pt;
+  }
+
+  .print-cleaning-sheet .print-week-day {
+    min-height: 1.18in;
+  }
+
+  .print-cleaning-sheet .print-week-assignment {
+    top: 0.34in;
+    bottom: 0.08in;
+  }
+
+  .print-cleaning-sheet .print-cleaning-names {
+    font-size: 14pt;
+  }
+
+  .print-cleaning-sheet .print-cleaning-range {
+    font-size: 10pt;
   }
 }
 

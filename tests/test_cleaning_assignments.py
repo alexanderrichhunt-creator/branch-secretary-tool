@@ -195,8 +195,17 @@ class CleaningAssignmentTests(unittest.TestCase):
         cleaning_print = self.client.get("/cleaning/print?month=2026-10").get_data(as_text=True)
         self.assertIn("Anna Brooks, Ben Carter", cleaning_print)
         self.assertIn("Church cleaning calendar", cleaning_print)
+        self.assertIn("print-week-box", cleaning_print)
+        self.assertIn("print-week-assignment", cleaning_print)
+        self.assertNotIn("print-cleaning-row", cleaning_print)
         self.assertNotIn("Youth activity", cleaning_print)
         self.assertNotIn("Clara Diaz", cleaning_print)
+        # Names belong to the week cell, after that week's day squares open.
+        anna_at = cleaning_print.find("Anna Brooks, Ben Carter")
+        week_at = cleaning_print.rfind("print-week-box", 0, anna_at)
+        self.assertGreater(week_at, -1)
+        self.assertIn(">25<", cleaning_print[week_at:anna_at])
+        self.assertIn(">31<", cleaning_print[week_at:anna_at])
 
         november = self.client.get("/cleaning/print?month=2026-11").get_data(as_text=True)
         self.assertIn("Clara Diaz", november)
