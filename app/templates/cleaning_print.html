@@ -44,22 +44,20 @@
         </thead>
         <tbody>
           {% for week in weeks %}
-            <tr class="print-week">
+            <tr class="print-week{% if not week.cleaners %} is-empty{% endif %}">
               <td colspan="7">
-                <div class="print-week-box">
+                <div class="print-week-grid">
                   {% for day in week.days %}
-                    <div class="print-week-day{% if not day.in_month %} is-outside{% endif %}">
+                    <div class="print-week-day{% if not day.in_month %} is-outside{% endif %}{% if week.cleaners %} is-assigned{% endif %}">
                       <div class="print-day-num">{{ day.date.day }}</div>
                     </div>
                   {% endfor %}
-                  <div class="print-week-assignment{% if not week.cleaners %} is-empty{% endif %}">
-                    <span class="print-cleaning-label">Cleaning</span>
+                  <div class="print-week-names">
                     {% if week.cleaners %}
                       <span class="print-cleaning-names">{{ week.cleaners }}</span>
                     {% else %}
                       <span class="print-cleaning-names is-empty">Not assigned</span>
                     {% endif %}
-                    <span class="print-cleaning-range">{{ week.range_label }}</span>
                   </div>
                 </div>
               </td>
