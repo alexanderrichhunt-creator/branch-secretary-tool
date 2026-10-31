@@ -1802,7 +1802,7 @@ def _print_grid_bounds(month_start: date) -> tuple[date, date]:
 
 
 def _print_weeks(month_start: date, grid_start: date, grid_end: date, by_day: dict[date, list[str]], cleaners: dict[date, list[str]] | None = None) -> list[dict]:
-    from .cleaning import format_week_range
+    from .cleaning import cleaning_name_columns, format_week_range
 
     weeks = []
     cursor = grid_start
@@ -1822,13 +1822,20 @@ def _print_weeks(month_start: date, grid_start: date, grid_end: date, by_day: di
                     "labels": shown,
                 }
             )
+        if cleaners is None:
+            week_cleaners: list[str] | str = ""
+            columns: list[list[str]] = []
+        else:
+            week_cleaners = list(cleaners.get(cursor) or [])
+            columns = cleaning_name_columns(week_cleaners)
         weeks.append(
             {
                 "start": cursor,
                 "range_label": format_week_range(cursor),
-                # A list on the cleaning print, so each person can sit on their own line.
-                # The main calendar print does not use this field.
-                "cleaners": list(cleaners.get(cursor) or []) if cleaners is not None else "",
+                # Names stay a list so the cleaning print can put each person on their
+                # own line, in columns of four. The main calendar print ignores this.
+                "cleaners": week_cleaners,
+                "cleaner_columns": columns,
                 "days": days,
             }
         )

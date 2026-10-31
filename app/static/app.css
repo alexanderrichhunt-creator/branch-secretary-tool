@@ -983,42 +983,50 @@ body {
   align-self: stretch;
   justify-self: stretch;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 0.18rem;
   width: auto;
+  max-width: 100%;
   margin: 0;
-  padding: 1.7rem 0.75rem 0.7rem;
+  padding: 1.45rem 0.55rem 0.4rem;
   text-align: center;
   pointer-events: none;
+}
+
+.print-cleaning-columns {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  column-gap: 1.35rem;
+  max-width: 100%;
+}
+
+.print-cleaning-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.12rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .print-cleaning-name,
 .print-cleaning-names {
   display: block;
   max-width: 100%;
-  font-size: 1.15rem;
-  font-weight: 800;
+  font-size: 0.95rem;
+  font-weight: 700;
   line-height: 1.15;
   color: #1a2e05;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 .print-cleaning-names.is-empty {
   font-weight: 600;
   color: #9aa5b1;
-}
-
-/* A packed week stays on the letter page by tightening only that week. */
-.print-week-names:has(.print-cleaning-name:nth-child(5)) {
-  gap: 0.06rem;
-  padding-top: 1.15rem;
-}
-
-.print-week-names:has(.print-cleaning-name:nth-child(5)) .print-cleaning-name {
-  font-size: 0.98rem;
-  line-height: 1.08;
 }
 
 .print-days td {
@@ -1087,34 +1095,21 @@ body {
   }
 
   .print-cleaning-sheet .print-week-names {
-    gap: 0.04in;
-    padding: 0.38in 0.2in 0.14in;
+    padding: 0.3in 0.12in 0.08in;
+  }
+
+  .print-cleaning-sheet .print-cleaning-columns {
+    column-gap: 0.38in;
+  }
+
+  .print-cleaning-sheet .print-cleaning-column {
+    gap: 0.028in;
   }
 
   .print-cleaning-sheet .print-cleaning-name,
   .print-cleaning-sheet .print-cleaning-names {
-    font-size: 14pt;
-  }
-
-  .print-cleaning-sheet .print-week-names:has(.print-cleaning-name:nth-child(5)) {
-    gap: 0.02in;
-    padding-top: 0.26in;
-  }
-
-  .print-cleaning-sheet .print-week-names:has(.print-cleaning-name:nth-child(5)) .print-cleaning-name {
-    font-size: 12pt;
-    line-height: 1.08;
-  }
-
-  /* Six or more names: keep a six-week month on one letter page. */
-  .print-cleaning-sheet .print-week-names:has(.print-cleaning-name:nth-child(6)) {
-    gap: 0.012in;
-    padding: 0.3in 0.15in 0.08in;
-  }
-
-  .print-cleaning-sheet .print-week-names:has(.print-cleaning-name:nth-child(6)) .print-cleaning-name {
     font-size: 11pt;
-    line-height: 1.05;
+    line-height: 1.12;
   }
 }
 

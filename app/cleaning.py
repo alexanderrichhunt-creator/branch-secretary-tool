@@ -72,3 +72,13 @@ def cleaning_title(names: list[str]) -> str:
     if not names:
         return "Cleaning"
     return "Cleaning: " + ", ".join(names)
+
+
+# Print columns stay short enough to sit inside one week of day squares.
+NAMES_PER_PRINT_COLUMN = 4
+
+
+def cleaning_name_columns(names: list[str], per_column: int = NAMES_PER_PRINT_COLUMN) -> list[list[str]]:
+    """Fill down each column, then start another. At most ``per_column`` names each."""
+    size = per_column if per_column > 0 else NAMES_PER_PRINT_COLUMN
+    return [list(names[i : i + size]) for i in range(0, len(names), size)]

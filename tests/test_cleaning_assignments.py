@@ -9,7 +9,13 @@ from datetime import date
 
 from werkzeug.datastructures import MultiDict
 
-from app.cleaning import format_week_long, format_week_range, parse_week_start, week_start_sunday
+from app.cleaning import (
+    cleaning_name_columns,
+    format_week_long,
+    format_week_range,
+    parse_week_start,
+    week_start_sunday,
+)
 
 
 class WeekParsingTests(unittest.TestCase):
@@ -34,6 +40,16 @@ class WeekParsingTests(unittest.TestCase):
         self.assertEqual(format_week_range(date(2026, 10, 25)), "Oct 25 – 31, 2026")
         self.assertIn("Sunday, October 25", format_week_long(date(2026, 10, 25)))
         self.assertIn("Saturday, October 31, 2026", format_week_long(date(2026, 10, 25)))
+
+    def test_print_columns_hold_at_most_four_names(self):
+        self.assertEqual(cleaning_name_columns([]), [])
+        self.assertEqual(cleaning_name_columns(["Ada"]), [["Ada"]])
+        four = ["A", "B", "C", "D"]
+        self.assertEqual(cleaning_name_columns(four), [four])
+        self.assertEqual(
+            cleaning_name_columns(["A", "B", "C", "D", "E", "F"]),
+            [["A", "B", "C", "D"], ["E", "F"]],
+        )
 
 
 class CleaningAssignmentTests(unittest.TestCase):
@@ -198,6 +214,7 @@ class CleaningAssignmentTests(unittest.TestCase):
         self.assertIn("print-week-names", cleaning_print)
         self.assertIn('<span class="print-cleaning-name">Anna Brooks</span>', cleaning_print)
         self.assertIn('<span class="print-cleaning-name">Ben Carter</span>', cleaning_print)
+        self.assertEqual(cleaning_print.count('class="print-cleaning-column"'), 1)
         self.assertNotIn("Anna Brooks, Ben Carter", cleaning_print)
         self.assertNotIn("print-week-box", cleaning_print)
         self.assertNotIn("print-week-assignment", cleaning_print)
@@ -215,6 +232,35 @@ class CleaningAssignmentTests(unittest.TestCase):
 
         november = self.client.get("/cleaning/print?month=2026-11").get_data(as_text=True)
         self.assertIn("Clara Diaz", november)
+
+    def test_print_flows_extra_names_into_another_column(self):
+        from app.models import Member
+
+        with self.app.app_context():
+            extra = []
+            for name in ("Elena Foster", "Grace Hughes", "Henry Ibarra"):
+                member = Member(full_name=name)
+                self.db.session.add(member)
+                extra.append(member)
+            self.db.session.commit()
+            extra_ids = [member.id for member in extra]
+        # Six people: four down the first column, two in the next. Sorted by name.
+        self._save("2026-11-01", self.member_ids + extra_ids)
+        page = self.client.get("/cleaning/print?month=2026-11").get_data(as_text=True)
+        marker = 'class="print-cleaning-column"'
+        start = page.find(marker)
+        self.assertGreater(start, -1)
+        second = page.find(marker, start + len(marker))
+        self.assertGreater(second, -1)
+        first_column = page[start:second]
+        second_column = page[second:]
+        for name in ("Anna Brooks", "Ben Carter", "Clara Diaz", "Elena Foster"):
+            self.assertIn(name, first_column)
+            self.assertNotIn(name, second_column)
+        for name in ("Grace Hughes", "Henry Ibarra"):
+            self.assertIn(name, second_column)
+            self.assertNotIn(name, first_column)
+        self.assertEqual(page.count('class="print-cleaning-column"'), 2)
 
     def test_delete_removes_the_week(self):
         from app.models import CleaningAssignment
