@@ -23,11 +23,11 @@
         <input class="form-control form-control-lg" type="datetime-local" id="starts_at" name="starts_at" value="{{ interview.starts_at.strftime('%Y-%m-%dT%H:%M') }}" required />
       </div>
       <div class="row g-2 mb-3">
-        <div class="col-6">
+        <div class="col-12 col-md-6">
           <label class="form-label big-label" for="duration_minutes">Minutes</label>
           <input class="form-control form-control-lg" type="number" id="duration_minutes" name="duration_minutes" value="{{ interview.duration_minutes }}" min="5" max="180" />
         </div>
-        <div class="col-6">
+        <div class="col-12 col-md-6">
           <label class="form-label big-label" for="member_id">Member (optional)</label>
           <select class="form-select form-select-lg" id="member_id" name="member_id">
             <option value="" {% if not interview.member_id %}selected{% endif %}>(none)</option>

@@ -1,0 +1,18 @@
+<link rel="manifest" href="{{ url_for('pwa.manifest') }}" />
+<meta name="theme-color" content="#1a73e8" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Branch Secretary" />
+<link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}" />
+<link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='icons/icon-512.png') }}" />
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}" />
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("{{ url_for('pwa.service_worker') }}", { scope: "/" }).catch(function (err) {
+        console.warn("Service worker registration failed", err);
+      });
+    });
+  }
+</script>

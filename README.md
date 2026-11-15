@@ -27,6 +27,12 @@ python run.py
 
 Then open `http://127.0.0.1:5000`.
 
+## Install on Android
+
+The site is a progressive web app. In Chrome on a phone, open the site, then use the Chrome menu and choose **Install app** or **Add to Home screen**. The home-screen icon is named Branch Secretary and opens full screen, without the browser address bar.
+
+Schedules and member records are always loaded from the server. The installed app does not keep a copy of that data on the phone. If the phone is offline, a short offline page is shown instead.
+
 ## Stream API (OBS)
 
 Machine-readable sacrament program for a given Sunday. Uses a dedicated API key
