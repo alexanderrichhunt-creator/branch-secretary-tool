@@ -1746,3 +1746,365 @@ button.cal-filter-chip.is-off {
   padding-top: 1rem;
   border-top: 1px solid var(--app-border);
 }
+
+/* Installed app: keep content clear of the status bar and gesture area.
+   env() is 0 in a normal desktop browser, so this does not change that layout. */
+.app-navbar {
+  padding-top: calc(0.5rem + env(safe-area-inset-top));
+}
+
+/* When the full menu and account buttons do not fit on one row, wrap the
+   buttons instead of letting them run off the right edge. Wide windows still
+   keep a single row. */
+@media (min-width: 992px) {
+  .app-navbar .navbar-collapse {
+    flex-wrap: wrap;
+    row-gap: 0.35rem;
+  }
+}
+
+.app-main {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+}
+
+/* Phones, including a Galaxy S25 Ultra at about 412px CSS width.
+   Desktop (768px and up) keeps the existing layout. */
+@media (max-width: 767.98px) {
+  body {
+    font-size: 1rem;
+    line-height: 1.45;
+  }
+
+  .app-main,
+  .panel,
+  .card,
+  .row > [class*="col-"] {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .app-main,
+  .panel,
+  .card {
+    overflow-wrap: break-word;
+  }
+
+  img,
+  svg,
+  video {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .page-title,
+  h1.h2,
+  .print-sheet-header h1 {
+    font-size: 1.35rem;
+  }
+
+  .page-actions {
+    width: 100%;
+  }
+
+  .page-actions .btn {
+    flex: 1 1 calc(50% - 0.5rem);
+  }
+
+  .navbar-toggler {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .app-navbar .navbar-collapse .d-flex {
+    flex-direction: column;
+    align-items: stretch !important;
+    width: 100%;
+  }
+
+  .app-navbar .navbar-collapse .d-flex .btn,
+  .app-navbar .navbar-collapse .d-flex form,
+  .app-navbar .navbar-collapse .d-flex form .btn {
+    width: 100%;
+  }
+
+  .navbar-nav .nav-link {
+    padding: 0.7rem 0.25rem;
+    font-size: 1rem;
+  }
+
+  .form-control,
+  .form-select,
+  .form-control-sm,
+  .form-select-sm,
+  .form-control-lg,
+  .form-select-lg {
+    font-size: 1rem;
+    min-height: 2.75rem;
+  }
+
+  textarea.form-control,
+  textarea.form-control-lg {
+    min-height: 6.5rem;
+  }
+
+  .btn:not(.btn-link),
+  .btn-close {
+    min-height: 2.75rem;
+  }
+
+  .btn:not(.btn-link) {
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+  }
+
+  .btn-sm:not(.btn-link) {
+    font-size: 0.9375rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .btn-close {
+    min-width: 2.75rem;
+    background-size: 1rem;
+  }
+
+  .form-check-input {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .table-responsive {
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .panel-body form.d-flex,
+  .card-body form.d-flex {
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .panel-body form[method="get"].d-flex {
+    flex: 1 1 100%;
+    width: 100%;
+    margin-left: 0 !important;
+  }
+
+  .panel-body form.d-flex .form-control,
+  .card-body form.d-flex .form-control {
+    flex: 1 1 10rem;
+    min-width: 0;
+  }
+
+  .data-list-item,
+  .dashboard-current-talks .dashboard-current-talk-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .data-list-meta {
+    grid-column: 1 / -1;
+    white-space: normal;
+  }
+
+  .data-list-sub,
+  .dashboard-current-talk-item .dashboard-talk-topic {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard-sunday-talk-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .speaker-pool-controls .form-select,
+  .speaker-pool-controls .speaker-pool-name-search,
+  .talks-page-main .talks-recent-search {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+
+  .speaker-pool-compact-head.speaker-pool-compact-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.85rem;
+  }
+
+  .speaker-pool-compact-row.speaker-pool-compact-grid,
+  .speaker-pool-compact-row.speaker-pool-compact-grid--schedule {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "speaker action"
+      "last action"
+      "status action";
+  }
+
+  .speaker-pool-compact-speaker { grid-area: speaker; }
+  .speaker-pool-compact-last-talk { grid-area: last; }
+  .speaker-pool-compact-status { grid-area: status; }
+  .speaker-pool-compact-action {
+    grid-area: action;
+    align-self: center;
+  }
+
+  .speaker-pool-compact-speaker .fw-semibold {
+    font-size: 1rem;
+  }
+
+  .calendar-page,
+  .calendar-page .fc,
+  .calendar-page .fc .fc-view-harness,
+  .calendar-page .fc .fc-scrollgrid {
+    max-width: 100%;
+  }
+
+  .calendar-page .fc .fc-toolbar.fc-header-toolbar {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 0.5rem;
+  }
+
+  .calendar-page .fc .fc-toolbar-chunk {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.25rem;
+  }
+
+  .calendar-page .fc .fc-toolbar-chunk:nth-child(2) {
+    flex: 1 1 100%;
+    order: -1;
+  }
+
+  .calendar-page .fc .fc-toolbar-title {
+    font-size: 1.15rem;
+    text-align: center;
+  }
+
+  .calendar-page .fc .fc-button {
+    min-height: 2.5rem;
+    padding: 0.4rem 0.6rem;
+  }
+
+  .calendar-page .fc .fc-daygrid-day-frame {
+    min-height: 2.75rem;
+  }
+
+  .calendar-page .fc .fc-col-header-cell-cushion,
+  .calendar-page .fc .fc-daygrid-day-number {
+    padding: 0.2rem;
+    font-size: 0.75rem;
+  }
+
+  button.cal-filter-chip {
+    min-height: 2.25rem;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.8125rem;
+  }
+
+  .cleaning-person {
+    min-height: 2.75rem;
+    font-size: 1rem;
+  }
+
+  .row > .col-6 {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  .print-toolbar {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .print-toolbar-nav {
+    margin-left: 0;
+    flex: 1 1 100%;
+  }
+
+  .print-sheet {
+    max-width: calc(100% - 1rem);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Turn wide data tables into stacked rows so actions stay on screen. */
+  .table-responsive {
+    overflow-x: visible;
+  }
+
+  .table-responsive > .table {
+    display: block;
+    margin-bottom: 0;
+  }
+
+  .table-responsive > .table > thead {
+    display: none;
+  }
+
+  .table-responsive > .table > tbody {
+    display: block;
+  }
+
+  .table-responsive > .table > tbody > tr {
+    display: block;
+    padding: 0.75rem 0.15rem;
+    border-bottom: 1px solid var(--app-border);
+  }
+
+  .table-responsive > .table > tbody > tr:last-child {
+    border-bottom: 0;
+  }
+
+  .table-responsive > .table > tbody > tr > td {
+    display: block;
+    width: auto;
+    max-width: none;
+    padding: 0.12rem 0;
+    border: 0;
+    white-space: normal !important;
+    text-align: left !important;
+    overflow-wrap: anywhere;
+  }
+
+  .table-responsive > .table > tbody > tr > td.text-end {
+    padding-top: 0.45rem;
+  }
+
+  .table-responsive > .table > tbody > tr > td.text-end .btn {
+    margin: 0 0.35rem 0.35rem 0;
+  }
+
+  .talks-page-main .talks-recent-topic,
+  .talks-page-main .talks-recent-speaker {
+    max-width: none;
+    white-space: normal;
+  }
+
+  .table-responsive > .talks-recent-table > thead {
+    display: block;
+  }
+
+  .table-responsive > .talks-recent-table > thead > tr {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.9rem;
+    padding: 0.15rem 0.15rem 0.45rem;
+    border-bottom: 1px solid var(--app-border);
+  }
+
+  .table-responsive > .talks-recent-table > thead > tr > th {
+    display: block;
+    border: 0;
+    padding: 0;
+    white-space: normal;
+  }
+
+  .table-responsive > .talks-recent-table > thead > tr > th:last-child {
+    display: none;
+  }
+
+  .table-responsive > .talks-recent-table .talks-recent-sortable {
+    min-height: 2.5rem;
+  }
+}
