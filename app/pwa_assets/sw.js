@@ -4,7 +4,7 @@
  * authenticated or dynamic response (HTML pages, /api/, /auth/) are
  * network-only so a phone cannot show stale data or another user's data.
  */
-const CACHE = "branch-secretary-static-v1";
+const CACHE = "branch-secretary-static-v2";
 
 const PRECACHE_URLS = [
   "/offline.html",

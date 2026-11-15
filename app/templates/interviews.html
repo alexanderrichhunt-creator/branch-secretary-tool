@@ -9,7 +9,7 @@
 </div>
 
 <div class="row g-3">
-  <div class="col-12 col-lg-5">
+  <div class="col-12 col-lg-5 order-2 order-lg-1">
     <div class="card shadow-sm" id="add-interview-panel">
       <div class="card-body">
         <h2 class="h4 fw-bold mb-3">Add an interview</h2>
@@ -60,17 +60,31 @@
     </div>
   </div>
 
-  <div class="col-12 col-lg-7">
+  <div class="col-12 col-lg-7 order-1 order-lg-2">
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <h2 class="h4 fw-bold mb-1" id="upcoming-interviews">Upcoming <span class="interview-section-count">{{ upcoming_interviews|length }}</span></h2>
+        <p class="small muted mb-3">Soonest first, including later today. Central time.</p>
+        {% if upcoming_interviews %}
+          {% with entries=upcoming_interviews %}
+            {% include 'partials/interview_schedule_table.html' %}
+          {% endwith %}
+        {% else %}
+          <div class="muted">No upcoming interviews.</div>
+        {% endif %}
+      </div>
+    </div>
+
     {% if repeating_interviews %}
     <div class="card shadow-sm mb-3">
       <div class="card-body">
-        <h2 class="h4 fw-bold mb-3">Repeating interviews</h2>
+        <h2 class="h4 fw-bold mb-3" id="repeating-interviews">Repeating interviews</h2>
         <div class="table-responsive">
-          <table class="table align-middle">
+          <table class="table align-middle interview-table mb-0">
             <thead>
               <tr>
                 <th>Who</th>
-                <th>Purpose</th>
+                <th>What</th>
                 <th>Repeats</th>
                 <th>Next</th>
                 <th class="text-end">Actions</th>
@@ -79,12 +93,12 @@
             <tbody>
               {% for i, next_at in repeating_interviews %}
                 <tr>
-                  <td class="fw-bold">{{ interview_who_label(i) }}</td>
-                  <td>{{ i.purpose }}</td>
-                  <td>{{ recurrence_label(i) or "—" }}</td>
-                  <td class="text-nowrap">
+                  <td class="fw-bold interview-who" data-label="Who">{{ interview_who_label(i) }}</td>
+                  <td data-label="What">{{ i.purpose }}</td>
+                  <td data-label="Repeats">{{ recurrence_label(i) or "—" }}</td>
+                  <td class="text-nowrap" data-label="Next">
                     {% if next_at %}
-                      {{ next_at.strftime("%b %d, %Y %I:%M %p") }}
+                      {{ next_at.strftime("%a %b %d, %Y %I:%M %p") }}
                     {% else %}
                       <span class="muted">—</span>
                     {% endif %}
@@ -103,46 +117,26 @@
       </div>
     </div>
     {% endif %}
+
     <div class="card shadow-sm">
       <div class="card-body">
-        <h2 class="h4 fw-bold mb-3">Recent interviews</h2>
-        <div class="table-responsive">
-          <table class="table align-middle">
-            <thead>
-              <tr>
-                <th>Start</th>
-                <th>Who</th>
-                <th>Purpose</th>
-                <th>Repeat</th>
-                <th>Minutes</th>
-                <th class="text-end">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for i in interviews %}
-                <tr>
-                  <td class="text-nowrap">{{ i.starts_at.strftime("%b %d, %Y %I:%M %p") }}</td>
-                  <td class="fw-bold">{{ interview_who_label(i) }}</td>
-                  <td>{{ i.purpose }}</td>
-                  <td>
-                    {% if i.recurrence_freq %}
-                      {{ recurrence_label(i) }}
-                    {% else %}
-                      <span class="muted">—</span>
-                    {% endif %}
-                  </td>
-                  <td>{{ i.duration_minutes }}</td>
-                  <td class="text-end text-nowrap">
-                    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.edit_interview', interview_id=i.id) }}">Edit</a>
-                    <form class="d-inline" method="post" action="{{ url_for('main.delete_interview', interview_id=i.id) }}" onsubmit="return confirm('Delete this interview{% if i.recurrence_freq %} series{% endif %}?');">
-                      <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
-                    </form>
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+        <h2 class="h4 fw-bold mb-1" id="past-interviews">Past <span class="interview-section-count">{{ past_interviews|length }}</span></h2>
+        <p class="small muted mb-3">Most recent first.</p>
+        {% if past_interviews %}
+          {% with entries=past_interviews[:past_preview_limit] %}
+            {% include 'partials/interview_schedule_table.html' %}
+          {% endwith %}
+          {% if past_interviews|length > past_preview_limit %}
+            <details class="interview-past-more">
+              <summary>Show {{ past_interviews|length - past_preview_limit }} earlier interview{% if past_interviews|length - past_preview_limit != 1 %}s{% endif %}</summary>
+              {% with entries=past_interviews[past_preview_limit:] %}
+                {% include 'partials/interview_schedule_table.html' %}
+              {% endwith %}
+            </details>
+          {% endif %}
+        {% else %}
+          <div class="muted">No past interviews.</div>
+        {% endif %}
       </div>
     </div>
   </div>

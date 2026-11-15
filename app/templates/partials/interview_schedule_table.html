@@ -1,0 +1,38 @@
+<div class="table-responsive">
+  <table class="table align-middle interview-table mb-0">
+    <thead>
+      <tr>
+        <th>When</th>
+        <th>Who</th>
+        <th>What</th>
+        <th>Repeat</th>
+        <th>Minutes</th>
+        <th class="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in entries %}
+        {% set i = entry.interview %}
+        <tr>
+          <td class="interview-when text-nowrap" data-label="When">{{ entry.when.strftime("%a %b %d, %Y %I:%M %p") }}</td>
+          <td class="fw-bold interview-who" data-label="Who">{{ interview_who_label(i) }}</td>
+          <td class="interview-what" data-label="What">{{ i.purpose }}</td>
+          <td data-label="Repeat">
+            {% if i.recurrence_freq %}
+              {{ recurrence_label(i) }}
+            {% else %}
+              <span class="muted">—</span>
+            {% endif %}
+          </td>
+          <td data-label="Minutes">{{ i.duration_minutes }}</td>
+          <td class="text-end text-nowrap">
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.edit_interview', interview_id=i.id) }}">Edit</a>
+            <form class="d-inline" method="post" action="{{ url_for('main.delete_interview', interview_id=i.id) }}" onsubmit="return confirm('Delete this interview{% if i.recurrence_freq %} series{% endif %}?');">
+              <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

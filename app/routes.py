@@ -198,14 +198,9 @@ def _apply_recurrence_from_form(obj, starts_at: datetime) -> None:
 
 
 def _next_interview_occurrence(interview: Interview, after: datetime | None = None) -> datetime | None:
-    from .event_utils import iter_event_occurrences
+    from .interview_schedule import app_now, next_interview_at
 
-    after = after or datetime.now()
-    horizon = after + timedelta(days=400)
-    for occ_start, _occ_end in iter_event_occurrences(interview, after, horizon):
-        if occ_start >= after:
-            return occ_start
-    return None
+    return next_interview_at(interview, after or app_now())
 
 
 def _parse_interview_schedule_from_form() -> tuple[datetime | None, int | None, str | None]:
@@ -1445,15 +1440,19 @@ def delete_talk(talk_id: int):
 @login_required
 def interviews():
     from .event_utils import WEEKDAY_CODES
+    from .interview_schedule import PAST_INTERVIEW_PREVIEW, app_now, partition_interviews
 
-    interviews = Interview.query.order_by(Interview.starts_at.desc()).limit(200).all()
+    now = app_now()
+    today = now.date()
+    rows = Interview.query.order_by(Interview.starts_at.asc()).all()
+    upcoming_interviews, past_interviews = partition_interviews(rows, now)
     members = Member.query.order_by(Member.full_name.asc()).all()
-    today = date.today()
     repeating_interviews = []
-    now = datetime.now()
-    for interview in Interview.query.filter(Interview.recurrence_freq.isnot(None)).order_by(
-        Interview.starts_at.desc()
-    ).all():
+    for interview in sorted(
+        (row for row in rows if row.recurrence_freq),
+        key=lambda row: row.starts_at,
+        reverse=True,
+    ):
         until = interview.recurrence_until
         if until is not None and until < today:
             continue
@@ -1461,7 +1460,9 @@ def interviews():
         repeating_interviews.append((interview, next_at))
     return render_template(
         "interviews.html",
-        interviews=interviews,
+        upcoming_interviews=upcoming_interviews,
+        past_interviews=past_interviews,
+        past_preview_limit=PAST_INTERVIEW_PREVIEW,
         repeating_interviews=repeating_interviews,
         members=members,
         weekday_codes=WEEKDAY_CODES,
