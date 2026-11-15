@@ -2107,4 +2107,50 @@ button.cal-filter-chip.is-off {
   .table-responsive > .talks-recent-table .talks-recent-sortable {
     min-height: 2.5rem;
   }
+
+  .interview-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.05rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--app-muted);
+  }
+
+  .interview-table .interview-when {
+    font-size: 0.95rem;
+  }
+
+  .interview-table .interview-who {
+    font-size: 1.05rem;
+  }
+
+  .interview-past-more > summary {
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+  }
+}
+
+.interview-section-count {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--app-muted);
+}
+
+.interview-when {
+  font-weight: 600;
+}
+
+.interview-past-more {
+  margin-top: 0.75rem;
+}
+
+.interview-past-more > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--app-accent);
+  padding: 0.35rem 0;
 }
